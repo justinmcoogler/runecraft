@@ -17,7 +17,7 @@ import { addPeepHole, peepUniforms } from "./peephole";
 import { defaultHeroSkin, normalizeSkin, villagerSkin, wardenSkin, PX, type LoadedSkin } from "./skin";
 import { MaterialResolver, type EntitySkin } from "./textures";
 import { TREES_BY_SPECIES, hash01, pickTreeModel, treeGeometry } from "./tree-models";
-import { ROCK_MATERIAL_TILES, ROCK_MATERIAL_TINTS, ROCK_MODELS_ALL, pickBoulderModel, rockGeometry } from "./rock-models";
+import { ROCK_MATERIAL_TILES, ROCK_MATERIAL_TINTS, ROCK_MODELS_ALL, pickBoulderModel, pickMiningRock, rockGeometry } from "./rock-models";
 import { buildBBModel } from "./bb-models";
 import { isModelEnabled } from "./model-prefs";
 import { PROPS_BY_CAT, pickProp, propGeometry, propMat, type PropModel } from "./voxel-props";
@@ -1457,12 +1457,23 @@ export class GameRenderer {
         };
       }
       case "rock": {
-        // Ore block; mined out, it becomes a plain stone block.
+        // A mineable ore outcrop: a voxel rock from the sliced pack, surfaced in
+        // the ore's material so it reads as an ore vein. Mined out, it becomes a
+        // plain stone block. Falls back to a 1×1 ore block if no model is enabled.
         const oreMat = this.lambert(viewMaterial ?? "resource.rock.copper");
-        const block = this.tiledBox(1, 1, 1, oreMat);
-        block.position.y = 0.5;
-        activeGroup.add(block);
-
+        const model = pickMiningRock(variety);
+        if (model) {
+          for (const geo of rockGeometry(model)) {
+            const mesh = new THREE.Mesh(geo, oreMat);
+            mesh.position.y = -0.12; // settle into the ground
+            activeGroup.add(mesh);
+          }
+          activeGroup.add(makeBlobShadow(0.55 + model.r * 0.3));
+        } else {
+          const block = this.tiledBox(1, 1, 1, oreMat);
+          block.position.y = 0.5;
+          activeGroup.add(block);
+        }
         const spent = this.tiledBox(1, 1, 1, this.lambert("resource.rock.stone"));
         return {
           activeGroup,

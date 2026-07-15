@@ -44,6 +44,16 @@ export function pickBoulderModel(roll: number): RockModel | null {
   return pool[Math.floor(roll * pool.length) % pool.length];
 }
 
+/** Mineable-ore rocks: a touch bigger than a boulder so an ore node reads as a
+ *  real outcrop, but still confined to roughly one cell. */
+const MINING_ROCKS = MODELS.filter((m) => m.r <= 3 && m.h <= 5 && m.n >= 6);
+
+export function pickMiningRock(roll: number): RockModel | null {
+  const pool = (MINING_ROCKS.length ? MINING_ROCKS : BOULDERS).filter((m) => isModelEnabled(m.id));
+  if (pool.length === 0) return null;
+  return pool[Math.floor(roll * pool.length) % pool.length];
+}
+
 /** Materials by slice id: 0 stone, 1 cobble, 2 gravel, 3 mossy. */
 export const ROCK_MATERIAL_TILES = ["terrain.stone", "terrain.stone", "terrain.dirt", "terrain.stone"];
 export const ROCK_MATERIAL_TINTS: Array<string | null> = [null, "#9a9a9a", "#8d8272", "#7fa06b"];

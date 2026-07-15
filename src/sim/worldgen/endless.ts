@@ -1511,10 +1511,10 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
     }
   }
 
-  // Trees populate the world even while other content is cleared, so
-  // woodcutting works on the imported tree pack. ONLY tree nodes are placed
-  // here — no houses, mobs, or other props. (When CLEAR_ASSETS is turned off,
-  // the full biome scatter below owns trees instead, so this is skipped.)
+  // Trees + ore rocks populate the world even while other content is cleared,
+  // so woodcutting and mining work on the imported packs. ONLY resource nodes
+  // are placed here — no houses, mobs, or other props. (When CLEAR_ASSETS is
+  // turned off, the full biome scatter below owns these instead, so it's skipped.)
   if (CLEAR_ASSETS) {
     const step = 6;
     for (let gz = 2; gz < ECHUNK - 2; gz += step) {
@@ -1523,24 +1523,39 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
         const jz = gz + Math.floor(cellHash(z0 + gz, x0 + gx, salt(seed, 82)) * (step - 2));
         if (jx >= ECHUNK - 2 || jz >= ECHUNK - 2) continue;
         const i = jz * ECHUNK + jx;
-        if (BLOCK_LIST[blocks[i]] !== "grass") continue; // trees grow on grass
+        const surf = BLOCK_LIST[blocks[i]];
         const wx = x0 + jx, wz = z0 + jz;
-        if (roadDist(seed, wx, wz) < 3) continue;         // keep roads walkable
+        if (roadDist(seed, wx, wz) < 3) continue;          // keep roads walkable
         const h = heights[i];
-        if (h > 44) continue;                             // below the treeline
         if (slopeAt(seed, wx, wz, h, cache) > 2) continue; // not on cliffs
         const r = cellHash(wx, wz, salt(seed, 83));
-        const b = biomes[i];
-        let def: string | null = null;
-        // Species + density by biome, keyed to the imported pack's species.
-        if (b === 2 || b === 5 || b === 20 || b === 22) def = r < 0.30 ? "resource.tree.spruce" : null; // conifer
-        else if (b === 7 || b === 11) def = r < 0.32 ? "resource.tree.jungle" : null;                   // tropical
-        else if (b === 4 || b === 15 || b === 17) def = r < 0.20 ? "resource.tree.darkoak" : null;       // wetland/dark
-        else if (b === 1 || b === 8 || b === 13 || b === 24) def = r < 0.34 ? (r < 0.20 ? "resource.tree.basic" : "resource.tree.birch") : null; // forest
-        else if (b === 21) def = r < 0.30 ? "resource.tree.birch" : null;                                // cherry (birch silhouette)
-        else if (b === 6 || b === 10 || b === 23) def = r < 0.09 ? "resource.tree.basic" : null;         // plains/prairie — sparse
-        else def = r < 0.10 ? "resource.tree.basic" : null;                                              // everywhere else — light cover
-        if (def) nodes.push({ instanceId: id(), defId: def, cell: { x: wx, z: wz } });
+        if (surf === "grass") {
+          if (h > 44) continue; // trees below the treeline
+          const b = biomes[i];
+          let def: string | null = null;
+          // Tree species + density by biome, keyed to the imported pack.
+          if (b === 2 || b === 5 || b === 20 || b === 22) def = r < 0.30 ? "resource.tree.spruce" : null; // conifer
+          else if (b === 7 || b === 11) def = r < 0.32 ? "resource.tree.jungle" : null;                   // tropical
+          else if (b === 4 || b === 15 || b === 17) def = r < 0.20 ? "resource.tree.darkoak" : null;       // wetland/dark
+          else if (b === 1 || b === 8 || b === 13 || b === 24) def = r < 0.34 ? (r < 0.20 ? "resource.tree.basic" : "resource.tree.birch") : null; // forest
+          else if (b === 21) def = r < 0.30 ? "resource.tree.birch" : null;                                // cherry (birch silhouette)
+          else if (b === 6 || b === 10 || b === 23) def = r < 0.09 ? "resource.tree.basic" : null;         // plains/prairie — sparse
+          else def = r < 0.10 ? "resource.tree.basic" : null;                                              // everywhere else — light cover
+          if (def) nodes.push({ instanceId: id(), defId: def, cell: { x: wx, z: wz } });
+        } else if (surf === "stone" || surf === "andesite" || surf === "gravel") {
+          // Ore outcrops on exposed rock — common metals frequent, gems rare.
+          const def =
+            r < 0.26 ? "resource.rock.copper" :
+            r < 0.44 ? "resource.rock.tin" :
+            r < 0.64 ? "resource.rock.coal" :
+            r < 0.80 ? "resource.rock.iron" :
+            r < 0.89 ? "resource.rock.gold" :
+            r < 0.945 ? "resource.rock.redstone" :
+            r < 0.975 ? "resource.rock.lapis" :
+            r < 0.992 ? "resource.rock.emerald" :
+            "resource.rock.diamond";
+          nodes.push({ instanceId: id(), defId: def, cell: { x: wx, z: wz } });
+        }
       }
     }
   }
