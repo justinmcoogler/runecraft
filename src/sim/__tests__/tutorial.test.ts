@@ -118,6 +118,22 @@ describe("the tutorial driver", () => {
     expect(sim.tutorial!.optionalDone.size).toBe(0); // silent grants trip nothing
   });
 
+  it("awards the crafting/brewing/agility batch and places their stations", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    const r = sim.world.region;
+    expect(r.objects.some((o) => o.instanceId === "tutorial.cauldron")).toBe(true);
+    expect(r.objects.some((o) => o.instanceId === "tutorial.shortcut")).toBe(true);
+    sim.tick();
+    sim.events.emit({ type: "xpGained", skillId: "skill.crafting", amount: 10 });
+    sim.events.emit({ type: "xpGained", skillId: "skill.brewing", amount: 10 });
+    sim.events.emit({ type: "shortcutUsed", instanceId: "tutorial.shortcut" });
+    sim.tick();
+    expect(sim.tutorial!.optionalDone.has("tut.craft")).toBe(true);
+    expect(sim.tutorial!.optionalDone.has("tut.brew")).toBe(true);
+    expect(sim.tutorial!.optionalDone.has("tut.agility")).toBe(true);
+    expect(sim.inventory.count("item.herb.sage")).toBeGreaterThanOrEqual(2); // brewing reagent stocked
+  });
+
   it("marks every optional lesson optional with an item+XP reward", () => {
     for (const l of TUTORIAL_OPTIONAL) {
       expect(l.optional).toBe(true);

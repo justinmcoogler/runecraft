@@ -190,6 +190,36 @@ export const TUTORIAL_OPTIONAL: TutorialLesson[] = [
     trigger: { kind: "skillXp", skillId: "skill.archaeology" },
     reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.archaeology", amount: 30 } },
   },
+  {
+    id: "tut.craft",
+    act: "Processing",
+    skillId: "skill.crafting",
+    optional: true,
+    title: "Craft at the bench",
+    blurb: "At the workbench, cut a log into planks.",
+    trigger: { kind: "skillXp", skillId: "skill.crafting" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.crafting", amount: 30 } },
+  },
+  {
+    id: "tut.brew",
+    act: "Spiritual",
+    skillId: "skill.brewing",
+    optional: true,
+    title: "Brew a potion",
+    blurb: "At the cauldron, brew the sage and feather into a tonic.",
+    trigger: { kind: "skillXp", skillId: "skill.brewing" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.brewing", amount: 30 } },
+  },
+  {
+    id: "tut.agility",
+    act: "Combat",
+    skillId: "skill.agility",
+    optional: true,
+    title: "Take the shortcut",
+    blurb: "Cross the fallen log to train Agility.",
+    trigger: { kind: "eventType", eventType: "shortcutUsed" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.agility", amount: 30 } },
+  },
 ];
 
 // Granted silently at the start of the tutorial (no itemGained event, so it
@@ -203,9 +233,11 @@ export const TUTORIAL_STARTER_KIT: Array<{ itemId: string; qty: number }> = [
   { itemId: "item.bar.bronze", qty: 1 },
   { itemId: "item.essence.rune", qty: 5 },
   { itemId: "item.fish.raw", qty: 2 },   // cooking
-  { itemId: "item.log.basic", qty: 4 },  // fletching shafts + a log to alch
+  { itemId: "item.log.basic", qty: 6 },  // fletch shafts + cut planks + a log to alch
   { itemId: "item.rune.fire", qty: 5 },  // low-alchemy (magic)
   { itemId: "item.seed.wheat", qty: 2 }, // farming
+  { itemId: "item.herb.sage", qty: 2 },  // brewing
+  { itemId: "item.feather", qty: 2 },    // brewing
 ];
 
 /** Instance ids of the props the tutorial region places for these lessons. */

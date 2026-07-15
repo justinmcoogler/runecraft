@@ -2307,6 +2307,13 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
     { instanceId: "tutorial.altar", defId: "object.altar.rune", cell: { x: spawn.x - 7, z: spawn.z } },
     { instanceId: "tutorial.campfire", defId: "object.campfire.basic", cell: { x: spawn.x + 6, z: spawn.z + 3 } },
     { instanceId: "tutorial.workbench", defId: "object.workbench.basic", cell: { x: spawn.x + 9, z: spawn.z } },
+    { instanceId: "tutorial.cauldron", defId: "object.cauldron.basic", cell: { x: spawn.x + 9, z: spawn.z + 2 } },
+    {
+      instanceId: "tutorial.shortcut",
+      defId: "object.shortcut.log",
+      cell: { x: spawn.x - 6, z: spawn.z + 6 },
+      portal: { targetRegionId: "region.endless", targetCell: { x: spawn.x - 8, z: spawn.z + 6 } },
+    },
   ];
   region.enemies = [
     ...(region.enemies ?? []),
