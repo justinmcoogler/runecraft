@@ -2488,17 +2488,13 @@ export class GameRenderer {
         }
         case "object.torch.wall": {
           // A standing torch at vanilla size: crossed planes of the torch
-          // sprite (2px stick, glowing tip) rising ~10px from its footing,
-          // with a flickering flame sprite over the coal. The lighting pass
-          // hangs a warm point light on it after dark.
+          // sprite (2px stick, glowing tip) rising ~10px from its footing.
+          // The sprite's own coal tip reads as the flame; no separate flaring
+          // flame sprite this version. The lighting pass hangs a warm point
+          // light on it after dark.
           const torch = this.crossSprite("sprite.torch");
           torch.group.scale.set(0.7, 0.7, 0.7);
           group.add(torch.group);
-          const flame = this.crossSprite("sprite.flame");
-          flame.group.scale.setScalar(0.32);
-          flame.group.position.y = 0.62;
-          group.add(flame.group);
-          this.flameGroups.push(flame.group);
           break;
         }
         case "object.lamp.post": {

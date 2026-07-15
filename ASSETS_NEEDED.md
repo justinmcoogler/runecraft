@@ -132,7 +132,29 @@ copper (all oxidation stages), coral`, plus glass/panes, rails, chains, lanterns
 
 ---
 
-## 4. Optional — skill icons & UI
+## 4. Torches — procedural placeholders (replace with real 16×16 art)
+
+Both torch sprites currently render from a hand-coded procedural drawing in
+`src/render/textures.ts` (`CUSTOM_DRAW`), not real pixel art. Drop in a 16×16
+PNG with transparency for each and they resolve automatically (a loaded resource
+pack's `torch.png` also overrides them):
+
+- **`sprite.torch`** — the standing / wall torch, drawn on **crossed vertical
+  planes** (Minecraft block-model style). Classic layout: a 2px wooden stick
+  rising from the bottom-centre with a small glowing coal tip near the top,
+  everything else transparent. Used by the torches around the castle wall.
+- **`sprite.item.torch`** — the **in-hand item** icon, on the diagonal-handle
+  convention (handle rising bottom-left → top-right, like the axe/pickaxe item
+  art) so it grips correctly in the fist. Wooden shaft, glowing head at the
+  top-right end.
+
+> For *this* version the separate flaring flame sprite was removed from the wall
+> torches — the torch's own glowing tip reads as the flame. To bring an animated
+> flame back later, that's `sprite.flame` (also procedural).
+
+---
+
+## 5. Optional — skill icons & UI
 
 - **28 skill icons** (`src/ui/icons.ts` `SKILL_DRAWS`) are hand-drawn 16×16
   pixel icons already (not emoji) — redraw only if you want a unified look.
@@ -143,5 +165,15 @@ copper (all oxidation stages), coral`, plus glass/panes, rails, chains, lanterns
 ### Summary of counts
 - **92** item icons (16×16)
 - **~12** mob skins (+ optional player)
+- **2** torch sprites (`sprite.torch`, `sprite.item.torch`) — 16×16, currently procedural
 - **1** prop-texturing decision (reimport vs colour-map)
 - optional: 28 skill icons, misc UI glyphs, ~30 structure block textures
+
+---
+
+> **Audit note (this version):** a full sweep of the live render path — all 110
+> world props/nodes plus terrain and the castle wall — found **no textures
+> falling through to the broken magenta placeholder**. Everything either has
+> baked art, a procedural tile, or is a colour/model mesh. The outstanding art
+> is what's listed above (emoji item icons, mob skins, the torch sprites, and
+> the optional structure-block tiles), not broken/missing textures.
