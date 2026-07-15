@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { DYE_COLORS } from "../content/blocks";
 import { decodePngBase64 } from "../texturepacks/png";
 import { DEFAULT_ENTITY_TEXTURES, DEFAULT_TEXTURES } from "./default-textures";
+import { ORIGINAL_ENTITY_TEXTURES, ORIGINAL_TEXTURES } from "./original-art";
 
 const TILE = 16;
 
@@ -18,7 +19,7 @@ const defaultTileCache = new Map<string, ImageData | null>();
 function defaultTile(materialId: string): ImageData | null {
   let cached = defaultTileCache.get(materialId);
   if (cached !== undefined) return cached;
-  const b64 = DEFAULT_TEXTURES[materialId];
+  const b64 = ORIGINAL_TEXTURES[materialId] ?? DEFAULT_TEXTURES[materialId];
   const png = b64 ? decodePngBase64(b64) : null;
   cached = png ? new ImageData(png.rgba, png.width, png.height) : null;
   defaultTileCache.set(materialId, cached);
@@ -851,7 +852,7 @@ export class MaterialResolver {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(packImg, 0, 0);
     } else {
-      const b64 = DEFAULT_ENTITY_TEXTURES[key];
+      const b64 = ORIGINAL_ENTITY_TEXTURES[key] ?? DEFAULT_ENTITY_TEXTURES[key];
       const png = b64 ? decodePngBase64(b64) : null;
       if (png) canvas = imageDataCanvas(new ImageData(png.rgba, png.width, png.height));
     }

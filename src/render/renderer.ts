@@ -110,8 +110,8 @@ let blobTexture: THREE.CanvasTexture | null = null;
 
 /**
  * Which pack entity texture skins each enemy. Variants sharing one texture
- * keep their def tint as a color multiply; original creatures (constructs,
- * the archery dummy) have no vanilla-layout equivalent and stay painted.
+ * keep their def tint as a color multiply. Original creatures use project-
+ * specific UV layouts alongside the vanilla-compatible mob skins.
  */
 const ENEMY_SKINS: Record<string, { key: string; wool?: string; tinted?: boolean }> = {
   "enemy.cow": { key: "entity.cow" },
@@ -119,22 +119,40 @@ const ENEMY_SKINS: Record<string, { key: string; wool?: string; tinted?: boolean
   "enemy.chicken": { key: "entity.chicken" },
   "enemy.sheep": { key: "entity.sheep.skin", wool: "entity.sheep.wool" },
   "enemy.spider": { key: "entity.spider" },
-  "enemy.cave_spider": { key: "entity.cave_spider" },
-  "enemy.old_gnasher": { key: "entity.cave_spider" },
+  "enemy.cave_spider": { key: "entity.spider", tinted: true },
+  "enemy.old_gnasher": { key: "entity.gnasher" },
   "enemy.timber_wolf": { key: "entity.wolf" },
   "enemy.frost_wolf": { key: "entity.wolf", tinted: true },
   "enemy.bog_slime": { key: "entity.slime" },
   "enemy.silt_king": { key: "entity.slime", tinted: true },
+  "enemy.creeper": { key: "entity.creeper" },
+  "enemy.skeleton": { key: "entity.skeleton" },
+  "enemy.barrow_lord": { key: "entity.skeleton", tinted: true },
+  "enemy.squid": { key: "entity.squid" },
+  "enemy.ghast": { key: "entity.ghast" },
+  "enemy.prairie_bull": { key: "entity.cow", tinted: true },
   "enemy.mire_husk": { key: "entity.zombie" },
   "enemy.dune_husk": { key: "entity.husk" },
   "enemy.grave_shambler": { key: "entity.zombie", tinted: true },
   "enemy.hollow_wight": { key: "entity.zombie", tinted: true },
   "enemy.dire_wolf": { key: "entity.wolf", tinted: true },
-  "enemy.gloom_spinner": { key: "entity.cave_spider", tinted: true },
+  "enemy.gloom_spinner": { key: "entity.spider", tinted: true },
   "enemy.blight_slime": { key: "entity.slime", tinted: true },
   "enemy.spore_shambler": { key: "entity.zombie", tinted: true },
   "enemy.dust_scuttler": { key: "entity.spider", tinted: true },
   "enemy.vine_stalker": { key: "entity.spider", tinted: true },
+  "enemy.bramble_slime": { key: "entity.slime", tinted: true },
+  "enemy.thornback": { key: "entity.spider", tinted: true },
+  "enemy.marsh_lurker": { key: "entity.slime", tinted: true },
+  "enemy.ash_hound": { key: "entity.wolf", tinted: true },
+  "enemy.ember_crawler": { key: "entity.spider", tinted: true },
+  "enemy.target_dummy": { key: "entity.dummy" },
+  "enemy.canyon_construct": { key: "entity.construct", tinted: true },
+  "enemy.rust_construct": { key: "entity.construct", tinted: true },
+  "enemy.rootbound_warden": { key: "entity.construct", tinted: true },
+  "enemy.liftworks_overseer": { key: "entity.construct", tinted: true },
+  "enemy.moss_golem": { key: "entity.construct", tinted: true },
+  "enemy.stone_sentinel": { key: "entity.construct", tinted: true },
 };
 
 /** An entity skin bound to one rig: shared material + texture scale. */
@@ -175,6 +193,32 @@ function setEntityUVs(
     const u1 = ((x + fw) * skin.k) / skin.width;
     const v1 = 1 - (y * skin.k) / skin.height;
     const v0 = 1 - ((y + fh) * skin.k) / skin.height;
+    const quad = rotate
+      ? [[u1, v0], [u0, v0], [u1, v1], [u0, v1]]
+      : [[u0, v1], [u1, v1], [u0, v0], [u1, v0]];
+    quad.forEach(([qu, qv], i) => uv.setXY(face * 4 + i, qu, qv));
+  });
+  uv.needsUpdate = true;
+}
+
+type EntityFaceRects = Record<"right" | "left" | "top" | "bottom" | "back" | "front", [number, number, number, number]>;
+
+/** Map a project-specific per-face atlas whose coordinates use its base size. */
+function setEntityFaceUVs(
+  geo: THREE.BoxGeometry,
+  atlasWidth: number,
+  atlasHeight: number,
+  rects: EntityFaceRects,
+): void {
+  const order: Array<keyof EntityFaceRects> = ["right", "left", "top", "bottom", "back", "front"];
+  const uv = geo.getAttribute("uv") as THREE.BufferAttribute;
+  order.forEach((name, face) => {
+    const [x, y, fw, fh] = rects[name];
+    const u0 = x / atlasWidth;
+    const u1 = (x + fw) / atlasWidth;
+    const v1 = 1 - y / atlasHeight;
+    const v0 = 1 - (y + fh) / atlasHeight;
+    const rotate = name === "top";
     const quad = rotate
       ? [[u1, v0], [u0, v0], [u1, v1], [u0, v1]]
       : [[u0, v1], [u1, v1], [u0, v0], [u1, v0]];
@@ -3578,7 +3622,7 @@ export class GameRenderer {
     // no keyframe animation), but a clear upgrade over the approximate rigs.
     const mobModelId = GameRenderer.MOB_VIEW_MODEL[kind];
     if (mobModelId) {
-      const built = buildBBModel(mobModelId);
+      const built = buildBBModel(mobModelId, rigSkin?.material.map ?? undefined);
       if (built) {
         if (tint) for (const m of built.materials) m.color.set(tint); // variant recolor (multiplies the skin)
         body.add(built.group);
@@ -3784,19 +3828,29 @@ export class GameRenderer {
         // rings on the face. It wobbles when hit and never hits back.
         const post = box(4, 8, 4, "#6b4a2a");
         post.position.y = 4 * P;
-        const hay = new THREE.MeshLambertMaterial({ map: this.materials.texture("object.haybale.side") });
-        const hayTop = new THREE.MeshLambertMaterial({ map: this.materials.texture("object.haybale.top") });
-        const bale = new THREE.Mesh(
-          new THREE.BoxGeometry(16 * P, 16 * P, 16 * P),
-          [hay, hay, hayTop, hayTop, hay, hay],
-        );
+        const baleGeo = new THREE.BoxGeometry(16 * P, 16 * P, 16 * P);
+        let bale: THREE.Mesh;
+        if (rigSkin) {
+          setEntityFaceUVs(baleGeo, 32, 32, {
+            right: [0, 0, 16, 16], left: [0, 0, 16, 16],
+            top: [16, 0, 16, 16], bottom: [16, 0, 16, 16],
+            back: [16, 16, 16, 16], front: [0, 16, 16, 16],
+          });
+          bale = new THREE.Mesh(baleGeo, rigSkin.material);
+        } else {
+          const hay = new THREE.MeshLambertMaterial({ map: this.materials.texture("object.haybale.side") });
+          const hayTop = new THREE.MeshLambertMaterial({ map: this.materials.texture("object.haybale.top") });
+          bale = new THREE.Mesh(baleGeo, [hay, hay, hayTop, hayTop, hay, hay]);
+        }
         bale.position.y = 16 * P;
-        for (const [size, color, dz] of [
-          [10, "#efe6d5", 8.2], [6, "#c0455a", 8.5], [2, "#efe6d5", 8.8],
-        ] as const) {
-          const ring = box(size, size, 0.4, color);
-          ring.position.set(0, 16 * P, -dz * P);
-          body.add(ring);
+        if (!rigSkin) {
+          for (const [size, color, dz] of [
+            [10, "#efe6d5", 8.2], [6, "#c0455a", 8.5], [2, "#efe6d5", 8.8],
+          ] as const) {
+            const ring = box(size, size, 0.4, color);
+            ring.position.set(0, 16 * P, -dz * P);
+            body.add(ring);
+          }
         }
         body.add(post, bale);
         return { barHeight: 26 * P + 0.2, anim };
@@ -4101,38 +4155,40 @@ export class GameRenderer {
         const stone = tint ?? "#8a8d90";
         const dark = "#5d6165";
         for (const side of [-1, 1]) {
-          const leg = box(4, 8, 4, dark);
+          const leg = skinned(rigSkin, 4, 8, 4, dark, 0, 0);
           leg.geometry.translate(0, -4 * P, 0);
           leg.position.set(side * 3 * P, 8 * P, 0);
           anim.legs.push(leg);
           body.add(leg);
         }
-        const torso = box(10, 10, 6, stone);
+        const torso = skinned(rigSkin, 10, 10, 6, stone, 0, 16);
         torso.position.y = 13 * P;
         const seam = new THREE.Mesh(
           new THREE.BoxGeometry(6 * P, 2 * P, 6.4 * P),
           new THREE.MeshBasicMaterial({ color: "#7fe0c3" }),
         );
         seam.position.y = 13 * P;
-        const shoulders = box(14, 4, 6, dark);
+        const shoulders = skinned(rigSkin, 14, 4, 6, dark, 0, 32);
         shoulders.position.y = 20 * P;
         for (const side of [-1, 1]) {
-          const arm = box(4, 12, 4, stone);
+          const arm = skinned(rigSkin, 4, 12, 4, stone, 0, 44);
           arm.geometry.translate(0, -6 * P, 0);
           arm.position.set(side * 9 * P, 20 * P, 0);
           anim.legs.push(arm); // arms swing with the lumbering gait
           body.add(arm);
         }
         const head = new THREE.Group();
-        const skull = box(6, 5, 6, stone);
+        const skull = skinned(rigSkin, 6, 5, 6, stone, 40, 0);
         skull.position.y = 2.5 * P;
         head.add(skull);
-        const eye = new THREE.Mesh(
-          new THREE.BoxGeometry(4 * P, 1 * P, 0.5 * P),
-          new THREE.MeshBasicMaterial({ color: "#7fe0c3" }),
-        );
-        eye.position.set(0, 3 * P, -3.2 * P);
-        head.add(eye);
+        if (!rigSkin) {
+          const eye = new THREE.Mesh(
+            new THREE.BoxGeometry(4 * P, 1 * P, 0.5 * P),
+            new THREE.MeshBasicMaterial({ color: "#7fe0c3" }),
+          );
+          eye.position.set(0, 3 * P, -3.2 * P);
+          head.add(eye);
+        }
         head.position.set(0, 22 * P, 0);
         anim.head = head;
         anim.headRestZ = 0;
