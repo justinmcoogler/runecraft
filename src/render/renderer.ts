@@ -927,23 +927,37 @@ export class GameRenderer {
           { nx: x, nz: z + 1, shade: 0.84, corners: (y0, y1) => [[x, y0, z + 1], [x + 1, y0, z + 1], [x + 1, y1, z + 1], [x, y1, z + 1]] },
         ];
         if (isBridge) {
-          // A real bridge: a thin plank deck (not a filled column), carried on
-          // periodic stone piers standing in the water below.
-          const deckY = h - 0.32;
+          // A real bridge, built only from cube-family shapes: a one-plank-thick
+          // slab deck (top at h) carried on full 1×1 stone pier columns, with the
+          // river flowing visibly UNDERNEATH — not a filled column, and never a
+          // void below.
+          const BED_Y = WATER_SURFACE_Y - 1;
+          // Water surface under the deck (into the translucent water mesh).
+          const wBase = waterPositions.length / 3;
+          waterPositions.push(
+            x, WATER_SURFACE_Y, z + 1, x + 1, WATER_SURFACE_Y, z + 1,
+            x + 1, WATER_SURFACE_Y, z, x, WATER_SURFACE_Y, z,
+          );
+          const us = 0.5;
+          waterUvs.push(x * us, (z + 1) * us, (x + 1) * us, (z + 1) * us, (x + 1) * us, z * us, x * us, z * us);
+          for (let i = 0; i < 4; i++) waterColors.push(0.30, 0.52, 0.70, 1);
+          waterIndices.push(wBase, wBase + 1, wBase + 2, wBase, wBase + 2, wBase + 3);
+          // A sandy bed a block under the surface so the channel reads as water.
+          pushQuad([[x, BED_Y, z + 1], [x + 1, BED_Y, z + 1], [x + 1, BED_Y, z], [x, BED_Y, z]], "terrain.sand", 0.5, x, z);
+
+          // Deck: a plank slab, one plank thick (half a block), full 1×1 footprint,
+          // its top the walk surface at h (the top face is pushed above).
+          const deckBot = h - 0.5;
           const plankSide = this.sideTileFor(block, 0);
-          let lowest = h;
           for (const side of sides) {
             const nh = heightOrVoid(side.nx, side.nz);
-            lowest = Math.min(lowest, nh);
-            if (nh < h) pushQuad(side.corners(deckY, h), plankSide, side.shade, x, z); // deck edge lip
+            if (nh < h) pushQuad(side.corners(deckBot, h), plankSide, side.shade, x, z); // exposed deck edge
           }
-          // Underside so the deck isn't see-through from below.
-          pushQuad([[x, deckY, z], [x + 1, deckY, z], [x + 1, deckY, z + 1], [x, deckY, z + 1]], plankSide, 0.55, x, z);
-          // A squat stone pier every few cells, down to the water.
+          pushQuad([[x, deckBot, z], [x + 1, deckBot, z], [x + 1, deckBot, z + 1], [x, deckBot, z + 1]], plankSide, 0.55, x, z); // underside
+          // A pier every few cells: a full 1×1 stone column from the bed to the
+          // deck — one Minecraft block thick, stacked cubes, not a thin post.
           if (((x * 2 + z * 3) & 3) === 0) {
-            const baseY = Math.max(-2, lowest);
-            const pierTile = topTile("stone");
-            pushBox(x + 0.28, x + 0.72, z + 0.28, z + 0.72, baseY, deckY, pierTile, x, z);
+            pushBox(x, x + 1, z, z + 1, BED_Y, deckBot, topTile("stone"), x, z);
           }
         } else {
           for (const side of sides) {

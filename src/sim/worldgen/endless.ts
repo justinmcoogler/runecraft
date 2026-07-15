@@ -198,6 +198,59 @@ function heightFields(seed: number, x: number, z: number) {
 
 type HeightCache = Map<number, number>;
 
+// The widest river a road will bridge. Anything wider (broad rivers, lakes, the
+// sea) is left unbridged — the track simply meets the bank — so the world never
+// grows super-long bridges or bridge-to-bridge spans.
+const MAX_BRIDGE_SPAN = 30;
+
+/** Open, unfrozen water at this cell (river channel, lake or pool — not ocean-vs
+ *  -inland distinction; used only to measure how wide a crossing is). */
+function isOpenWater(seed: number, x: number, z: number): boolean {
+  const f = heightFields(seed, x, z);
+  return f.ocean || f.riverCore > 0 || f.lake || f.pool;
+}
+
+/** Count contiguous open-water cells through (x,z) along a unit direction. */
+function waterRunAlong(seed: number, x: number, z: number, ux: number, uz: number, limit: number): number {
+  let run = 1; // the cell itself
+  for (const s of [1, -1]) {
+    for (let k = 1; k <= limit + 1; k++) {
+      if (isOpenWater(seed, Math.round(x + ux * s * k), Math.round(z + uz * s * k))) run++;
+      else break;
+    }
+  }
+  return run;
+}
+
+/** Fallback: some straight axis crosses open water in a run ≤ maxSpan. */
+function narrowWaterCrossing(seed: number, x: number, z: number, maxSpan: number): boolean {
+  const dirs = [[1, 0], [0, 1], [0.707, 0.707], [0.707, -0.707]] as const;
+  for (const [dx, dz] of dirs) if (waterRunAlong(seed, x, z, dx, dz, maxSpan) <= maxSpan) return true;
+  return false;
+}
+
+/**
+ * Whether a bridge belongs at this water cell: the road must actually CROSS the
+ * channel here, spanning ≤ maxSpan. We take the road's travel direction as the
+ * perpendicular to the gradient of distance-to-road, then measure the open-water
+ * run ALONG that direction. A road that merely runs alongside a river (travel
+ * parallel to the water) sees a long run and gets no bridge — killing the long,
+ * chained bridges. Village lanes (no road-distance field) fall back to the
+ * any-axis narrow test.
+ */
+function bridgeCrossingOk(seed: number, x: number, z: number, maxSpan: number): boolean {
+  const s = 2;
+  const dpx = roadDist(seed, x + s, z), dmx = roadDist(seed, x - s, z);
+  const dpz = roadDist(seed, x, z + s), dmz = roadDist(seed, x, z - s);
+  if (![dpx, dmx, dpz, dmz].every(Number.isFinite)) return narrowWaterCrossing(seed, x, z, maxSpan);
+  const gx = dpx - dmx, gz = dpz - dmz;
+  const len = Math.hypot(gx, gz);
+  if (len < 1e-6) return narrowWaterCrossing(seed, x, z, maxSpan);
+  // Travel direction = perpendicular to the distance gradient.
+  const ux = -gz / len, uz = gx / len;
+  return waterRunAlong(seed, x, z, ux, uz, maxSpan) <= maxSpan;
+}
+
 function rawHeight(seed: number, x: number, z: number, cache?: HeightCache): number {
   const key = x * 2097152 + z;
   const hit = cache?.get(key);
@@ -313,10 +366,15 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
   // Water: ocean beyond the shelf, river channels, lakes, swamp pools. The
   // town skirt fills over any water so its ramp stays walkable ground.
   if (featherH === null && (f.ocean || f.riverCore > 0 || f.lake || f.pool)) {
-    // A road (or village lane) crossing inland water gets a plank bridge deck
-    // laid at the valley/shore height, so the track spans the channel instead
-    // of dead-ending at the bank. Open ocean is never bridged.
-    if (!f.ocean && (roadSurface(seed, x, z) !== null || onVillageLane(seed, x, z))) {
+    // A road (or village lane) crossing a NARROW inland channel gets a plank
+    // bridge deck at the shore height. Wide water (broad rivers, lakes, the sea)
+    // is never bridged — the track just meets the bank — so we never grow long
+    // or chained bridges.
+    if (
+      !f.ocean &&
+      (roadSurface(seed, x, z) !== null || onVillageLane(seed, x, z)) &&
+      bridgeCrossingOk(seed, x, z, MAX_BRIDGE_SPAN)
+    ) {
       return { h: Math.max(1, Math.round(f.h)), block: "bridge", biome, water: false };
     }
     // Cold country freezes over: lakes, pools and rivers wear a walkable

@@ -1,5 +1,17 @@
 # Stoneleaf Vale — working rules
 
+- **Everything in the world is made of cubes (HARD RULE).** Every visible thing
+  in the world — terrain, roads, bridges, walls, props, structures — must be
+  built from Minecraft cube-family shapes on the unit grid: full 1×1×1 cubes,
+  slabs (½-block), stairs, posts/fences, panes, and crossed 16×16 sprites for
+  plants (the one non-cube allowed, exactly as vanilla does grass/flowers).
+  **No free-floating thin quads, wedges, cones, cylinders, spheres, or
+  arbitrarily-sized/rotated boxes as world geometry.** If you're about to draw a
+  bare `pushQuad`/`THREE.Box` that isn't a face of a grid cube or a standard
+  slab/stair/post, stop and rebuild it from cubes. Bridges: the deck is a plank
+  **slab** (one plank thick) and the supports are **full 1×1 stone columns**
+  (stacked cubes), with the river rendered **underneath** — never a filled span
+  and never a void below. Audit new world geometry against this before shipping.
 - **Minecraft-exact sizes, always.** Anything that exists in Minecraft (mobs,
   items, blocks, structures, held items) must be modeled at Minecraft's exact
   dimensions: 16 px = 1 block, using the `PX` unit from `render/skin.ts`
