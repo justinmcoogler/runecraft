@@ -45,6 +45,42 @@ export const ENDLESS_SIZE = 1_048_576;
  */
 export const ENDLESS_CENTER = 32_768;
 
+/**
+ * The danger/reward dial: 0 at the world anchor, saturating toward 1 by ~6000
+ * cells out. Everything that scales with "how far from home you are" — tougher
+ * beasts, richer ore, better loot, more corruption — reads off this.
+ */
+export function remoteness01(x: number, z: number): number {
+  const d = Math.hypot(x - ENDLESS_CENTER, z - ENDLESS_CENTER);
+  return Math.min(1, d / 6000);
+}
+
+/** A 0–5 danger tier from remoteness, for tiered mob/ore pools. */
+export function dangerTier(x: number, z: number): number {
+  return Math.min(5, Math.floor(remoteness01(x, z) * 6));
+}
+
+// Wild beasts by danger tier: placid/weak near home, elites and horrors far
+// out. Tier 5 fields true bosses. (Every id exists in ENEMIES.)
+const DANGER_MOBS: string[][] = [
+  ["enemy.boar", "enemy.timber_wolf", "enemy.spider", "enemy.pig"],
+  ["enemy.cave_spider", "enemy.skeleton", "enemy.zombie", "enemy.thornback"],
+  ["enemy.dire_wolf", "enemy.stray", "enemy.marsh_lurker", "enemy.grave_shambler"],
+  ["enemy.moss_golem", "enemy.mire_husk", "enemy.gloom_spinner", "enemy.stone_sentinel"],
+  ["enemy.barrow_lord", "enemy.silt_king", "enemy.glacial_wight", "enemy.canyon_construct"],
+  ["enemy.warden", "enemy.dragon.fire", "enemy.dragon.ice", "enemy.ravager"],
+];
+
+// Ore surfacing by danger tier: humble metals near home, gems and exotics far.
+const DANGER_ORES: string[][] = [
+  ["resource.rock.copper", "resource.rock.tin"],
+  ["resource.rock.coal", "resource.rock.iron"],
+  ["resource.rock.iron", "resource.rock.gold"],
+  ["resource.rock.gold", "resource.rock.redstone", "resource.rock.lapis"],
+  ["resource.rock.lapis", "resource.rock.emerald", "resource.rock.diamond"],
+  ["resource.rock.emerald", "resource.rock.diamond", "resource.rock.netherite"],
+];
+
 // Compact block palette for chunk storage.
 const BLOCK_LIST: BlockType[] = [
   "grass", "dirt", "stone", "sand", "water", "plank", "snow", "ice",
@@ -2179,6 +2215,59 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           break;
         }
       }
+    }
+  }
+
+  // ── Distance-scaled danger & reward ──────────────────────────────────────
+  // The farther from the anchor, the tougher the beasts that prowl and the
+  // richer the ore that surfaces. A rare stronger foe can appear closer in —
+  // flagged by a dead-snag omen — so nowhere is entirely safe.
+  {
+    const remote = remoteness01(x0 + 32, z0 + 32);
+    const tier = Math.min(5, Math.floor(remote * 6));
+    const dryOpen = (hx: number, hz: number): boolean => {
+      const b = BLOCK_LIST[blocks[hz * ECHUNK + hx]];
+      if (b === "water" || b === "ice" || b === "stonebrick" || b === "plank" || b === "gravel") return false;
+      const wx = x0 + hx, wz = z0 + hz;
+      if (inStarterTown(seed, wx, wz) || inHouse(hx, hz)) return false;
+      if (roadDist(seed, wx, wz) < 3) return false;
+      return slopeAt(seed, wx, wz, heights[hz * ECHUNK + hx], cache) <= 2;
+    };
+    // Extra roaming beasts, count and tier both climbing with distance.
+    const extra = Math.floor(remote * 5);
+    for (let k = 0; k < extra; k++) {
+      const hx = 3 + Math.floor(cellHash(cx * 3 + k * 7 + 1, cz * 5 + k * 11 + 2, salt(seed, 120)) * (ECHUNK - 6));
+      const hz = 3 + Math.floor(cellHash(cz * 7 + k * 13 + 3, cx * 11 + k * 17 + 4, salt(seed, 121)) * (ECHUNK - 6));
+      if (!dryOpen(hx, hz)) continue;
+      const bump = cellHash((x0 + hx) * 5, (z0 + hz) * 3, salt(seed, 122 + k)) > 0.9 ? 1 : 0; // rare tier-up
+      const pool = DANGER_MOBS[Math.min(5, tier + bump)];
+      const defId = pool[Math.floor(cellHash(z0 + hz, x0 + hx, salt(seed, 123 + k)) * pool.length) % pool.length];
+      enemies.push({ instanceId: id(), defId, cell: { x: x0 + hx, z: z0 + hz } });
+    }
+    // Rare near-home menace: a mid-tier foe deep in the safe lands, marked by
+    // a dead snag so the danger is clearly telegraphed before you stumble in.
+    if (tier <= 1 && cellHash(cx * 91 + 7, cz * 71 + 3, salt(seed, 130)) < 0.02) {
+      const hx = 4 + Math.floor(cellHash(cx * 5, cz * 9, salt(seed, 131)) * (ECHUNK - 8));
+      const hz = 4 + Math.floor(cellHash(cz * 5, cx * 9, salt(seed, 132)) * (ECHUNK - 8));
+      if (dryOpen(hx, hz) && dryOpen(hx + 1, hz)) {
+        nodes.push({ instanceId: id(), defId: "resource.tree.dead", cell: { x: x0 + hx, z: z0 + hz } });
+        const pool = DANGER_MOBS[3];
+        const defId = pool[Math.floor(cellHash(hz, hx, salt(seed, 133)) * pool.length) % pool.length];
+        enemies.push({ instanceId: id(), defId, cell: { x: x0 + hx + 1, z: z0 + hz } });
+      }
+    }
+    // Richer ore surfaces on exposed rock as you range out.
+    const veins = Math.floor(remote * 3);
+    for (let k = 0; k < veins; k++) {
+      const hx = 3 + Math.floor(cellHash(cx * 23 + k * 5, cz * 29 + k * 3, salt(seed, 140)) * (ECHUNK - 6));
+      const hz = 3 + Math.floor(cellHash(cz * 23 + k * 5, cx * 29 + k * 3, salt(seed, 141)) * (ECHUNK - 6));
+      const b = BLOCK_LIST[blocks[hz * ECHUNK + hx]];
+      if (b !== "stone" && b !== "andesite" && b !== "gravel") continue;
+      const wx = x0 + hx, wz = z0 + hz;
+      if (inStarterTown(seed, wx, wz) || inHouse(hx, hz)) continue;
+      const pool = DANGER_ORES[tier];
+      const defId = pool[Math.floor(cellHash(wz, wx, salt(seed, 142 + k)) * pool.length) % pool.length];
+      nodes.push({ instanceId: id(), defId, cell: { x: wx, z: wz } });
     }
   }
   } // end if (!CLEAR_ASSETS)
