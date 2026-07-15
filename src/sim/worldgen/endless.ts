@@ -62,7 +62,7 @@ export function dangerTier(x: number, z: number): number {
 
 // Wild beasts by danger tier: placid/weak near home, elites and horrors far
 // out. Tier 5 fields true bosses. (Every id exists in ENEMIES.)
-const DANGER_MOBS: string[][] = [
+export const DANGER_MOBS: string[][] = [
   ["enemy.boar", "enemy.timber_wolf", "enemy.spider", "enemy.pig"],
   ["enemy.cave_spider", "enemy.skeleton", "enemy.zombie", "enemy.thornback"],
   ["enemy.dire_wolf", "enemy.stray", "enemy.marsh_lurker", "enemy.grave_shambler"],

@@ -500,6 +500,9 @@ export class Hud {
         case "dungeonCleared":
           this.toast(`Conquered ${ev.name}! +${ev.reward} coins · ${ev.total} cleared`, "level", uiIconHtml("heart", 22));
           break;
+        case "worldEvent":
+          this.toast(`${ev.title} — ${ev.blurb}`, ev.kind === "cache" ? "level" : "warn", uiIconHtml("quest", 20));
+          break;
         case "itemGained":
           this.floatText(
             `+${ev.qty} ${ITEMS[ev.itemId].name} ${itemIconHtml(ev.itemId, ITEMS[ev.itemId].icon, 18)}`,

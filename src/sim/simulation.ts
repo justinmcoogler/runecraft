@@ -16,11 +16,11 @@ import { NpcSystem } from "./npc";
 import { QuestService } from "./quests";
 import { SkillService } from "./skills";
 import { ChunkManager } from "./chunk-manager";
-import { EndlessTerrain, remoteness01, setValeActive, starterTownRegion, tutorialRegion } from "./worldgen/endless";
+import { DANGER_MOBS, dangerTier, EndlessTerrain, remoteness01, setValeActive, starterTownRegion, tutorialRegion } from "./worldgen/endless";
 import { DUNGEON_ID_RE, type DungeonStyle, dungeonSpecFor } from "./worldgen/dungeons";
 import { CuratorService, SlayerService } from "./taskmasters";
 import type { ArmorSlot, Cell, Command, SimEvent } from "./types";
-import { SimEventBus, SimRng, TICK_DT } from "./types";
+import { chebyshev, SimEventBus, SimRng, TICK_DT } from "./types";
 import { applyWorldFlags, WorldState, type RegionSpec } from "./world";
 
 export const PLAYER_INVENTORY_SLOTS = 20;
@@ -57,6 +57,8 @@ export class GameSimulation {
   tutorial: TutorialDriver | null = null;
   /** Timed potion effects: kind -> seconds remaining. */
   buffs: Record<string, number> = {};
+  /** Seconds of wild travel left before the next roaming world event may fire. */
+  private worldEventCdS = 90;
   hp: number;
   readonly seed: number;
   tickCount = 0;
@@ -641,7 +643,19 @@ export class GameSimulation {
     // Stumbling onto a landmark or dungeon in the endless wild logs it as a
     // discovery (persisted via world flags) and pays a small explorer's bounty
     // that grows the farther out you find it.
-    if (this.world.region.id === "region.endless") this.discoverScan();
+    if (this.world.region.id === "region.endless") {
+      this.discoverScan();
+      // The road throws up encounters: ambushes, lone beasts, lost caches —
+      // more, and deadlier, the farther from home you roam. Only counts down
+      // while actually travelling, so it reads as a wayfaring event.
+      if (this.hp > 0 && !cellsMatch(beforeMove, movedCell)) {
+        this.worldEventCdS -= TICK_DT;
+        if (this.worldEventCdS <= 0) {
+          this.worldEventCdS = 80 + this.rng.next() * 90;
+          this.rollWorldEvent(movedCell);
+        }
+      }
+    }
 
     // Crossing into a named zone announces it (world map only).
     if (this.world.region.id === "region.vale_clearing") {
@@ -789,6 +803,85 @@ export class GameSimulation {
     this.events.emit({ type: "itemGained", itemId: "item.coin", qty: reward });
     const name = dungeonSpecFor(style, seed, depth, maxDepth, exit).name.split(" — ")[0];
     this.events.emit({ type: "dungeonCleared", id: flag, name, reward, total: this.clearedCount() });
+  }
+
+  // ── Roaming world events ─────────────────────────────────────────────────
+  private eventSeq = 0;
+
+  /** Roll one travel encounter near the player and make it happen. */
+  private rollWorldEvent(at: Cell): void {
+    const r = remoteness01(at.x, at.z);
+    if (r < 0.05) return; // the home vale stays quiet and safe
+    const roll = this.rng.next();
+    // Ambushes and beasts grow likelier (and deadlier) with distance; caches
+    // can turn up anywhere, and are the fallback when a spawn can't be placed.
+    if (roll < 0.3 + r * 0.35 && this.spawnEventFoes(at, r, false)) return;
+    if (r > 0.28 && roll < 0.62 && this.spawnEventFoes(at, r, true)) return;
+    this.wandererCache(at, r);
+  }
+
+  /** Spawn an ambush pack (or a lone rare beast) in a ring around the player.
+   *  Returns false if no walkable spot was free (caller falls back to a cache). */
+  private spawnEventFoes(at: Cell, r: number, beast: boolean): boolean {
+    this.pruneEventFoes(at);
+    const tier = dangerTier(at.x, at.z);
+    const pool = DANGER_MOBS[Math.min(5, tier + (beast ? 1 : 0))];
+    const count = beast ? 1 : 2 + Math.floor(r * 2.5); // 2–4 ambushers
+    const ring = this.spawnRing(at, count, 3, 6);
+    if (ring.length === 0) return false;
+    const region = (this.world.region.enemies ??= []);
+    for (let k = 0; k < ring.length; k++) {
+      const defId = pool[Math.floor(this.rng.next() * pool.length)];
+      const placement = { instanceId: `event.foe.${this.eventSeq++}`, defId, cell: ring[k] };
+      region.push(placement);
+      this.enemies.addPlacement(placement, this.rng);
+    }
+    const title = beast ? "A rare beast!" : "Ambush!";
+    const blurb = beast
+      ? "A dangerous creature stalks out of the wild — put it down for a fine prize."
+      : `You are set upon on the road — ${ring.length} foes close in!`;
+    this.events.emit({ type: "worldEvent", kind: beast ? "beast" : "ambush", title, blurb });
+    return true;
+  }
+
+  /** A lost stash by the wayside: coin, and out in the deep wilds a gem too. */
+  private wandererCache(at: Cell, r: number): void {
+    const coins = 15 + Math.floor(r * 130);
+    this.inventory.add("item.coin", coins);
+    this.events.emit({ type: "itemGained", itemId: "item.coin", qty: coins });
+    let blurb = `You find a traveller's lost cache — ${coins} coins.`;
+    if (r > 0.4 && this.rng.next() < 0.5 && this.inventory.canAdd("item.gem.emerald", 1)) {
+      this.inventory.add("item.gem.emerald", 1);
+      this.events.emit({ type: "itemGained", itemId: "item.gem.emerald", qty: 1 });
+      blurb += " A gem glints among the coins.";
+    }
+    this.events.emit({ type: "worldEvent", kind: "cache", title: "A lucky find", blurb });
+  }
+
+  /** Walkable cells around a centre, for dropping event foes. */
+  private spawnRing(center: Cell, want: number, minR: number, maxR: number): Cell[] {
+    const out: Cell[] = [];
+    for (let i = 0; i < 32 && out.length < want; i++) {
+      const a = this.rng.next() * Math.PI * 2;
+      const rad = minR + Math.floor(this.rng.next() * (maxR - minR + 1));
+      const cell = { x: Math.round(center.x + Math.cos(a) * rad), z: Math.round(center.z + Math.sin(a) * rad) };
+      if (this.world.walkable(cell) && this.world.blockAt(cell) !== "water") out.push(cell);
+    }
+    return out;
+  }
+
+  /** Retire spent event foes the player has left far behind, so they don't
+   *  pile up in the region over a long journey. */
+  private pruneEventFoes(near: Cell): void {
+    const region = this.world.region.enemies;
+    if (!region) return;
+    for (let i = region.length - 1; i >= 0; i--) {
+      const foe = region[i];
+      if (!foe.instanceId.startsWith("event.foe.")) continue;
+      if (chebyshev(foe.cell, near) <= 70) continue;
+      this.enemies.removePlacement(foe.instanceId);
+      region.splice(i, 1);
+    }
   }
 
   private route(c: Command): void {
