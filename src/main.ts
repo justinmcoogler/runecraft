@@ -400,7 +400,20 @@ async function boot(): Promise<void> {
       hud.handleEvents(events);
       frameEvents.push(...events);
       for (const ev of events) {
-        if (ev.type === "portalEntered") pendingPortal = ev;
+        if (ev.type === "portalEntered") {
+          // The graduation gateway stays shut until the required lessons are
+          // done; stepping into it early just nudges the player back to work.
+          if (
+            currentRegionId === "region.tutorial" &&
+            ev.targetRegionId === "region.endless" &&
+            sim.tutorial &&
+            !sim.tutorial.complete
+          ) {
+            hud.toast("The gateway isn't open yet — finish your lessons first.", "warn");
+          } else {
+            pendingPortal = ev;
+          }
+        }
         // Died far from home: travel back to the bed's region (province only).
         else if (ev.type === "respawnTravel") pendingPortal = ev;
         else if (ev.type === "stairsChoice") showStairsChoice(ev.options);

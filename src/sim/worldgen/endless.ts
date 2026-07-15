@@ -2274,5 +2274,30 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
       portal: { targetRegionId: "region.endless", targetCell: { x: spawn.x, z: spawn.z } },
     },
   ];
+  // The guide who points the newcomer through each lesson (villager skin for
+  // now — a custom Guide skin is tracked in ASSETS_NEEDED.md).
+  region.npcs = [
+    ...region.npcs,
+    {
+      instanceId: "tutorial.guide",
+      name: "Guide",
+      cell: { x: spawn.x + 3, z: spawn.z },
+      wanderRadius: 0,
+      model: "mob.villager",
+      lines: [
+        "Welcome to the vale. Work through the lessons and the gateway will open.",
+        "Chop, burn, pray, spar — then step through to the wild.",
+      ],
+    },
+  ];
+  // The lesson targets: a tree to fell and a placid foe to spar with.
+  region.nodes = [
+    ...region.nodes,
+    { instanceId: "tutorial.tree", defId: "resource.tree.basic", cell: { x: spawn.x - 4, z: spawn.z + 1 } },
+  ];
+  region.enemies = [
+    ...(region.enemies ?? []),
+    { instanceId: "tutorial.foe", defId: "enemy.pig", cell: { x: spawn.x + 5, z: spawn.z + 4 } },
+  ];
   return region;
 }

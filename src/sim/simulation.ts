@@ -10,6 +10,7 @@ import { EnemySystem } from "./enemies";
 import { Inventory, transferSlot } from "./inventory";
 import { MovementController } from "./movement";
 import { findPath } from "./pathfinding";
+import { TutorialDriver } from "./tutorial";
 import { ResourceNodeSystem } from "./nodes";
 import { NpcSystem } from "./npc";
 import { QuestService } from "./quests";
@@ -51,6 +52,8 @@ export class GameSimulation {
   equippedArmor: Record<ArmorSlot, string | null> = { head: null, body: null, legs: null, feet: null };
   /** Persistent world-state flags (repaired bridges, stabilized anchors…). */
   readonly worldFlags = new Set<string>();
+  /** Tutorial lesson driver (present only in the tutorial region). */
+  tutorial: TutorialDriver | null = null;
   /** Timed potion effects: kind -> seconds remaining. */
   buffs: Record<string, number> = {};
   hp: number;
@@ -518,6 +521,9 @@ export class GameSimulation {
     const sim = new GameSimulation(tutorialRegion(seed, spawn), seed, terrain);
     sim.chunks = new ChunkManager(sim, terrain);
     sim.chunks.update(spawn);
+    // Drive the required-core lessons and open the gateway on completion.
+    sim.tutorial = new TutorialDriver(sim);
+    sim.tutorial.begin();
     return sim;
   }
 
@@ -662,6 +668,7 @@ export class GameSimulation {
     this.quests.process(events);
     this.slayer.process(events);
     this.curator.process(events);
+    this.tutorial?.process(events);
     const questEvents = this.events.drain();
     // Completed quests may set world flags that visibly repair the world.
     for (const ev of questEvents) {

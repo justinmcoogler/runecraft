@@ -184,6 +184,10 @@ export class Hud {
         </div>
       </div>
       <div class="hud-top-center toast-stack"></div>
+      <div class="tutorial-banner hidden" data-testid="tutorial-banner">
+        <div class="tut-head"><span class="tut-step"></span><span class="tut-title"></span></div>
+        <div class="tut-blurb"></div>
+      </div>
       <div class="hud-top-left">
         <div><span class="save-dot" title="Saved">●</span> <span class="game-title">Runecraft</span></div>
         <div class="clock-chip" data-testid="clock"><span class="clock-text"></span></div>
@@ -431,6 +435,27 @@ export class Hud {
     return this.root.querySelector(selector) as HTMLElement;
   }
 
+  /** Show/update the persistent tutorial objective banner. */
+  private showTutorialObjective(step: number, total: number, title: string, blurb: string): void {
+    const banner = this.root.querySelector(".tutorial-banner") as HTMLElement | null;
+    if (!banner) return;
+    (banner.querySelector(".tut-step") as HTMLElement).textContent = `Lesson ${step}/${total}`;
+    (banner.querySelector(".tut-title") as HTMLElement).textContent = title;
+    (banner.querySelector(".tut-blurb") as HTMLElement).textContent = blurb;
+    banner.classList.remove("hidden", "done");
+  }
+
+  /** Final state: all lessons done, the gateway is open. */
+  private setTutorialComplete(): void {
+    const banner = this.root.querySelector(".tutorial-banner") as HTMLElement | null;
+    if (!banner) return;
+    (banner.querySelector(".tut-step") as HTMLElement).textContent = "✓ Done";
+    (banner.querySelector(".tut-title") as HTMLElement).textContent = "You're ready for the wild";
+    (banner.querySelector(".tut-blurb") as HTMLElement).textContent = "Step through the gateway to enter your own random world.";
+    banner.classList.remove("hidden");
+    banner.classList.add("done");
+  }
+
   handleEvents(events: SimEvent[]): void {
     for (const ev of events) {
       switch (ev.type) {
@@ -457,6 +482,17 @@ export class Hud {
         }
         case "actionRejected":
           this.toast(this.rejectText(ev.reason, ev.targetId), "warn");
+          break;
+        case "tutorialObjective":
+          this.showTutorialObjective(ev.index + 1, ev.total, ev.title, ev.blurb);
+          this.toast(`New task — ${ev.title}`, "info");
+          break;
+        case "tutorialLessonDone":
+          this.toast(`Lesson complete: ${ev.title}!`, "level", uiIconHtml("quest", 20));
+          break;
+        case "tutorialComplete":
+          this.setTutorialComplete();
+          this.toast("Tutorial complete — step through the gateway to the wild!", "level", uiIconHtml("quest", 20));
           break;
         case "itemGained":
           this.floatText(

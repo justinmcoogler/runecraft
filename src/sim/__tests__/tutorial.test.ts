@@ -1,0 +1,76 @@
+// The tutorial lesson driver: the required-core script advances one lesson per
+// act, grants rewards, and completes (opening the gateway) after the last.
+
+import { describe, expect, it } from "vitest";
+import { GameSimulation } from "../simulation";
+import { TUTORIAL_SEED } from "../worldgen/endless";
+import { TUTORIAL_LESSONS } from "../../content/tutorial";
+
+describe("the tutorial driver", () => {
+  it("places the guide, tree and sparring foe in the tutorial region", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    const r = sim.world.region;
+    expect(r.npcs.some((n) => n.instanceId === "tutorial.guide")).toBe(true);
+    expect(r.nodes.some((n) => n.instanceId === "tutorial.tree")).toBe(true);
+    expect((r.enemies ?? []).some((e) => e.instanceId === "tutorial.foe")).toBe(true);
+    expect(sim.tutorial).not.toBeNull();
+  });
+
+  it("announces the first objective on the opening tick", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    const events = sim.tick();
+    const obj = events.find((e) => e.type === "tutorialObjective");
+    expect(obj).toBeTruthy();
+    expect(obj && obj.type === "tutorialObjective" && obj.index).toBe(0);
+    expect(sim.tutorial!.index).toBe(0);
+  });
+
+  it("walks the full required-core script to graduation, rewarding each step", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    sim.tick(); // drains the opening objective; player isn't at the guide yet
+    expect(sim.tutorial!.index).toBe(0);
+
+    // Lesson 1 — Basics: reach the guide.
+    const guide = sim.world.region.npcs.find((n) => n.instanceId === "tutorial.guide")!.cell;
+    sim.movement.setCellPosition({ x: guide.x - 1, z: guide.z });
+    let events = sim.tick();
+    expect(events.some((e) => e.type === "tutorialLessonDone")).toBe(true);
+    expect(sim.tutorial!.index).toBe(1);
+    expect(sim.inventory.count("item.coin")).toBeGreaterThanOrEqual(15); // reward landed
+
+    // Lesson 2 — Gathering: a log enters the pack.
+    sim.inventory.add("item.log.basic", 1);
+    sim.events.emit({ type: "itemGained", itemId: "item.log.basic", qty: 1 });
+    sim.tick();
+    expect(sim.tutorial!.index).toBe(2);
+
+    // Lesson 3 — Processing: burn a log.
+    sim.events.emit({ type: "logBurned", itemId: "item.log.basic" });
+    sim.tick();
+    expect(sim.tutorial!.index).toBe(3);
+    // Entering the Prayer lesson grants bones to bury.
+    expect(sim.inventory.count("item.bone.old")).toBeGreaterThanOrEqual(1);
+
+    // Lesson 4 — Spiritual: bury bones.
+    sim.events.emit({ type: "bonesBuried", itemId: "item.bone.old" });
+    sim.tick();
+    expect(sim.tutorial!.index).toBe(4);
+
+    // Lesson 5 — Combat: defeat the foe → tutorial complete.
+    sim.events.emit({ type: "enemyDied", instanceId: "tutorial.foe" });
+    events = sim.tick();
+    expect(events.some((e) => e.type === "tutorialComplete")).toBe(true);
+    expect(sim.tutorial!.complete).toBe(true);
+    expect(sim.tutorial!.current).toBeNull();
+  });
+
+  it("keeps the required set to one lesson per act, in act order", () => {
+    const acts = TUTORIAL_LESSONS.map((l) => l.act);
+    expect(acts).toEqual(["Basics", "Gathering", "Processing", "Spiritual", "Combat"]);
+    // Every lesson rewards a small item and XP (the locked reward shape).
+    for (const l of TUTORIAL_LESSONS) {
+      expect((l.reward.items?.length ?? 0) > 0).toBe(true);
+      expect(l.reward.xp).toBeTruthy();
+    }
+  });
+});
