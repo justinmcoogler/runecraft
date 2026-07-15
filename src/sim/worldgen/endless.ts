@@ -1539,14 +1539,30 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           if (h > 44) continue; // trees below the treeline
           const b = biomes[i];
           let def: string | null = null;
-          // Tree species + density by biome, keyed to the imported pack.
-          if (b === 2 || b === 5 || b === 20 || b === 22) def = r < 0.30 ? "resource.tree.spruce" : null; // conifer
-          else if (b === 7 || b === 11) def = r < 0.32 ? "resource.tree.jungle" : null;                   // tropical
-          else if (b === 4 || b === 15 || b === 17) def = r < 0.20 ? "resource.tree.darkoak" : null;       // wetland/dark
-          else if (b === 1 || b === 8 || b === 13 || b === 24) def = r < 0.34 ? (r < 0.20 ? "resource.tree.basic" : "resource.tree.birch") : null; // forest
-          else if (b === 21) def = r < 0.30 ? "resource.tree.birch" : null;                                // cherry (birch silhouette)
-          else if (b === 6 || b === 10 || b === 23) def = r < 0.09 ? "resource.tree.basic" : null;         // plains/prairie — sparse
+          // Tree species + density by biome, each biome mixing its signature
+          // woods so a forest reads as a real ecosystem, not one repeated tree.
+          if (b === 2 || b === 5 || b === 20 || b === 22)
+            def = r < 0.30 ? (r < 0.13 ? "resource.tree.pine" : "resource.tree.spruce") : null;            // conifer: spruce + tall pine
+          else if (b === 7 || b === 11)
+            def = r < 0.32 ? (r < 0.09 ? "resource.tree.palm" : "resource.tree.jungle") : null;            // tropical: jungle giants + palm
+          else if (b === 4 || b === 15 || b === 17)
+            def = r < 0.22 ? (r < 0.08 ? "resource.tree.willow" : "resource.tree.darkoak") : null;         // wetland: weeping willow + dark oak
+          else if (b === 1 || b === 8 || b === 13 || b === 24)
+            def = r < 0.36 ? (r < 0.10 ? "resource.tree.maple" : r < 0.23 ? "resource.tree.basic" : "resource.tree.birch") : null; // forest: maple + oak + birch
+          else if (b === 21)
+            def = r < 0.30 ? (r < 0.10 ? "resource.tree.grand.blossom" : "resource.tree.birch") : null;    // cherry grove: blossom + birch
+          else if (b === 6 || b === 10 || b === 23)
+            def = r < 0.11 ? (r < 0.03 ? "resource.tree.acacia" : r < 0.05 ? "resource.tree.dead" : "resource.tree.basic") : null; // savanna: acacia + dead snags + sparse oak
           else def = r < 0.10 ? "resource.tree.basic" : null;                                              // everywhere else — light cover
+          // Rare enchanted trees: a wonder to stumble on, tuned to the land.
+          if (!def) {
+            const rr = cellHash(wx, wz, salt(seed, 91));
+            if (rr > 0.9938)
+              def = (b === 4 || b === 15 || b === 17) ? "resource.tree.grand.dusk"
+                : (b === 2 || b === 5 || b === 20 || b === 22) ? "resource.tree.grand.glow"
+                : (b === 6 || b === 10 || b === 23) ? "resource.tree.grand.ember"
+                : "resource.tree.grand.blossom";
+          }
           if (def) nodes.push({ instanceId: id(), defId: def, cell: { x: wx, z: wz } });
         } else if (surf === "stone" || surf === "andesite" || surf === "gravel") {
           // Ore outcrops on exposed rock — common metals frequent, gems rare.

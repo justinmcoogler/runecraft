@@ -1,7 +1,8 @@
-// Voxel tree models converted from the user-licensed 1k tree pack (see
-// scripts/convert-tree-schematics.mjs). Every tree node in the world picks a
-// model deterministically from its species' pool, so a stand of oaks is a stand
-// of individuals — and the same world seed always grows the same forest.
+// Hand-authored procedural voxel tree roster (see scripts/generate-trees.mjs) —
+// a distinct silhouette grammar per species, each grown into many unique
+// individuals. Every tree node picks a model deterministically from its
+// species' pool, so a stand of oaks is a stand of individuals — and the same
+// world seed always grows the same forest.
 
 import * as THREE from "three";
 import { TREES_JSON } from "../content/trees-data";
@@ -39,30 +40,29 @@ export const TREES_BY_SPECIES: Record<string, TreeModel[]> = {};
 for (const m of MODELS) (TREES_BY_SPECIES[m.species] ??= []).push(m);
 for (const list of Object.values(TREES_BY_SPECIES)) list.sort((a, b) => a.h - b.h || a.logs - b.logs);
 
-/** Species not present in the imported pack borrow the nearest one's silhouette
- *  (the fantasy woods, plus acacia which this pack doesn't include). */
+/** Every species now has its own hand-authored silhouette. This alias only
+ *  catches ids that fall through (older saves / unexpected view strings). */
 const SPECIES_ALIAS: Record<string, string> = {
-  blossom: "birch",
-  ember: "darkoak",
-  glow: "jungle",
-  dusk: "darkoak",
-  acacia: "oak",
+  cherry: "blossom",
 };
 
 /**
- * Pick a model for a tree node: wild trees draw from the everyday pool
- * (height <= 14), grand trees from the big pool. `roll` in [0,1) keeps the
- * choice deterministic per instance.
+ * Pick a model for a tree node. Each species pool is sorted small→large, so
+ * "grand" draws from the biggest ~40% of that species and everyday trees from
+ * the smaller ~60% — a relative split that fits species of any absolute size
+ * (a grand palm and a grand oak are each the big end of their own kind).
+ * `roll` in [0,1) keeps the choice deterministic per instance.
  */
 export function pickTreeModel(species: string, grand: boolean, roll: number): TreeModel | null {
-  const all = TREES_BY_SPECIES[SPECIES_ALIAS[species] ?? species];
+  const all = TREES_BY_SPECIES[species] ?? TREES_BY_SPECIES[SPECIES_ALIAS[species] ?? ""];
   if (!all || all.length === 0) return null;
   const list = all.filter((m) => isModelEnabled(m.id));
   if (list.length === 0) return null;
-  const wild = list.filter((m) => m.h <= 14);
-  const big = list.filter((m) => m.h > 14 && m.h <= 44);
-  const pool = grand ? (big.length ? big : list) : wild.length ? wild : list;
-  return pool[Math.floor(roll * pool.length) % pool.length];
+  if (list.length === 1) return list[0];
+  const cut = Math.max(1, Math.round(list.length * 0.6));
+  const pool = grand ? list.slice(cut) : list.slice(0, cut);
+  const from = pool.length ? pool : list;
+  return from[Math.floor(roll * from.length) % from.length];
 }
 
 /** Friendly display size for the click-to-identify toast. */

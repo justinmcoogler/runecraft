@@ -352,6 +352,56 @@ export class GameRenderer {
   private playerXray = false;
   private ringPulse = 0;
   private elapsed = 0;
+  /** Shared canopy-sway clock + amplitude (weather-driven), referenced by every
+   *  leaf material so the whole forest breathes off one uniform. */
+  private windTime = { value: 0 };
+  private windAmp = { value: 0.05 };
+
+  /**
+   * Give a leaf material a gentle wind sway (vertex displacement that grows
+   * with canopy height) and, for the magical woods, an animated emissive
+   * glow — ember flickers, dusk shimmers, glow pulses, blossom breathes.
+   * All animation rides the shared wind clock, so there is no per-tree JS
+   * bookkeeping and streamed trees can be disposed freely.
+   */
+  private applyLeafSway(
+    mat: THREE.MeshLambertMaterial,
+    mode: "leaf" | "glow" | "ember" | "dusk" | "blossom" = "leaf",
+  ): void {
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uWindTime = this.windTime;
+      shader.uniforms.uWindAmp = this.windAmp;
+      shader.vertexShader =
+        "uniform float uWindTime;\nuniform float uWindAmp;\nvarying float vLeafY;\n" +
+        shader.vertexShader.replace(
+          "#include <begin_vertex>",
+          `#include <begin_vertex>
+           vLeafY = position.y;
+           float _h = max(position.y - 1.0, 0.0);
+           transformed.x += sin(uWindTime * 1.6 + position.x * 0.35 + position.z * 0.25) * uWindAmp * _h;
+           transformed.z += cos(uWindTime * 1.2 + position.z * 0.40 + position.x * 0.20) * uWindAmp * _h * 0.7;`,
+        );
+      if (mode !== "leaf") {
+        const flick =
+          mode === "ember"
+            ? "0.70 + 0.35 * sin(uWindTime * 7.0 + vLeafY * 3.0) + 0.15 * sin(uWindTime * 13.0)"
+            : mode === "dusk"
+              ? "0.80 + 0.28 * sin(uWindTime * 2.0 + vLeafY * 1.5)"
+              : mode === "glow"
+                ? "0.82 + 0.22 * sin(uWindTime * 1.6 + vLeafY)"
+                : "0.90 + 0.10 * sin(uWindTime * 1.1)"; // blossom
+        shader.fragmentShader =
+          "uniform float uWindTime;\nvarying float vLeafY;\n" +
+          shader.fragmentShader.replace(
+            "#include <emissivemap_fragment>",
+            `#include <emissivemap_fragment>\n totalEmissiveRadiance *= (${flick});`,
+          );
+      }
+    };
+    // Distinct cache key per mode so three doesn't share one program across
+    // the sway-only and emissive variants.
+    mat.customProgramCacheKey = () => `leafsway_${mode}`;
+  }
 
   constructor(canvas: HTMLCanvasElement, sim: GameSimulation) {
     this.sim = sim;
@@ -1348,6 +1398,11 @@ export class GameRenderer {
       case "tree.birch":
       case "tree.acacia":
       case "tree.jungle":
+      case "tree.pine":
+      case "tree.willow":
+      case "tree.maple":
+      case "tree.palm":
+      case "tree.dead":
       case "tree.grand": {
         // Every species at vanilla proportions: 1x1 trunks (dark oak 2x2),
         // whole-block leaf layers. Oak = round crown + plus cap, spruce =
@@ -1361,17 +1416,22 @@ export class GameRenderer {
           : kind === "tree" ? "oak" : kind.slice("tree.".length);
         const TRUNKS: Record<string, string> = {
           oak: "resource.tree.log.side", birch: "resource.tree.birch.side",
-          spruce: "resource.tree.spruce.side", jungle: "resource.tree.jungle.side",
-          acacia: "resource.tree.acacia.side", darkoak: "resource.tree.darkoak.side",
-          blossom: "resource.tree.blossom.side", ember: "resource.tree.darkoak.side",
-          glow: "resource.tree.jungle.side", dusk: "resource.tree.darkoak.side",
+          spruce: "resource.tree.spruce.side", pine: "resource.tree.pine.side",
+          jungle: "resource.tree.jungle.side", acacia: "resource.tree.acacia.side",
+          darkoak: "resource.tree.darkoak.side", willow: "resource.tree.willow.side",
+          maple: "resource.tree.maple.side", palm: "resource.tree.palm.side",
+          dead: "resource.tree.dead.side", blossom: "resource.tree.blossom.side",
+          ember: "resource.tree.ember.side", glow: "resource.tree.glow.side",
+          dusk: "resource.tree.dusk.side",
         };
         const LEAVES: Record<string, string> = {
           oak: "resource.tree.leaves", birch: "resource.tree.birch.leaves",
-          spruce: "resource.tree.spruce.leaves", jungle: "resource.tree.jungle.leaves",
-          acacia: "resource.tree.acacia.leaves", darkoak: "resource.tree.darkoak.leaves",
-          blossom: "resource.tree.blossom.leaves", ember: "resource.tree.leaves",
-          glow: "resource.tree.leaves", dusk: "resource.tree.leaves",
+          spruce: "resource.tree.spruce.leaves", pine: "resource.tree.pine.leaves",
+          jungle: "resource.tree.jungle.leaves", acacia: "resource.tree.acacia.leaves",
+          darkoak: "resource.tree.darkoak.leaves", willow: "resource.tree.willow.leaves",
+          maple: "resource.tree.maple.leaves", palm: "resource.tree.palm.leaves",
+          blossom: "resource.tree.blossom.leaves", ember: "resource.tree.ember.leaves",
+          glow: "resource.tree.glow.leaves", dusk: "resource.tree.dusk.leaves",
         };
         const trunkSide = this.lambert(TRUNKS[species] ?? "resource.tree.log.side");
         const leavesMat = this.lambert(LEAVES[species] ?? "resource.tree.leaves");
@@ -1380,12 +1440,38 @@ export class GameRenderer {
         // canopy behind. Cutout (not transparent) keeps leaves in the opaque
         // pass — no z-sorting artifacts — like MC's cutout_mipped leaves.
         leavesMat.alphaTest = 0.5;
-        // Textures arrive pre-tinted; jitter lightly per tree so a stand
-        // never reads as copies. The fantasy woods recolor oak foliage.
-        if (species === "ember") leavesMat.color.set("#d8843a");
-        else if (species === "glow") leavesMat.color.set("#cdf06a");
-        else if (species === "dusk") leavesMat.color.set("#8a6fc0");
-        else leavesMat.color.setHSL(0.28, 0.08, 0.86 + variety * 0.1);
+        // Per-tree colour + magical light. The fantasy woods self-illuminate
+        // (emissive) so they read as enchanted at night; the natural woods get
+        // a light per-tree jitter so a stand never looks like copies. Maple
+        // blazes across an autumn range (gold→orange→scarlet) per individual.
+        let swayMode: "leaf" | "glow" | "ember" | "dusk" | "blossom" = "leaf";
+        if (species === "glow") {
+          leavesMat.color.set("#8ffbe0");
+          leavesMat.emissive = new THREE.Color("#46e6c4");
+          leavesMat.emissiveIntensity = 0.9;
+          swayMode = "glow";
+        } else if (species === "ember") {
+          leavesMat.color.set("#ff9a3c");
+          leavesMat.emissive = new THREE.Color("#ff5a1e");
+          leavesMat.emissiveIntensity = 0.75;
+          swayMode = "ember";
+        } else if (species === "dusk") {
+          leavesMat.color.set("#b79bea");
+          leavesMat.emissive = new THREE.Color("#7a53c8");
+          leavesMat.emissiveIntensity = 0.45;
+          swayMode = "dusk";
+        } else if (species === "blossom") {
+          leavesMat.color.setHSL(0.92, 0.45, 0.78 + variety * 0.08);
+          leavesMat.emissive = new THREE.Color("#f6c6de");
+          leavesMat.emissiveIntensity = 0.12;
+          swayMode = "blossom";
+        } else if (species === "maple") {
+          // Autumn spread: hue 0.02 (scarlet) → 0.11 (gold) per tree.
+          leavesMat.color.setHSL(0.02 + variety * 0.09, 0.72, 0.5 + variety * 0.08);
+        } else {
+          leavesMat.color.setHSL(0.28, 0.08, 0.86 + variety * 0.1);
+        }
+        this.applyLeafSway(leavesMat, swayMode);
 
         // Every tree is a hand-built voxel model from the schematic library,
         // chosen deterministically per instance from its species' pool.
@@ -4748,6 +4834,11 @@ export class GameRenderer {
     const pp = this.sim.movement.pos;
     this.streamEntities(pp.x, pp.z);
     this.elapsed += dt;
+    // Canopy sway: gentle in calm weather, stronger (and faster) in wind/rain.
+    const weather = this.sim.weather();
+    const gust = weather === "storm" ? 3.0 : weather === "rain" ? 1.7 : weather === "overcast" ? 1.2 : 1.0;
+    this.windTime.value = this.elapsed * (1.0 + gust * 0.25);
+    this.windAmp.value = 0.04 * gust;
     this.updateSkyAndWeather(dt);
     this.updateLights();
 
