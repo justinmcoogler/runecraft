@@ -85,7 +85,7 @@ export type SimEvent =
   | { type: "stairsChoice"; cell: Cell; options: Array<{ dir: "up" | "down"; targetRegionId: string; targetCell: Cell }> }
   | { type: "worldFlagSet"; flag: string }
   | { type: "tutorialObjective"; index: number; total: number; title: string; blurb: string }
-  | { type: "tutorialLessonDone"; index: number; title: string }
+  | { type: "tutorialLessonDone"; index: number; title: string; optional?: boolean; skillId?: string }
   | { type: "tutorialComplete" }
   | { type: "buffApplied"; itemId: string; kind: string }
   | { type: "planted"; instanceId: string; seedItemId: string }

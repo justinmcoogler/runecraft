@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { GameSimulation } from "../simulation";
 import { TUTORIAL_SEED } from "../worldgen/endless";
-import { TUTORIAL_LESSONS } from "../../content/tutorial";
+import { TUTORIAL_LESSONS, TUTORIAL_OPTIONAL } from "../../content/tutorial";
 
 describe("the tutorial driver", () => {
   it("places the guide, tree and sparring foe in the tutorial region", () => {
@@ -62,6 +62,44 @@ describe("the tutorial driver", () => {
     expect(events.some((e) => e.type === "tutorialComplete")).toBe(true);
     expect(sim.tutorial!.complete).toBe(true);
     expect(sim.tutorial!.current).toBeNull();
+  });
+
+  it("places the optional-lesson stations and stocks their reagents", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    const r = sim.world.region;
+    expect(r.nodes.some((n) => n.instanceId === "tutorial.rock")).toBe(true);
+    expect(r.nodes.some((n) => n.instanceId === "tutorial.bush")).toBe(true);
+    expect(r.objects.some((o) => o.instanceId === "tutorial.furnace")).toBe(true);
+    expect(r.objects.some((o) => o.instanceId === "tutorial.anvil")).toBe(true);
+    expect(r.objects.some((o) => o.instanceId === "tutorial.altar")).toBe(true);
+    // Silent starter kit: reagents are in the pack, but did NOT trip a lesson.
+    sim.tick();
+    expect(sim.inventory.count("tool.pickaxe.basic")).toBeGreaterThanOrEqual(1);
+    expect(sim.inventory.count("item.ore.copper")).toBeGreaterThanOrEqual(3);
+    expect(sim.tutorial!.optionalDone.size).toBe(0);
+  });
+
+  it("awards optional lessons opportunistically without touching the core track", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    sim.tick();
+    const idxBefore = sim.tutorial!.index;
+    // Mining an ore fires the optional mining lesson (itemGained from the real
+    // gather pipeline, not a silent grant).
+    sim.events.emit({ type: "itemGained", itemId: "item.ore.copper", qty: 1 });
+    const events = sim.tick();
+    expect(sim.tutorial!.optionalDone.has("tut.mine")).toBe(true);
+    expect(events.some((e) => e.type === "tutorialLessonDone" && e.optional === true)).toBe(true);
+    // The required track is untouched — optional lessons never gate graduation.
+    expect(sim.tutorial!.index).toBe(idxBefore);
+    expect(sim.tutorial!.complete).toBe(false);
+  });
+
+  it("marks every optional lesson optional with an item+XP reward", () => {
+    for (const l of TUTORIAL_OPTIONAL) {
+      expect(l.optional).toBe(true);
+      expect((l.reward.items?.length ?? 0) > 0).toBe(true);
+      expect(l.reward.xp).toBeTruthy();
+    }
   });
 
   it("keeps the required set to one lesson per act, in act order", () => {

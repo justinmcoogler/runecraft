@@ -2290,10 +2290,19 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
       ],
     },
   ];
-  // The lesson targets: a tree to fell and a placid foe to spar with.
+  // Required-lesson targets (tree, foe) plus the optional-lesson stations
+  // (copper rock, berry bush, furnace, anvil, rune altar) the guide points to.
   region.nodes = [
     ...region.nodes,
     { instanceId: "tutorial.tree", defId: "resource.tree.basic", cell: { x: spawn.x - 4, z: spawn.z + 1 } },
+    { instanceId: "tutorial.rock", defId: "resource.rock.copper", cell: { x: spawn.x - 6, z: spawn.z - 2 } },
+    { instanceId: "tutorial.bush", defId: "resource.bush.berry", cell: { x: spawn.x - 3, z: spawn.z - 3 } },
+  ];
+  region.objects = [
+    ...region.objects,
+    { instanceId: "tutorial.furnace", defId: "object.furnace.basic", cell: { x: spawn.x + 7, z: spawn.z - 1 } },
+    { instanceId: "tutorial.anvil", defId: "object.anvil.basic", cell: { x: spawn.x + 7, z: spawn.z + 1 } },
+    { instanceId: "tutorial.altar", defId: "object.altar.rune", cell: { x: spawn.x - 7, z: spawn.z } },
   ];
   region.enemies = [
     ...(region.enemies ?? []),
