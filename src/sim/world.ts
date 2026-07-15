@@ -25,6 +25,29 @@ export const WORLD_SIZE = WORLD;
  * only ever ADDS walkability — no flag can strand a player.
  */
 export function applyWorldFlags(region: RegionSpec, flags: Iterable<string>): void {
+  // Conquered endless dungeons: once the finale boss is down for good, its
+  // floor reads as claimed on every return — no boss, no elite guard, the
+  // prize looted and the war-banners struck. The cleared flag is keyed to the
+  // dungeon's (style, seed); the id also carries this floor's depth/maxDepth,
+  // so only the finale floor is stripped and the descent still has teeth.
+  const dyn = region.id.match(/^dyn_(crypt|mine)_(\d+)_(\d+)_(\d+)_/);
+  if (dyn) {
+    const [, style, seed, depthS, maxS] = dyn;
+    const depth = Number(depthS);
+    const maxDepth = Number(maxS);
+    const flagSet = flags instanceof Set ? (flags as Set<string>) : new Set(flags);
+    if (maxDepth > 0 && depth >= maxDepth && flagSet.has(`cleared.dungeon.${style}.${seed}`)) {
+      if (region.enemies) {
+        region.enemies = region.enemies.filter(
+          (e) => !e.instanceId.endsWith(".boss") && !e.instanceId.endsWith(".elite"),
+        );
+      }
+      region.objects = region.objects.filter(
+        (o) => !o.instanceId.endsWith(".prize") && !o.instanceId.includes(".banner."),
+      );
+    }
+    return;
+  }
   if (region.id !== "region.vale_clearing") return;
   const at = (x: number, z: number) => z * region.width + x;
   const lay = (x0: number, x1: number, z0: number, z1: number, block: BlockType, h: number) => {

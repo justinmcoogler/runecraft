@@ -298,7 +298,9 @@ async function boot(): Promise<void> {
     } else if (targetRegionId === "region.tutorial") {
       sim = GameSimulation.createTutorial(TUTORIAL_SEED);
     } else {
-      sim = new GameSimulation(buildRegion(targetRegionId), seed());
+      // Pass the carried world flags into the build so a conquered dungeon's
+      // finale is reflected before the sim registers its blockers.
+      sim = new GameSimulation(buildRegion(targetRegionId, shared.worldFlags), seed());
       if (targetRegionId === "region.vale_clearing") applyLayerToSim(sim, loadEditorLayer());
     }
     // Every fresh sim needs the model-preference spawn veto re-attached.

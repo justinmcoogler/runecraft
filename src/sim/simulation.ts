@@ -17,6 +17,7 @@ import { QuestService } from "./quests";
 import { SkillService } from "./skills";
 import { ChunkManager } from "./chunk-manager";
 import { EndlessTerrain, remoteness01, setValeActive, starterTownRegion, tutorialRegion } from "./worldgen/endless";
+import { dungeonSpecFor } from "./worldgen/dungeons";
 import { CuratorService, SlayerService } from "./taskmasters";
 import type { ArmorSlot, Cell, Command, SimEvent } from "./types";
 import { SimEventBus, SimRng, TICK_DT } from "./types";
@@ -677,6 +678,8 @@ export class GameSimulation {
     this.slayer.process(events);
     this.curator.process(events);
     this.tutorial?.process(events);
+    // Felling a dungeon's finale boss conquers it for good.
+    this.noteBossKills(events);
     const questEvents = this.events.drain();
     // Completed quests may set world flags that visibly repair the world.
     for (const ev of questEvents) {
@@ -747,6 +750,45 @@ export class GameSimulation {
       const name = this.poiName(s);
       if (name) found(s.instanceId, name);
     }
+  }
+
+  /** How many endless-world dungeons the player has ever conquered (persisted). */
+  clearedCount(): number {
+    let n = 0;
+    for (const f of this.worldFlags) if (f.startsWith("cleared.dungeon.")) n++;
+    return n;
+  }
+
+  /** Watch for the finale boss going down and conquer the dungeon for good. */
+  private noteBossKills(events: SimEvent[]): void {
+    for (const ev of events) {
+      if (ev.type !== "enemyDied" || !ev.instanceId.endsWith(".boss")) continue;
+      this.markDungeonCleared(this.world.region.id);
+    }
+  }
+
+  /** Mark a finite endless dungeon conquered: set a persistent flag, pay a
+   *  one-time distance-scaled bounty, and announce it. Only the finale floor
+   *  counts — intermediate boss floors and the endless descent never "clear". */
+  private markDungeonCleared(regionId: string): void {
+    const m = regionId.match(/^dyn_(crypt|mine)_(\d+)_(\d+)_(\d+)_(-?\d+)_(-?\d+)$/);
+    if (!m) return;
+    const style = m[1] as "crypt" | "mine";
+    const seed = Number(m[2]);
+    const depth = Number(m[3]);
+    const maxDepth = Number(m[4]);
+    const exit = { x: Number(m[5]), z: Number(m[6]) };
+    if (maxDepth <= 0 || depth < maxDepth) return; // only the finale conquers it
+    const flag = `cleared.dungeon.${style}.${seed}`;
+    if (this.worldFlags.has(flag)) return;
+    this.worldFlags.add(flag);
+    // A conquest bounty, several times an ordinary discovery, growing with the
+    // dungeon's remoteness from home.
+    const reward = 60 + Math.floor(remoteness01(exit.x, exit.z) * 240);
+    this.inventory.add("item.coin", reward);
+    this.events.emit({ type: "itemGained", itemId: "item.coin", qty: reward });
+    const name = dungeonSpecFor(style, seed, depth, maxDepth, exit).name.split(" — ")[0];
+    this.events.emit({ type: "dungeonCleared", id: flag, name, reward, total: this.clearedCount() });
   }
 
   private route(c: Command): void {

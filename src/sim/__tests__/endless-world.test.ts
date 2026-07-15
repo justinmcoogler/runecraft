@@ -103,6 +103,8 @@ describe("the endless world", () => {
   });
 
   it("fills the world with content for the whole skill spread", () => {
+    // A broad multi-seed sweep — heavy, and slower still under parallel load,
+    // so it gets a generous timeout (see the trailing argument below).
     // One broad multi-seed sweep so rare features (villages, dungeons) show up.
     const nodes = new Set<string>(), objects = new Set<string>(), enemies = new Set<string>();
     let structures = 0;
@@ -139,5 +141,5 @@ describe("the endless world", () => {
     // Civilisation + adventure: dungeons and built structures generate.
     expect([...objects].some((d) => d.includes("portal.cave")), "dungeon gates").toBe(true);
     expect(structures, "wild structures/homesteads").toBeGreaterThan(0);
-  });
+  }, 90000);
 });

@@ -497,6 +497,9 @@ export class Hud {
         case "poiDiscovered":
           this.toast(`Discovered ${ev.name}! +${ev.reward} coins · ${ev.total} found`, "level", uiIconHtml("quest", 20));
           break;
+        case "dungeonCleared":
+          this.toast(`Conquered ${ev.name}! +${ev.reward} coins · ${ev.total} cleared`, "level", uiIconHtml("heart", 22));
+          break;
         case "itemGained":
           this.floatText(
             `+${ev.qty} ${ITEMS[ev.itemId].name} ${itemIconHtml(ev.itemId, ITEMS[ev.itemId].icon, 18)}`,
