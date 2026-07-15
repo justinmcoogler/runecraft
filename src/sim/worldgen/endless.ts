@@ -2256,18 +2256,33 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
         enemies.push({ instanceId: id(), defId, cell: { x: x0 + hx + 1, z: z0 + hz } });
       }
     }
-    // Richer ore surfaces on exposed rock as you range out.
-    const veins = Math.floor(remote * 3);
+    // Richer ore surfaces on exposed rock and mountain ground as you range out
+    // — the deeper wilds and higher peaks bear the rarer metals and gems.
+    const veins = 1 + Math.floor(remote * 4);
     for (let k = 0; k < veins; k++) {
-      const hx = 3 + Math.floor(cellHash(cx * 23 + k * 5, cz * 29 + k * 3, salt(seed, 140)) * (ECHUNK - 6));
-      const hz = 3 + Math.floor(cellHash(cz * 23 + k * 5, cx * 29 + k * 3, salt(seed, 141)) * (ECHUNK - 6));
-      const b = BLOCK_LIST[blocks[hz * ECHUNK + hx]];
-      if (b !== "stone" && b !== "andesite" && b !== "gravel") continue;
+      const hx = 3 + Math.floor(cellHash(cx * 23 + k * 5 + 1, cz * 29 + k * 3 + 2, salt(seed, 140)) * (ECHUNK - 6));
+      const hz = 3 + Math.floor(cellHash(cz * 23 + k * 5 + 3, cx * 29 + k * 3 + 4, salt(seed, 141)) * (ECHUNK - 6));
+      const i = hz * ECHUNK + hx;
+      const b = BLOCK_LIST[blocks[i]];
+      const rocky = b === "stone" || b === "andesite" || b === "gravel" || b === "snow";
+      if (!rocky && heights[i] < 34) continue; // exposed rock, or a mountainside
       const wx = x0 + hx, wz = z0 + hz;
-      if (inStarterTown(seed, wx, wz) || inHouse(hx, hz)) continue;
-      const pool = DANGER_ORES[tier];
+      if (inStarterTown(seed, wx, wz) || inHouse(hx, hz) || roadDist(seed, wx, wz) < 3) continue;
+      // Elevation lifts the ore tier a notch: peaks bear better metal.
+      const eTier = Math.min(5, tier + (heights[i] > 44 ? 1 : 0));
+      const pool = DANGER_ORES[eTier];
       const defId = pool[Math.floor(cellHash(wz, wx, salt(seed, 142 + k)) * pool.length) % pool.length];
       nodes.push({ instanceId: id(), defId, cell: { x: wx, z: wz } });
+    }
+    // Archaeology: old ground hides relics anywhere — a sparse dig site per
+    // few chunks, richer in the ruin-strewn deep wilds.
+    if (cellHash(cx * 61 + 3, cz * 47 + 9, salt(seed, 150)) < 0.05 + remote * 0.08) {
+      const hx = 4 + Math.floor(cellHash(cx * 9 + 2, cz * 7 + 5, salt(seed, 151)) * (ECHUNK - 8));
+      const hz = 4 + Math.floor(cellHash(cz * 9 + 2, cx * 7 + 5, salt(seed, 152)) * (ECHUNK - 8));
+      if (dryOpen(hx, hz)) {
+        const dig = remote > 0.5 && cellHash(hx, hz, salt(seed, 153)) < 0.4 ? "resource.digsite.old" : "resource.digsite.basic";
+        nodes.push({ instanceId: id(), defId: dig, cell: { x: x0 + hx, z: z0 + hz } });
+      }
     }
   }
   } // end if (!CLEAR_ASSETS)
