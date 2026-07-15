@@ -341,6 +341,74 @@ export function dynDungeonId(
  * descent (rare); a positive N means a finite dungeon of N floors whose last
  * floor is the finale — a guaranteed boss and the prize, with no stair down.
  */
+// ── Dungeon affixes ────────────────────────────────────────────────────────
+// A dungeon carries at most one affix, rolled from its seed (so it's the same
+// on every floor and reconstructs deterministically from the region id). Each
+// recolours the floor, mixes themed foes into the rank-and-file, and tweaks the
+// loot/hazards, giving crawls real variety and a telling name.
+type Affix =
+  | "flooded" | "burning" | "haunted" | "overgrown"
+  | "ore_rich" | "corrupted" | "treasure" | "rune_charged";
+const AFFIXES: Affix[] = ["flooded", "burning", "haunted", "overgrown", "ore_rich", "corrupted", "treasure", "rune_charged"];
+const AFFIX_LABEL: Record<Affix, string> = {
+  flooded: "Flooded", burning: "Burning", haunted: "Haunted", overgrown: "Overgrown",
+  ore_rich: "Ore-rich", corrupted: "Corrupted", treasure: "Gilded", rune_charged: "Rune-charged",
+};
+
+/** ~55% of dungeons carry an affix; deterministic per dungeon seed. */
+function affixFor(seed: number): Affix | null {
+  const r = (Math.imul(seed ^ 0x9e3779b9, 2654435761) >>> 0) / 4294967296;
+  if (r > 0.55) return null;
+  return AFFIXES[Math.floor((r / 0.55) * AFFIXES.length) % AFFIXES.length];
+}
+
+function applyAffix(spec: DungeonSpec, affix: Affix | null): DungeonSpec {
+  if (!affix) return spec;
+  spec.name = `${AFFIX_LABEL[affix]} ${spec.name}`;
+  const foes = (list: Array<{ defId: string; weight: number }>) => { spec.enemies = [...spec.enemies, ...list]; };
+  switch (affix) {
+    case "flooded":
+      spec.floor = "mud";
+      foes([{ defId: "enemy.drowned", weight: 2 }, { defId: "enemy.bog_slime", weight: 2 }, { defId: "enemy.marsh_lurker", weight: 1 }]);
+      break;
+    case "burning":
+      spec.floor = "redsand";
+      spec.theme = { ...spec.theme, sky: "#2a0f08" };
+      foes([{ defId: "enemy.ember_crawler", weight: 2 }, { defId: "enemy.ash_hound", weight: 2 }]);
+      break;
+    case "haunted":
+      spec.floor = "podzol";
+      foes([{ defId: "enemy.grave_shambler", weight: 2 }, { defId: "enemy.hollow_wight", weight: 2 }]);
+      break;
+    case "overgrown":
+      spec.floor = "moss";
+      foes([{ defId: "enemy.vine_stalker", weight: 2 }, { defId: "enemy.spore_shambler", weight: 2 }, { defId: "enemy.bramble_slime", weight: 1 }]);
+      break;
+    case "ore_rich":
+      spec.floor = "gravel";
+      spec.rocks = [
+        { defId: "resource.rock.iron", weight: 3 }, { defId: "resource.rock.gold", weight: 2 },
+        { defId: "resource.rock.coal", weight: 3 }, { defId: "resource.rock.emerald", weight: 1 },
+      ];
+      break;
+    case "corrupted":
+      spec.floor = "mycelium";
+      spec.theme = { ...spec.theme, ambient: Math.max(0.1, spec.theme.ambient - 0.05) };
+      foes([{ defId: "enemy.blight_slime", weight: 2 }, { defId: "enemy.gloom_spinner", weight: 2 }]);
+      spec.lootItems = [...spec.lootItems, { itemId: "item.gem.diamond", qty: 1 }];
+      break;
+    case "treasure":
+      spec.lootItems = [...spec.lootItems, { itemId: "item.coin", qty: 120 }, { itemId: "item.gem.diamond", qty: 2 }];
+      break;
+    case "rune_charged":
+      spec.theme = { ...spec.theme, sky: "#101830" };
+      spec.rocks = [...(spec.rocks ?? []), { defId: "resource.rock.essence", weight: 4 }];
+      spec.lootItems = [...spec.lootItems, { itemId: "item.essence.rune", qty: 8 }];
+      break;
+  }
+  return spec;
+}
+
 export function dungeonSpecFor(
   style: "crypt" | "mine",
   seed: number,
@@ -368,7 +436,7 @@ export function dungeonSpecFor(
   // the floor directly above (landing at its fixed entrance spawn). Previously
   // every floor's exit jumped straight to the surface.
   const ascendToSurface = depth <= 1;
-  return {
+  const spec: DungeonSpec = {
     id: dynDungeonId(style, seed, depth, maxDepth, exit),
     name: label,
     exitRegionId: ascendToSurface ? "region.endless" : dynDungeonId(style, seed, depth - 1, maxDepth, exit),
@@ -395,6 +463,13 @@ export function dungeonSpecFor(
     // No stair down on the finale of a finite crawl — that's the end.
     descendTo: isFinale ? undefined : dynDungeonId(style, seed, depth + 1, maxDepth, exit),
   };
+  // One affix per dungeon (same on every floor, from the shared seed).
+  return applyAffix(spec, affixFor(seed));
+}
+
+/** The affix a dungeon seed carries (for tests / labels), or null. */
+export function dungeonAffix(seed: number): string | null {
+  return affixFor(seed);
 }
 
 /** Resolve a dyn_* region id into a region builder, or null if it isn't one. */
