@@ -1,24 +1,55 @@
-# Pixel art needed — Stoneleaf Vale
+# Pixel art needed — Runecraft
 
 Everything below currently renders from an **emoji** or a **procedural
-placeholder**. Replace each with original Minecraft-style pixel art. All
-item/block art is **16×16 PNG** with transparency; entity skins follow the
-vanilla model-box UV layout at the sizes noted.
+placeholder**. Replace each with original **RuneScape-themed** pixel art.
+
+## Art direction — RuneScape (Old School RuneScape) style
+
+Every asset should read like it belongs in **Old School RuneScape / RuneScape 2**,
+not Minecraft:
+
+- **Palette:** earthy, slightly desaturated medieval-fantasy tones — muted
+  greens/browns for nature, cool greys for stone/steel, warm golds and gem
+  jewel-tones for treasure. Avoid Minecraft's bright saturated blocks.
+- **Item icons:** the iconic OSRS inventory look — a **single object drawn at a
+  slight 3/4 / isometric angle**, chunky and readable, with a **dark (near-black)
+  1px outline**, light coming from the **top-left**, and a soft shadow side on
+  the lower-right. Bronze→iron→steel→mithril→adamant→rune→dragon metal tiers
+  should read by colour (brown → grey → pale steel → blue → green → cyan →
+  crimson) the way RuneScape gear does.
+- **Creatures:** RuneScape bestiary designs (goblins, cows, giant rats, imps,
+  skeletons, etc.) rather than Minecraft mobs — same silhouettes the engine
+  rigs expect, but RS-flavoured colours and detailing.
+- **World/blocks:** RuneScape-ground textures — trodden dirt paths, cobbled
+  stone, mossy brick, timber — hand-shaded, low-contrast, tileable.
+
+Keep it original art (RS-*inspired*, not ripped): do not copy Jagex sprites.
+
+## Technical sizes (unchanged — the engine is voxel-based)
+
+The renderer is grid/voxel based, so the **canvas sizes stay fixed** even though
+the style is RuneScape. All item/block art is **16×16 PNG** with transparency;
+entity skins follow the engine's model-box UV layout at the sizes noted.
 
 How art gets wired in (for reference):
 - **Item icons** → drop a 16×16 PNG and map the item id to a material key in
   `src/ui/icons.ts` (`ITEM_ICON_MATERIALS`) baked into
   `src/render/default-textures.ts`.
 - **Mob skins** → a single entity texture baked as `entity.<mob>` in
-  `default-textures.ts` (`DEFAULT_ENTITY_TEXTURES`); the rig UV-maps it.
-- **Blocks/props** → material keys in `default-textures.ts` (Faithful-style
-  16×16), resolved by `src/render/textures.ts`.
+  `default-textures.ts` (`DEFAULT_ENTITY_TEXTURES`); the rig UV-maps it (RS
+  creature art laid onto the engine's box-UV template).
+- **Blocks/props** → material keys in `default-textures.ts` (RuneScape-toned
+  16×16 tiles), resolved by `src/render/textures.ts`.
 
 ---
 
 ## 1. Item icons — 92 (16×16 each)
 
-Currently emoji. Grouped by kind; `(id)` is the item id.
+Currently emoji. Grouped by kind; `(id)` is the item id. **Draw all of these in
+the OSRS inventory-icon style** described above. Some names are inherited from
+the prototype (e.g. "Netherite", "Redstone", "Nether Quartz") — keep the id, but
+render the *art* as its RuneScape-tier equivalent (a top-tier dark metal, a red
+mineral dust, a pale crystal, etc.), not the literal Minecraft item.
 
 ### Ores, gems & bars
 - Redstone Dust `item.ore.redstone`
@@ -84,10 +115,11 @@ Currently emoji. Grouped by kind; `(id)` is the item id.
 
 ## 2. Mob / entity textures
 
-Drawn **procedurally** today (no Minecraft skin). Each needs one entity
-texture at the vanilla UV size in parentheses. **The cow included — there is
-no cow texture in the project; it is drawn as procedural white-with-black
-patches.** Baked keys become `entity.<name>`.
+Drawn **procedurally** today (no skin). Each needs one **RuneScape-styled
+creature** texture laid onto the engine's box-UV template at the size in
+parentheses — RS bestiary colours/detailing, not Minecraft mobs. **The cow
+included — there is no cow texture in the project; it is drawn as procedural
+white-with-black patches.** Baked keys become `entity.<name>`.
 
 | Mob | id | Entity texture (vanilla layout) |
 |---|---|---|
@@ -112,19 +144,19 @@ original skin.
 
 ---
 
-## 3. Voxel props → Minecraft block textures  (needs a decision)
+## 3. Voxel props → per-face block textures  (needs a decision)
 
 The rocks, boulders, giant mushrooms and plants scattered in the world are
 **colored-voxel models** (a per-voxel colour + a grey grain), not per-face
-Minecraft textures. To make them true Minecraft blocks I need to **re-import
+textures. To give them real RuneScape-styled block faces I need to **re-import
 the source `.schem`/`.litematic` files storing the block type per voxel**, then
 render each face with the real block texture (the structure system already
 does this). **Those source files are not in the repo** — send them and I'll
 re-bake. (Alternatively I can approximate by mapping each prop colour to the
 nearest block texture — say the word.)
 
-Block textures that imported *structures* currently render as flat colour (no
-Faithful tile) and would benefit from 16×16 art — the big families:
+Block textures that imported *structures* currently render as flat colour and
+would benefit from 16×16 **RuneScape-toned** tiles — the big families:
 `podzol, gravel, netherrack, obsidian, glowstone, amethyst_block, magma_block,
 soul_sand/soil, the metal/gem *_block set (iron/gold/diamond/emerald/lapis/
 redstone/coal), hay_block, bone_block, sea_lantern, sculk*, mushroom blocks,
@@ -140,13 +172,13 @@ PNG with transparency for each and they resolve automatically (a loaded resource
 pack's `torch.png` also overrides them):
 
 - **`sprite.torch`** — the standing / wall torch, drawn on **crossed vertical
-  planes** (Minecraft block-model style). Classic layout: a 2px wooden stick
-  rising from the bottom-centre with a small glowing coal tip near the top,
-  everything else transparent. Used by the torches around the castle wall.
+  planes**. RuneScape wall-sconce feel: a stout wooden brand with a small
+  glowing tip near the top, everything else transparent. Used by the torches
+  around the castle wall.
 - **`sprite.item.torch`** — the **in-hand item** icon, on the diagonal-handle
   convention (handle rising bottom-left → top-right, like the axe/pickaxe item
   art) so it grips correctly in the fist. Wooden shaft, glowing head at the
-  top-right end.
+  top-right end — same OSRS item-icon shading as the other tools.
 
 > For *this* version the separate flaring flame sprite was removed from the wall
 > torches — the torch's own glowing tip reads as the flame. To bring an animated
