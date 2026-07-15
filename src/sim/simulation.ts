@@ -55,6 +55,8 @@ export class GameSimulation {
   readonly worldFlags = new Set<string>();
   /** Discovered endless-world landmarks the player can fast-travel between. */
   readonly waypoints: Array<{ id: string; name: string; x: number; z: number }> = [];
+  /** The buried cache the player's current treasure map points to, if any. */
+  treasureHunt: { x: number; z: number } | null = null;
   /** Tutorial lesson driver (present only in the tutorial region). */
   tutorial: TutorialDriver | null = null;
   /** Timed potion effects: kind -> seconds remaining. */
@@ -657,6 +659,10 @@ export class GameSimulation {
           this.rollWorldEvent(movedCell);
         }
       }
+      // A treasure map in the pack sets a buried-cache hunt; reaching the marked
+      // spot unearths the prize (and sometimes the next map — a chain).
+      if (!this.treasureHunt && this.inventory.count("item.treasure_map") > 0) this.beginTreasureHunt();
+      if (this.treasureHunt && chebyshev(movedCell, this.treasureHunt) <= 1) this.unearthTreasure();
     }
 
     // Crossing into a named zone announces it (world map only).
@@ -814,6 +820,55 @@ export class GameSimulation {
     return null;
   }
 
+  // ── Treasure-map hunts ───────────────────────────────────────────────────
+  private static readonly COMPASS = ["east", "north-east", "north", "north-west", "west", "south-west", "south", "south-east"];
+
+  /** Consume one treasure map and mark a buried cache a good walk away, on dry
+   *  land. Emits a directional hint. */
+  private beginTreasureHunt(): void {
+    if (this.inventory.removeItemById("item.treasure_map", 1) === 0) return;
+    const here = this.movement.currentCell();
+    // A random bearing, 300–900 paces out; nudge off any water to dry land.
+    const ang = this.rng.next() * Math.PI * 2;
+    const dist = 300 + Math.floor(this.rng.next() * 600);
+    let tx = Math.round(here.x + Math.cos(ang) * dist);
+    let tz = Math.round(here.z + Math.sin(ang) * dist);
+    // Nudge the mark off open water onto dry land (terrain reads are per-cell).
+    for (let i = 0; i < 24 && this.world.blockAt({ x: tx, z: tz }) === "water"; i++) {
+      tx += Math.round((this.rng.next() - 0.5) * 30);
+      tz += Math.round((this.rng.next() - 0.5) * 30);
+    }
+    this.treasureHunt = { x: tx, z: tz };
+    // Eight-wind bearing from the player toward the mark.
+    const oct = Math.round((Math.atan2(tz - here.z, tx - here.x) / (Math.PI * 2)) * 8 + 8) % 8;
+    const hint = `The map marks a cache to the ${GameSimulation.COMPASS[oct]}, about ${dist} paces off.`;
+    this.events.emit({ type: "treasureHuntBegan", hint, x: tx, z: tz });
+  }
+
+  /** Reaching the mark: unearth the cache. Deep finds pay more, and roughly a
+   *  third of the time turn up the next map — a treasure chain. */
+  private unearthTreasure(): void {
+    const spot = this.treasureHunt!;
+    this.treasureHunt = null;
+    const r = remoteness01(spot.x, spot.z);
+    const reward = 80 + Math.floor(r * 320);
+    this.inventory.add("item.coin", reward);
+    this.events.emit({ type: "itemGained", itemId: "item.coin", qty: reward });
+    if (this.inventory.canAdd("item.gem.emerald", 1)) {
+      this.inventory.add("item.gem.emerald", 1);
+      this.events.emit({ type: "itemGained", itemId: "item.gem.emerald", qty: 1 });
+    }
+    // The chain: sometimes the cache holds the next map. Grant it now; the tick
+    // loop begins the next hunt automatically.
+    const chain = this.rng.next() < 0.34 && this.inventory.canAdd("item.treasure_map", 1);
+    if (chain) {
+      this.inventory.add("item.treasure_map", 1);
+      this.events.emit({ type: "itemGained", itemId: "item.treasure_map", qty: 1 });
+    }
+    this.skills.grantXp("skill.archaeology", 40 + Math.floor(r * 120));
+    this.events.emit({ type: "treasureFound", reward, chain });
+  }
+
   /** How many endless-world dungeons the player has ever conquered (persisted). */
   clearedCount(): number {
     let n = 0;
@@ -902,6 +957,13 @@ export class GameSimulation {
       this.inventory.add("item.gem.emerald", 1);
       this.events.emit({ type: "itemGained", itemId: "item.gem.emerald", qty: 1 });
       blurb += " A gem glints among the coins.";
+    }
+    // Deep out, a cache may hold a treasure map — the start of a hunt (and, if
+    // no hunt is running, the tick loop picks it straight up).
+    if (r > 0.3 && !this.treasureHunt && this.rng.next() < 0.2 && this.inventory.canAdd("item.treasure_map", 1)) {
+      this.inventory.add("item.treasure_map", 1);
+      this.events.emit({ type: "itemGained", itemId: "item.treasure_map", qty: 1 });
+      blurb += " A rolled treasure map is tucked inside!";
     }
     this.events.emit({ type: "worldEvent", kind: "cache", title: "A lucky find", blurb });
   }

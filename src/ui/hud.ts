@@ -506,6 +506,16 @@ export class Hud {
         case "fastTraveled":
           this.toast(`Travelled to ${ev.name}.`, "info", uiIconHtml("quest", 18));
           break;
+        case "treasureHuntBegan":
+          this.toast(`🗺️ ${ev.hint}`, "info", uiIconHtml("quest", 20));
+          break;
+        case "treasureFound":
+          this.toast(
+            ev.chain ? `You unearth the cache — +${ev.reward} coins, and another map!`
+              : `You unearth the cache — +${ev.reward} coins!`,
+            "level", uiIconHtml("quest", 22),
+          );
+          break;
         case "itemGained":
           this.floatText(
             `+${ev.qty} ${ITEMS[ev.itemId].name} ${itemIconHtml(ev.itemId, ITEMS[ev.itemId].icon, 18)}`,

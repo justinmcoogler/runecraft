@@ -1534,6 +1534,13 @@ export const ITEMS: Record<string, ItemDef> = {
     stackable: true,
     maxStack: 10,
   },
+  "item.treasure_map": {
+    id: "item.treasure_map",
+    name: "Treasure Map",
+    icon: "🗺️",
+    stackable: true,
+    maxStack: 10,
+  },
   "item.relic.tablet": {
     id: "item.relic.tablet",
     name: "Carved Tablet",
