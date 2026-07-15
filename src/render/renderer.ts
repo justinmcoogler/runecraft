@@ -945,9 +945,10 @@ export class GameRenderer {
           // A sandy bed a block under the surface so the channel reads as water.
           pushQuad([[x, BED_Y, z + 1], [x + 1, BED_Y, z + 1], [x + 1, BED_Y, z], [x, BED_Y, z]], "terrain.sand", 0.5, x, z);
 
-          // Deck: a plank slab, one plank thick (half a block), full 1×1 footprint,
-          // its top the walk surface at h (the top face is pushed above).
-          const deckBot = h - 0.5;
+          // Deck: full 1×1×1 plank blocks (one full block thick), top the walk
+          // surface at h (the top face is pushed above) — so a height change
+          // between deck cells reads as a clean full-block step, not a half-slab.
+          const deckBot = h - 1;
           const plankSide = this.sideTileFor(block, 0);
           for (const side of sides) {
             const nh = heightOrVoid(side.nx, side.nz);
@@ -2636,7 +2637,8 @@ export class GameRenderer {
             depthWrite: false,
             blending: THREE.AdditiveBlending,
           });
-          const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.5, 9, 8, 1, true), beamMat);
+          // A square beam (Minecraft beacon style) — cube-family, not a cylinder.
+          const beam = new THREE.Mesh(new THREE.BoxGeometry(0.5, 9, 0.5), beamMat);
           beam.position.set(0, 4.6, 0.2);
           group.add(beam);
           this.portalGlows.push({ mat: beamMat, base: 0.12, amp: 0.06, group });

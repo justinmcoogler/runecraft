@@ -251,6 +251,31 @@ function bridgeCrossingOk(seed: number, x: number, z: number, maxSpan: number): 
   return waterRunAlong(seed, x, z, ux, uz, maxSpan) <= maxSpan;
 }
 
+// A short plank jetty length: where a road's line meets water too wide to bridge,
+// the first few water cells from the bank become a dock instead of dead-ending.
+const DOCK_LEN = 4;
+
+/** True when this water cell is within DOCK_LEN of a shore ALONG the road's
+ *  travel direction — a jetty jutting out from the bank the road arrives on. */
+function dockCell(seed: number, x: number, z: number): boolean {
+  const s = 2;
+  const dpx = roadDist(seed, x + s, z), dmx = roadDist(seed, x - s, z);
+  const dpz = roadDist(seed, x, z + s), dmz = roadDist(seed, x, z - s);
+  if (![dpx, dmx, dpz, dmz].every(Number.isFinite)) return false;
+  const gx = dpx - dmx, gz = dpz - dmz;
+  const len = Math.hypot(gx, gz);
+  if (len < 1e-6) return false;
+  const ux = -gz / len, uz = gx / len; // road travel direction
+  for (const sgn of [1, -1]) {
+    for (let k = 1; k <= DOCK_LEN; k++) {
+      if (!isOpenWater(seed, Math.round(x + ux * sgn * k), Math.round(z + uz * sgn * k))) {
+        return true; // dry land within DOCK_LEN this way → we're on a jetty
+      }
+    }
+  }
+  return false;
+}
+
 function rawHeight(seed: number, x: number, z: number, cache?: HeightCache): number {
   const key = x * 2097152 + z;
   const hit = cache?.get(key);
@@ -375,6 +400,12 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
       (roadSurface(seed, x, z) !== null || onVillageLane(seed, x, z)) &&
       bridgeCrossingOk(seed, x, z, MAX_BRIDGE_SPAN)
     ) {
+      return { h: Math.max(1, Math.round(f.h)), block: "bridge", biome, water: false };
+    }
+    // Road meets water too wide to bridge → a short plank dock juts from the
+    // bank (the road's own line runs near here) instead of dead-ending. Rendered
+    // as the same open-underneath plank deck on piers.
+    if (!f.ocean && roadDist(seed, x, z) < 3 && dockCell(seed, x, z)) {
       return { h: Math.max(1, Math.round(f.h)), block: "bridge", biome, water: false };
     }
     // Cold country freezes over: lakes, pools and rivers wear a walkable
