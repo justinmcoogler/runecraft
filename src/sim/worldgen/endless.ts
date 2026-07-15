@@ -1339,14 +1339,122 @@ function tryStampHouse(
   return true;
 }
 
-/** Villager names and idle chatter, picked deterministically per hamlet. */
+/** Villager names, picked deterministically per settlement. */
 const VILLAGER_NAMES = ["Wren", "Odo", "Mabel", "Cuthbert", "Nessa", "Tam", "Petra", "Garrick", "Isolde", "Bram"];
-const VILLAGER_LINES: string[][] = [
-  ["Fair day for the road, traveler.", "The well's water is cold and clean — help yourself."],
-  ["We don't see many strangers out this way.", "Mind the wilds past the fields come nightfall."],
-  ["Trade at the stall if you've coin to spend.", "The old roads still run true, if you follow them."],
-  ["Rest your feet a while — no hurry in a hamlet.", "Rumor is there's a barrow-crypt out east. Stay clear."],
-];
+
+// ── Settlement types ───────────────────────────────────────────────────────
+// A commons is one of several kinds, drawn from the anchor + surrounding
+// country. Each dresses its green differently and its folk talk their trade,
+// so no two settlements read the same. The interiored homesteads still cluster
+// around every kind; only the plaza's centrepiece and chatter change.
+export type SettlementKind = "hamlet" | "farmstead" | "mining_camp" | "shrine" | "trade_post";
+interface SettlementDef {
+  /** Plaza dressing, offset from the green centre. */
+  dress: Array<{ defId: string; dx: number; dz: number }>;
+  folk: [min: number, span: number];
+  lines: string[][];
+}
+export const SETTLEMENTS: Record<SettlementKind, SettlementDef> = {
+  hamlet: {
+    dress: [
+      { defId: "object.well.basic", dx: 0, dz: 0 },
+      { defId: "object.stall.market", dx: 4, dz: 3 },
+      { defId: "object.bench.wood", dx: -4, dz: 2 },
+      { defId: "object.bench.wood", dx: 3, dz: -4 },
+      { defId: "object.crate.wood", dx: 5, dz: 4 },
+      { defId: "object.barrel.wood", dx: -5, dz: -3 },
+    ],
+    folk: [2, 3],
+    lines: [
+      ["Fair day for the road, traveler.", "The well's water is cold and clean — help yourself."],
+      ["We don't see many strangers out this way.", "Mind the wilds past the fields come nightfall."],
+      ["Rest your feet a while — no hurry in a hamlet.", "Rumor is there's a barrow-crypt out east. Stay clear."],
+    ],
+  },
+  farmstead: {
+    dress: [
+      { defId: "object.well.basic", dx: 0, dz: 0 },
+      { defId: "object.workbench.basic", dx: 4, dz: 2 },
+      { defId: "object.crate.wood", dx: 5, dz: 4 },
+      { defId: "object.crate.wood", dx: 6, dz: 2 },
+      { defId: "object.barrel.wood", dx: -5, dz: -3 },
+      { defId: "object.campfire.basic", dx: -4, dz: 3 },
+      { defId: "object.flowers.wild", dx: -6, dz: 4 },
+      { defId: "object.grass.tuft", dx: 6, dz: -4 },
+      { defId: "object.fence.wood", dx: -7, dz: 0 },
+      { defId: "object.fence.wood", dx: 7, dz: 0 },
+      { defId: "object.signpost", dx: 0, dz: 7 },
+    ],
+    folk: [2, 3],
+    lines: [
+      ["The barley's coming in well this year.", "Take a turnip if you're hungry — plenty here."],
+      ["Long days in the field, but honest ones.", "Wolves have been at the pens. Watch the treeline."],
+      ["Rain when we need it, sun when we don't.", "Market day's a long walk, so we trade what we can."],
+    ],
+  },
+  mining_camp: {
+    dress: [
+      { defId: "object.anvil.basic", dx: 0, dz: 0 },
+      { defId: "object.furnace.basic", dx: 3, dz: 2 },
+      { defId: "object.crate.wood", dx: 5, dz: 3 },
+      { defId: "object.crate.wood", dx: -5, dz: 3 },
+      { defId: "object.barrel.wood", dx: -4, dz: -3 },
+      { defId: "object.campfire.basic", dx: 4, dz: -3 },
+      { defId: "object.rock.outcrop", dx: -6, dz: -5 },
+      { defId: "object.rock.outcrop", dx: 6, dz: 5 },
+      { defId: "object.signpost", dx: 0, dz: 7 },
+    ],
+    folk: [2, 3],
+    lines: [
+      ["The seam runs deep here — good ore, hard rock.", "Mind the old shafts. Not all of them are empty."],
+      ["Bring me iron and I'll bring you steel.", "The forge never goes cold in this camp."],
+      ["Coal, copper, tin — we pull it all from the hill.", "Strangers with picks are welcome. The rest, less so."],
+    ],
+  },
+  shrine: {
+    dress: [
+      { defId: "object.altar.rune", dx: 0, dz: 0 },
+      { defId: "object.banner.red", dx: -2, dz: -3 },
+      { defId: "object.banner.red", dx: 2, dz: -3 },
+      { defId: "object.bench.wood", dx: -4, dz: 3 },
+      { defId: "object.bench.wood", dx: 4, dz: 3 },
+      { defId: "object.obelisk.summon", dx: 0, dz: -6 },
+    ],
+    folk: [1, 2],
+    lines: [
+      ["Peace, traveler. You stand on hallowed ground.", "Leave an offering at the altar, if you're moved to."],
+      ["The old rites are kept here still.", "Some walk many leagues to pray at this stone."],
+      ["Quiet your heart a while.", "Dark things stir in the deep places. We keep the light."],
+    ],
+  },
+  trade_post: {
+    dress: [
+      { defId: "object.stall.market", dx: -4, dz: 0 },
+      { defId: "object.stall.market", dx: 4, dz: 0 },
+      { defId: "object.store.basic", dx: 0, dz: 3 },
+      { defId: "object.signpost", dx: 0, dz: -5 },
+      { defId: "object.crate.wood", dx: 6, dz: 3 },
+      { defId: "object.barrel.wood", dx: -6, dz: 3 },
+      { defId: "object.barrel.wood", dx: -6, dz: -3 },
+    ],
+    folk: [3, 3],
+    lines: [
+      ["Coin for goods, goods for coin — that's the way.", "Freshest wares between here and the capital."],
+      ["Caravans stop here to rest and trade.", "Roads meet at this post. All are welcome to barter."],
+      ["Name your price, then name a fairer one.", "Word travels the trade roads faster than any rider."],
+    ],
+  },
+};
+
+/** Draw a settlement kind from the anchor and the country around it. */
+export function settlementKind(seed: number, cx: number, cz: number, biome: number): SettlementKind {
+  const rocky = biome === 2 || biome === 5 || biome === 12;
+  const roll = cellHash(cx * 91 + 7, cz * 57 + 13, salt(seed, 101));
+  if (rocky) {
+    return roll < 0.5 ? "mining_camp" : roll < 0.72 ? "hamlet" : roll < 0.88 ? "trade_post" : "shrine";
+  }
+  return roll < 0.4 ? "hamlet" : roll < 0.64 ? "farmstead" : roll < 0.8 ? "trade_post" : roll < 0.92 ? "mining_camp" : "shrine";
+}
 
 /**
  * Lay a village commons at a lattice anchor sitting in this chunk (local px,pz):
@@ -1392,22 +1500,22 @@ function stampVillagePlaza(
     for (let dx = -V; dx <= V; dx++) heights[(pz + dz) * ECHUNK + (px + dx)] = anchor;
   }
   const wx = x0 + px, wz = z0 + pz;
-  objects.push({ instanceId: id(), defId: "object.well.basic", cell: { x: wx, z: wz } });
-  objects.push({ instanceId: id(), defId: "object.stall.market", cell: { x: wx + 4, z: wz + 3 } });
-  objects.push({ instanceId: id(), defId: "object.bench.wood", cell: { x: wx - 4, z: wz + 2 } });
-  objects.push({ instanceId: id(), defId: "object.bench.wood", cell: { x: wx + 3, z: wz - 4 } });
-  objects.push({ instanceId: id(), defId: "object.crate.wood", cell: { x: wx + 5, z: wz + 4 } });
-  objects.push({ instanceId: id(), defId: "object.barrel.wood", cell: { x: wx - 5, z: wz - 3 } });
+  // The commons takes its character from the surrounding country.
+  const kind = settlementKind(seed, cx, cz, biomes[pz * ECHUNK + px]);
+  const settle = SETTLEMENTS[kind];
+  for (const d of settle.dress) {
+    objects.push({ instanceId: id(), defId: d.defId, cell: { x: wx + d.dx, z: wz + d.dz } });
+  }
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
     objects.push({ instanceId: id(), defId: "object.lamp.post", cell: { x: wx + Math.round(Math.cos(a) * 9), z: wz + Math.round(Math.sin(a) * 9) } });
   }
   houseBoxes.push({ x0: px - 10, z0: pz - 10, x1: px + 10, z1: pz + 10 }); // keep the green clear
 
-  const folk = 2 + Math.floor(cellHash(cx * 13, cz * 29, salt(seed, 89)) * 3); // 2-4
+  const folk = settle.folk[0] + Math.floor(cellHash(cx * 13, cz * 29, salt(seed, 89)) * settle.folk[1]);
   for (let k = 0; k < folk; k++) {
     const nameI = Math.floor(cellHash(cx * 7 + k * 11, cz * 5 + k * 3, salt(seed, 93)) * VILLAGER_NAMES.length);
-    const linesI = Math.floor(cellHash(cx * 3 + k * 5, cz * 9 + k * 7, salt(seed, 94)) * VILLAGER_LINES.length);
+    const linesI = Math.floor(cellHash(cx * 3 + k * 5, cz * 9 + k * 7, salt(seed, 94)) * settle.lines.length);
     const ox2 = Math.round(Math.cos((k / folk) * Math.PI * 2) * 6);
     const oz2 = Math.round(Math.sin((k / folk) * Math.PI * 2) * 6);
     npcs.push({
@@ -1415,7 +1523,7 @@ function stampVillagePlaza(
       name: VILLAGER_NAMES[nameI],
       cell: { x: wx + ox2, z: wz + oz2 + 5 },
       wanderRadius: 5,
-      lines: VILLAGER_LINES[linesI],
+      lines: settle.lines[linesI],
     });
   }
   return true;
