@@ -9,6 +9,7 @@ import { ActionController } from "./actions";
 import { EnemySystem } from "./enemies";
 import { Inventory, transferSlot } from "./inventory";
 import { MovementController } from "./movement";
+import { findPath } from "./pathfinding";
 import { ResourceNodeSystem } from "./nodes";
 import { NpcSystem } from "./npc";
 import { QuestService } from "./quests";
@@ -557,10 +558,42 @@ export class GameSimulation {
     return "storm";
   }
 
+  /** Re-check the mover's queued path against live nav blockers. Blockers only
+   *  appear as chunks stream in, so a path set earlier may now cross a tree or
+   *  rock. If it does, re-path to the same goal; if the goal is now unreachable
+   *  or blocked, stop the player short rather than let them clip through. */
+  private revalidatePath(): void {
+    const remaining = this.movement.remainingPath();
+    if (remaining.length === 0) return;
+    const boat = this.bestBoat() !== null;
+    let clear = true;
+    for (const c of remaining) {
+      if (!this.world.walkable(c, boat)) {
+        clear = false;
+        break;
+      }
+    }
+    if (clear) return;
+    const goal = remaining[remaining.length - 1];
+    const from = this.movement.currentCell();
+    const path = this.world.walkable(goal, boat)
+      ? findPath(this.world, from, goal, undefined, boat)
+      : null;
+    if (path && path.length > 0) this.movement.setPath(path);
+    else this.movement.stop();
+  }
+
   tick(): SimEvent[] {
     this.tickCount++;
     this.timeS += TICK_DT;
     this.chunks?.update(this.movement.currentCell());
+    // Endless streaming registers tree/rock blockers only for chunks near the
+    // player. A path clicked toward a distant goal is A*'d through cells that
+    // were still off-stream (unblocked) at click time; as those chunks stream
+    // in, trees pop onto the queued path. Re-validate the remaining path each
+    // tick and reroute (or halt before the obstacle) so the player can never
+    // walk straight through a newly-streamed tree or rock.
+    this.revalidatePath();
     const commands = this.queue;
     this.queue = [];
     for (const c of commands) this.route(c);

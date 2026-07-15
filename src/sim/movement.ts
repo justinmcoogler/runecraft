@@ -26,6 +26,12 @@ export class MovementController {
     return this.path.length > 0;
   }
 
+  /** The cells still queued to walk (the live remaining path). Used by the sim
+   *  to re-validate against blockers that stream in after the path was set. */
+  remainingPath(): readonly Cell[] {
+    return this.path;
+  }
+
   setPath(path: Cell[]): void {
     this.path = path.slice();
     this.justArrived = path.length === 0;

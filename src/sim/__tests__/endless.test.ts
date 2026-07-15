@@ -95,6 +95,35 @@ describe("an endless simulation", () => {
     expect(sim.nodes.instances.size).toBe(sim.world.region.nodes.length);
   });
 
+  it("never walks through a blocker that streams onto an already-set path", () => {
+    // Regression: a path A*'d toward a distant goal crosses cells that were
+    // still off-stream (unblocked) when clicked. As chunks stream in, trees pop
+    // onto the queued path — the mover must reroute, never clip straight
+    // through. Simulate that by registering a blocker mid-path after the path
+    // is set, exactly as chunk streaming would.
+    const sim = GameSimulation.createEndless(1234);
+    const spawn = sim.world.region.spawn;
+    // Walk due east along flat ground; find a reachable goal ~20 cells out.
+    let goal = { x: spawn.x + 20, z: spawn.z };
+    if (!sim.world.walkable(goal)) goal = { x: spawn.x + 12, z: spawn.z };
+    sim.enqueue({ type: "moveTo", cell: goal });
+    sim.tick(); // routes the path
+    const path = [...sim.movement.remainingPath()];
+    expect(path.length).toBeGreaterThan(2);
+    // Drop a blocker three cells ahead, the way a streamed tree would land.
+    const blocked = path[Math.min(3, path.length - 2)];
+    sim.world.registerBlocker("test.tree", blocked);
+    expect(sim.world.walkable(blocked)).toBe(false);
+    // Walk it out; the player must never occupy the blocked cell.
+    const visited: string[] = [];
+    for (let i = 0; i < 60 && sim.movement.isMoving(); i++) {
+      sim.tick();
+      const c = sim.movement.currentCell();
+      visited.push(`${c.x},${c.z}`);
+    }
+    expect(visited).not.toContain(`${blocked.x},${blocked.z}`);
+  });
+
   it("keeps world size boundless in practice", () => {
     const sim = GameSimulation.createEndless(7);
     // 40 chunks away in one call — terrain still answers instantly.
