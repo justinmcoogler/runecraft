@@ -23,6 +23,11 @@ export const ECHUNK = 64;
 // only its roads, water and bridges (all from terrainAt) until the new assets
 // are parsed in. Flip back to false to restore the old placement.
 const CLEAR_ASSETS = true;
+// The walled starter vale at the origin is OFF for the random world — it is fully
+// random from spawn. The vale geometry (wall, gates, quarry, graded paths) is
+// kept in this file so the upcoming tutorial region can reuse it. Flip true only
+// to restore the origin vale.
+const STARTER_VALE = false;
 /** Virtual bounds: ~1M cells a side (≈300 hours of walking corner to corner). */
 export const ENDLESS_SIZE = 1_048_576;
 /**
@@ -354,38 +359,29 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
   else if (moist > 0.48) biome = f.flora > 0.68 ? 8 : f.flora < 0.3 ? 9 : 1;
   else if (f.flora > 0.74) biome = 10;
 
-  // The starter vale: a flat grass plains (with a stone quarry to mine), kept
-  // clear of trees and nodes (feature suppression on inStarterTown), ringed by a
-  // level-topped cobblestone castle wall with arched gateways. The wall wins,
-  // then the plains fills the interior and feathers out to the natural land.
-  const wall = valeWall(seed, x, z);
-  if (wall !== null) return { h: wall.h, block: wall.block, biome: 0, water: false };
-  const a = townAnchor(seed);
-  const ground = valeGroundHeight(seed, x, z, Math.round(f.h));
-  // A gate's trail is a gravel road graded to a walkable switchback ramp — from
-  // the spawn, out through the gateway, and winding far into the wild, climbing
-  // whatever rises it meets one block at a time. It gives way only to real water.
-  const pathGate = valePathGate(seed, x, z);
-  if (pathGate >= 0 && (ground !== null || !(f.ocean || f.riverCore > 0 || f.lake || f.pool))) {
-    const r = Math.sqrt((x - a.x) * (x - a.x) + (z - a.z) * (z - a.z));
-    // Where the trail passes through the wall it's a gate arch (a gravel floor
-    // with a cobble arch drawn over it); elsewhere it's plain gravel.
-    const inBand = r >= WALL_INNER && r <= WALL_OUTER;
-    return { h: valePathHeight(seed, pathGate, r), block: inBand ? "gatearch" : "gravel", biome: 0, water: false };
-  }
-  // Inside the wall the vale wears its own surfaces (grass, the quarry). The
-  // outer skirt keeps the vale's feathered HEIGHT but wears the WILD's own
-  // blocks, so the town blends seamlessly into the country instead of ending in
-  // a hard grass/biome line — the seam then hides beneath the wall. `featherH`
-  // lifts that wild block to the ramp height.
+  // The starter vale (walled plains + quarry + graded gate paths) at the origin —
+  // ON only when STARTER_VALE is set. For the random world it's disabled, so the
+  // world is fully natural from spawn. Kept here to reuse for the tutorial region.
   let featherH: number | null = null;
-  if (ground !== null) {
-    const inside = (x - a.x) * (x - a.x) + (z - a.z) * (z - a.z) <= TOWN_RADIUS * TOWN_RADIUS;
-    if (inside) {
-      const block: BlockType = inValeQuarry(seed, x, z) ? "stone" : "grass";
-      return { h: ground, block, biome: 0, water: false };
+  if (STARTER_VALE) {
+    const wall = valeWall(seed, x, z);
+    if (wall !== null) return { h: wall.h, block: wall.block, biome: 0, water: false };
+    const a = townAnchor(seed);
+    const ground = valeGroundHeight(seed, x, z, Math.round(f.h));
+    const pathGate = valePathGate(seed, x, z);
+    if (pathGate >= 0 && (ground !== null || !(f.ocean || f.riverCore > 0 || f.lake || f.pool))) {
+      const r = Math.sqrt((x - a.x) * (x - a.x) + (z - a.z) * (z - a.z));
+      const inBand = r >= WALL_INNER && r <= WALL_OUTER;
+      return { h: valePathHeight(seed, pathGate, r), block: inBand ? "gatearch" : "gravel", biome: 0, water: false };
     }
-    featherH = ground;
+    if (ground !== null) {
+      const inside = (x - a.x) * (x - a.x) + (z - a.z) * (z - a.z) <= TOWN_RADIUS * TOWN_RADIUS;
+      if (inside) {
+        const block: BlockType = inValeQuarry(seed, x, z) ? "stone" : "grass";
+        return { h: ground, block, biome: 0, water: false };
+      }
+      featherH = ground;
+    }
   }
 
   // Water: ocean beyond the shelf, river channels, lakes, swamp pools. The
@@ -704,8 +700,10 @@ function townAnchor(seed: number): { x: number; z: number; h: number } {
   return found;
 }
 
-/** True inside the flat starter meadow (features and streamed spawns keep out). */
+/** True inside the flat starter meadow (features and streamed spawns keep out).
+ *  Always false while the vale is disabled — the random world suppresses nothing. */
 export function inStarterTown(seed: number, x: number, z: number): boolean {
+  if (!STARTER_VALE) return false;
   const a = townAnchor(seed);
   const dx = x - a.x, dz = z - a.z;
   return dx * dx + dz * dz <= TOWN_RADIUS * TOWN_RADIUS;
@@ -1498,10 +1496,8 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   let n = 0;
   const id = () => `end.${cx}.${cz}.${n++}`;
 
-  // Torches spaced around the top of the castle wall — wall furniture, so they
-  // stand regardless of the CLEAR_ASSETS content gate. Evenly spaced by angle;
-  // any that would fall in a gateway (where the path cuts the wall) are skipped.
-  {
+  // Torches spaced around the top of the castle wall — only while the vale is on.
+  if (STARTER_VALE) {
     const a = townAnchor(seed);
     const R = WALL_INNER + 1.5; // sit on the walkway ring
     const TORCHES = 72;
