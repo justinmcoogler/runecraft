@@ -1,0 +1,19 @@
+Warden mob model (mob.warden in src/content/mob-models-data.ts)
+==============================================================
+
+The Warden's Blockbench model geometry and its entity texture are derived
+from the "warden_ragdoll" model in the dndreams project:
+
+  Source:  https://github.com/Archmage-Coalition/dndreams
+  File:    src/main/resources/assets/dndreams/blockbench/warden_ragdoll.bbmodel
+  Texture: src/main/resources/assets/dndreams/textures/entity/warden_ragdoll/warden.png
+  License: Creative Commons Attribution-ShareAlike 4.0 International
+           (CC BY-SA 4.0) — https://creativecommons.org/licenses/by-sa/4.0/
+
+Per CC BY-SA 4.0: attribution is given above, and this model asset (the
+baked geometry + texture) remains available under the same CC BY-SA 4.0
+license. This ShareAlike obligation applies to this asset, not to the rest
+of the project's original code and art.
+
+Only the geometry and texture are used; they are baked (box-UV cubes +
+named bone tree) into mob-models-data.ts by scripts/merge-mob-model.mjs.

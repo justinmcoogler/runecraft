@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.DS_Store
+# Local dev screenshots + throwaway Playwright shot scripts
+*.png
+scripts/shot-*.mjs
+scratchpad/

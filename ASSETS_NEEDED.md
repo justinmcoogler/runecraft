@@ -1,0 +1,147 @@
+# Pixel art needed — Stoneleaf Vale
+
+Everything below currently renders from an **emoji** or a **procedural
+placeholder**. Replace each with original Minecraft-style pixel art. All
+item/block art is **16×16 PNG** with transparency; entity skins follow the
+vanilla model-box UV layout at the sizes noted.
+
+How art gets wired in (for reference):
+- **Item icons** → drop a 16×16 PNG and map the item id to a material key in
+  `src/ui/icons.ts` (`ITEM_ICON_MATERIALS`) baked into
+  `src/render/default-textures.ts`.
+- **Mob skins** → a single entity texture baked as `entity.<mob>` in
+  `default-textures.ts` (`DEFAULT_ENTITY_TEXTURES`); the rig UV-maps it.
+- **Blocks/props** → material keys in `default-textures.ts` (Faithful-style
+  16×16), resolved by `src/render/textures.ts`.
+
+---
+
+## 1. Item icons — 92 (16×16 each)
+
+Currently emoji. Grouped by kind; `(id)` is the item id.
+
+### Ores, gems & bars
+- Redstone Dust `item.ore.redstone`
+- Lapis Lazuli `item.gem.lapis`
+- Emerald `item.gem.emerald`
+- Nether Quartz `item.gem.quartz`
+- Ancient Debris `item.debris.ancient`
+- Netherite Scrap `item.scrap.netherite`
+- Netherite Ingot `item.ingot.netherite`
+- Opal `item.gem.opal`, Jade `item.gem.jade`, Topaz `item.gem.topaz`,
+  Sapphire `item.gem.sapphire`, Ruby `item.gem.ruby`,
+  Dragonstone `item.gem.dragonstone`
+
+### Runes (magic reagents)
+- Wind Rune `item.rune.air`, Prismarine Rune `item.rune.water`,
+  Amethyst Rune `item.rune.earth`, Blaze Rune `item.rune.fire`,
+  Wart Rune `item.rune.nature`, Ender Rune `item.rune.law`,
+  Wither Rune `item.rune.death`, Magma Rune `item.rune.blood`,
+  Echo Rune `item.rune.soul`
+- Arcane Essence `item.essence.rune`
+
+### Tools & weapons
+- Diamond Sword/Axe/Pickaxe `tool.{sword,axe,pickaxe}.diamond`
+- Netherite Sword/Axe/Pickaxe `tool.{sword,axe,pickaxe}.netherite`
+- Runed Sword/Axe/Pickaxe/Longbow `tool.{sword.runed,axe.runed,pickaxe.runed,bow.runed}`
+- Shortbow `tool.bow.wood`, Yew Longbow `tool.bow.yew`,
+  Oak/Spruce/Jungle/Duskbark bows `tool.bow.{oak,spruce,jungle,dark}`
+- Rope Snare `tool.trap.basic`, Fine Box Trap `tool.trap.fine`
+- Boats: Log Raft `tool.boat.raft`, Rowboat `tool.boat.rowboat`, Swift Skiff `tool.boat.skiff`
+
+### Fletching / Invention / Summoning
+- Bronze Arrows `item.arrow.bronze`, Iron Arrows `item.arrow.iron`
+- Salvaged Parts `item.component.parts`, Swift Gizmo `item.gizmo.swift`, Precise Gizmo `item.gizmo.precise`
+- Spirit Wolf Pouch `item.pouch.wolf`, Pack Ox Pouch `item.pouch.ox`, War Tortoise Pouch `item.pouch.tortoise`
+
+### Jewellery
+- Gold Ring `item.ring.gold`, Gold Amulet `item.amulet.gold`
+- Opal Ring `item.ring.opal`, Sapphire Ring `item.ring.sapphire`
+- Emerald/Ruby/Dragonstone Amulet `item.amulet.{emerald,ruby,dragonstone}`
+
+### Herbs, potions & food
+- Wild Sage `item.herb.sage`, River Mint `item.herb.mint`,
+  Emberleaf `item.herb.emberleaf`, Frostbloom `item.herb.frostbloom`, Duskcap `item.herb.duskcap`
+- Healing Salve `item.salve.healing`, Oakblood Tonic `item.tonic.oakblood`
+- Potions: Swiftness `item.potion.swift`, Strength `item.potion.strength`,
+  Stoneskin `item.potion.stoneskin`, Forager's Brew `item.potion.gathering`, Hunter's Focus `item.potion.focus`
+- Pumpkin `item.pumpkin`, Roast Pumpkin `item.pumpkin.roast`, Carrot Stew `item.stew.carrot`
+- Burnt Chicken `item.chicken.burnt`, Burnt Mutton `item.mutton.burnt`
+
+### Bones, spores, cores, charms
+- Big Bones `item.bone.big`, Dragon Bones `item.bone.dragon`
+- Pale Spores `item.spore.pale`, Construct Core `item.core.construct`, Bone Charm `item.charm.bone`
+- Anchor coils `item.anchor.{root,pump,lift}`
+
+### Relics (Archaeology)
+- Pottery Shard `item.relic.shard`, Sunburst Idol `item.relic.idol`, Jade Trinket `item.trinket.jade`
+- Clay Urn `item.relic.urn`, Ancient Coin `item.relic.coin`, Carved Tablet `item.relic.tablet`, Gilded Mask `item.relic.mask`
+
+> ~91 more items already have pixel-art icons (logs, raw/cooked meat & fish,
+> basic ores/bars, leather/copper/bronze/iron armour, etc.) — leave those.
+
+---
+
+## 2. Mob / entity textures
+
+Drawn **procedurally** today (no Minecraft skin). Each needs one entity
+texture at the vanilla UV size in parentheses. **The cow included — there is
+no cow texture in the project; it is drawn as procedural white-with-black
+patches.** Baked keys become `entity.<name>`.
+
+| Mob | id | Entity texture (vanilla layout) |
+|---|---|---|
+| Cow | `entity.cow` | 64×32 |
+| Sheep | `entity.sheep` | 64×32 (+ wool overlay) |
+| Wolf | `entity.wolf` | 64×32 |
+| Spider | `entity.spider` | 64×32 |
+| Slime | `entity.slime` | 64×32 |
+| Creeper | `entity.creeper` | 64×32 |
+| Skeleton | `entity.skeleton` | 64×32 (humanoid) |
+| Squid | `entity.squid` | 64×32 |
+| Ghast | `entity.ghast` | 64×32 |
+| Iron/Rust/Canyon Construct | `entity.construct` | 64×64 (golem-ish) |
+| Old Gnasher (boss) | `entity.gnasher` | 64×32 |
+| Straw Target dummy | `entity.dummy` | small, 32×32 |
+
+Already have skins: chicken, pig, zombie, husk (+ chest). Dragons use a
+separate Blockbench model system, not these.
+
+Optional: a proper **player skin** (`entity.player`) — currently a simple
+original skin.
+
+---
+
+## 3. Voxel props → Minecraft block textures  (needs a decision)
+
+The rocks, boulders, giant mushrooms and plants scattered in the world are
+**colored-voxel models** (a per-voxel colour + a grey grain), not per-face
+Minecraft textures. To make them true Minecraft blocks I need to **re-import
+the source `.schem`/`.litematic` files storing the block type per voxel**, then
+render each face with the real block texture (the structure system already
+does this). **Those source files are not in the repo** — send them and I'll
+re-bake. (Alternatively I can approximate by mapping each prop colour to the
+nearest block texture — say the word.)
+
+Block textures that imported *structures* currently render as flat colour (no
+Faithful tile) and would benefit from 16×16 art — the big families:
+`podzol, gravel, netherrack, obsidian, glowstone, amethyst_block, magma_block,
+soul_sand/soil, the metal/gem *_block set (iron/gold/diamond/emerald/lapis/
+redstone/coal), hay_block, bone_block, sea_lantern, sculk*, mushroom blocks,
+copper (all oxidation stages), coral`, plus glass/panes, rails, chains, lanterns.
+
+---
+
+## 4. Optional — skill icons & UI
+
+- **28 skill icons** (`src/ui/icons.ts` `SKILL_DRAWS`) are hand-drawn 16×16
+  pixel icons already (not emoji) — redraw only if you want a unified look.
+- A handful of **UI glyphs** (rotate, center, gear, etc.) are procedural.
+
+---
+
+### Summary of counts
+- **92** item icons (16×16)
+- **~12** mob skins (+ optional player)
+- **1** prop-texturing decision (reimport vs colour-map)
+- optional: 28 skill icons, misc UI glyphs, ~30 structure block textures

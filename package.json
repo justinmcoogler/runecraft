@@ -1,0 +1,28 @@
+{
+  "name": "runecraftgame",
+  "version": "1.0.0",
+  "private": false,
+  "type": "module",
+  "description": "Stoneleaf Vale \u2014 a top-down voxel skilling RPG in TypeScript + three.js (no framework).",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/build-standalone.mjs",
+    "standalone": "node scripts/build-standalone.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2",
+    "three": "^0.185.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^22.16.5",
+    "@types/three": "^0.185.0",
+    "esbuild": "^0.24.0",
+    "jsdom": "^20.0.3",
+    "typescript": "^5.8.3",
+    "vite": "^5.4.19",
+    "vitest": "^3.2.4"
+  }
+}
