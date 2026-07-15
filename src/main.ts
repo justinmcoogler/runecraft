@@ -29,6 +29,7 @@ import {
 } from "./save/save";
 import { showStartScreen } from "./ui/start-screen";
 import { GameSimulation } from "./sim/simulation";
+import { TUTORIAL_SEED } from "./sim/worldgen/endless";
 import { TICK_DT, type SimEvent } from "./sim/types";
 import { buildRegion } from "./sim/world";
 import { importPackFile, type ImportedPack } from "./texturepacks/importer";
@@ -77,6 +78,16 @@ async function boot(): Promise<void> {
   let currentRegionId = peekRegionId() ?? "region.vale_clearing";
   const regionStore: Record<string, RegionSnapshot> = {};
   const seed = () => Date.now() % 2147483647;
+  // Tutorial graduation: once the player steps through the vale's gateway into
+  // the wild, they never see the tutorial again (New World goes straight to a
+  // random world). Persisted so it survives reloads.
+  const TUTORIAL_DONE_KEY = "runecraft.tutorial.done";
+  const tutorialDone = (): boolean => {
+    try { return localStorage.getItem(TUTORIAL_DONE_KEY) === "1"; } catch { return false; }
+  };
+  const markTutorialDone = (): void => {
+    try { localStorage.setItem(TUTORIAL_DONE_KEY, "1"); } catch { /* ignore */ }
+  };
   // The endless world's seed, so we can rebuild it when returning from a
   // dungeon (the endless region isn't a static REGION_BUILDERS entry).
   let endlessSeed = 0;
@@ -110,14 +121,24 @@ async function boot(): Promise<void> {
   // one per endless seed (so edits follow their own world, not each other's).
   let editorLayerKey = EDITOR_LAYER_KEY;
   if (endlessMode) {
-    currentRegionId = "region.endless";
     const chosen = chosenSeed ?? savedEndlessSeed ?? seed();
-    sim = GameSimulation.createEndless(chosen);
-    endlessSeed = sim.seed;
-    editorLayerKey = `${EDITOR_LAYER_KEY}.e.${sim.seed}`;
-    // Editor edits apply before the save restores player state and the scene builds.
-    applyLayerToSim(sim, loadEditorLayer(editorLayerKey));
-    restored = freshWorld ? false : loadEndlessFromStorage(sim);
+    // First-ever New World starts in the TUTORIAL vale; stepping through its
+    // gateway later graduates the player into `chosen` (their own random world).
+    if (freshWorld && !tutorialDone() && params.get("seed") === null) {
+      currentRegionId = "region.tutorial";
+      endlessSeed = chosen; // the world they'll graduate into
+      sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+      editorLayerKey = `${EDITOR_LAYER_KEY}.tutorial`;
+      restored = false;
+    } else {
+      currentRegionId = "region.endless";
+      sim = GameSimulation.createEndless(chosen);
+      endlessSeed = sim.seed;
+      editorLayerKey = `${EDITOR_LAYER_KEY}.e.${sim.seed}`;
+      // Editor edits apply before the save restores player state and the scene builds.
+      applyLayerToSim(sim, loadEditorLayer(editorLayerKey));
+      restored = freshWorld ? false : loadEndlessFromStorage(sim);
+    }
   } else {
     sim = new GameSimulation(buildRegion(currentRegionId), seed());
     applyLayerToSim(sim, loadEditorLayer(editorLayerKey));
@@ -133,7 +154,9 @@ async function boot(): Promise<void> {
   const input = new InputController(canvas, sim, renderer);
   input.onEntityTapped = (id) => hud.announceEntityTap(id);
 
-  if (restored) hud.toast("Welcome back — progress restored.", "info");
+  if (currentRegionId === "region.tutorial") {
+    hud.toast("Welcome to Runecraft! Learn the ropes in the vale, then step through the glowing gateway to enter your own world.", "info");
+  } else if (restored) hud.toast("Welcome back — progress restored.", "info");
   else if (endlessMode) hud.toast("Grab the tools from the camp chest, then explore the wilds!", "info");
   else hud.toast("Tap a tree to start chopping!", "info");
 
@@ -253,15 +276,24 @@ async function boot(): Promise<void> {
   /** Travel through a portal: park this region's state, wake the target's. */
   function enterRegion(targetRegionId: string, targetCell: { x: number; z: number }): void {
     const shared = captureSharedState(sim);
-    // Endless world regenerates around the player, so its state is never
-    // parked or restored; only finite regions snapshot.
-    if (currentRegionId !== "region.endless") regionStore[currentRegionId] = captureRegionState(sim);
+    // Graduation: stepping from the tutorial vale into the wild finishes the
+    // tutorial for good and drops the player into their own random world.
+    const graduating = currentRegionId === "region.tutorial" && targetRegionId === "region.endless";
+    if (graduating) markTutorialDone();
+    // Endless / tutorial worlds regenerate around the player, so their state is
+    // never parked or restored; only finite regions snapshot.
+    if (currentRegionId !== "region.endless" && currentRegionId !== "region.tutorial") {
+      regionStore[currentRegionId] = captureRegionState(sim);
+    }
     currentRegionId = targetRegionId;
     if (targetRegionId === "region.endless") {
       // Rebuild the boundless world (not a static region builder) and let it
       // stream around the arrival cell; edits reapply per seed.
       sim = GameSimulation.createEndless(endlessSeed);
+      editorLayerKey = `${EDITOR_LAYER_KEY}.e.${endlessSeed}`;
       applyLayerToSim(sim, loadEditorLayer(editorLayerKey));
+    } else if (targetRegionId === "region.tutorial") {
+      sim = GameSimulation.createTutorial(TUTORIAL_SEED);
     } else {
       sim = new GameSimulation(buildRegion(targetRegionId), seed());
       if (targetRegionId === "region.vale_clearing") applyLayerToSim(sim, loadEditorLayer());
@@ -271,18 +303,24 @@ async function boot(): Promise<void> {
     applySharedState(sim, shared);
     const snapshot = targetRegionId === "region.endless" ? undefined : regionStore[targetRegionId];
     if (snapshot) applyRegionState(sim, snapshot);
-    sim.movement.setCellPosition(targetCell);
+    // Graduating: the tutorial's cell has no meaning in the new random world \u2014
+    // drop the player on that world's own chosen spawn instead.
+    sim.movement.setCellPosition(graduating ? sim.world.region.spawn : targetCell);
     renderer.bindSim(sim);
     input.setSim(sim);
     hud.setSim(sim);
     editor.setActive(false);
-    const TRAVEL_TOASTS: Record<string, string> = {
-      "region.copper_hollow": "You squeeze through the cave mouth into Copper Hollow\u2026",
-      "region.town_store": "You step into Mara's General Store.",
-      "region.town_inn": "You step into the warm inn.",
-      "region.vale_clearing": "You step back outside.",
-    };
-    hud.toast(TRAVEL_TOASTS[targetRegionId] ?? "You step through.", "info");
+    if (graduating) {
+      hud.toast("You step through the gateway into the wild \u2014 your world awaits!", "info");
+    } else {
+      const TRAVEL_TOASTS: Record<string, string> = {
+        "region.copper_hollow": "You squeeze through the cave mouth into Copper Hollow\u2026",
+        "region.town_store": "You step into Mara's General Store.",
+        "region.town_inn": "You step into the warm inn.",
+        "region.vale_clearing": "You step back outside.",
+      };
+      hud.toast(TRAVEL_TOASTS[targetRegionId] ?? "You step through.", "info");
+    }
     doSave();
     publishHooks();
   }

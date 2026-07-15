@@ -14,7 +14,7 @@ import { NpcSystem } from "./npc";
 import { QuestService } from "./quests";
 import { SkillService } from "./skills";
 import { ChunkManager } from "./chunk-manager";
-import { EndlessTerrain, starterTownRegion } from "./worldgen/endless";
+import { EndlessTerrain, setValeActive, starterTownRegion, tutorialRegion } from "./worldgen/endless";
 import { CuratorService, SlayerService } from "./taskmasters";
 import type { ArmorSlot, Cell, Command, SimEvent } from "./types";
 import { SimEventBus, SimRng, TICK_DT } from "./types";
@@ -498,9 +498,23 @@ export class GameSimulation {
 
   /** An endless, seeded world: terrain forever, entities streamed in. */
   static createEndless(seed: number): GameSimulation {
+    setValeActive(false); // the random world is fully natural from spawn
     const terrain = new EndlessTerrain(seed);
     const spawn = terrain.findSpawn();
     const sim = new GameSimulation(starterTownRegion(seed, spawn), seed, terrain);
+    sim.chunks = new ChunkManager(sim, terrain);
+    sim.chunks.update(spawn);
+    return sim;
+  }
+
+  /** The tutorial world: the walled vale with a graduation gateway. Finishing
+   *  the lessons and stepping through it carries the player into a fresh random
+   *  world. */
+  static createTutorial(seed: number): GameSimulation {
+    setValeActive(true);
+    const terrain = new EndlessTerrain(seed);
+    const spawn = terrain.findSpawn();
+    const sim = new GameSimulation(tutorialRegion(seed, spawn), seed, terrain);
     sim.chunks = new ChunkManager(sim, terrain);
     sim.chunks.update(spawn);
     return sim;

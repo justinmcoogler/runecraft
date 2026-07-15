@@ -2624,6 +2624,35 @@ export class GameRenderer {
           group.add(bloom.group);
           break;
         }
+        case "object.portal.graduate": {
+          // A standing stone-brick gateway with a glowing membrane — step through
+          // to leave the tutorial vale for a fresh random world. All cubes.
+          const brick = this.lambert("terrain.stonebrick");
+          for (const px of [-0.55, 0.55]) {
+            const post = this.tiledBox(0.4, 3, 0.4, brick);
+            post.position.set(px, 1.5, 0);
+            group.add(post);
+          }
+          const lintel = this.tiledBox(1.5, 0.4, 0.4, brick);
+          lintel.position.set(0, 3.2, 0);
+          group.add(lintel);
+          const glowMat = new THREE.MeshBasicMaterial({
+            color: "#57e0ff", transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false,
+          });
+          const membrane = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.7, 0.12), glowMat);
+          membrane.position.set(0, 1.55, 0);
+          group.add(membrane, makeBlobShadow(0.8));
+          this.portalGlows.push({ mat: glowMat, base: 0.42, amp: 0.18, group });
+          // A soft square beam so the gateway is a findable landmark.
+          const beamMat = new THREE.MeshBasicMaterial({
+            color: "#57e0ff", transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending,
+          });
+          const beam = new THREE.Mesh(new THREE.BoxGeometry(0.5, 9, 0.5), beamMat);
+          beam.position.set(0, 5.4, 0);
+          group.add(beam);
+          this.portalGlows.push({ mat: beamMat, base: 0.1, amp: 0.05, group });
+          break;
+        }
         case "object.portal.cave": {
           // Cave mouth in the rock outcrop: the walls around this cell are
           // real terrain blocks (see makeValeRegion); here we add the unit

@@ -27,7 +27,13 @@ const CLEAR_ASSETS = true;
 // random from spawn. The vale geometry (wall, gates, quarry, graded paths) is
 // kept in this file so the upcoming tutorial region can reuse it. Flip true only
 // to restore the origin vale.
-const STARTER_VALE = false;
+// The walled starter vale is OFF for the random world and ON for the tutorial
+// region. Toggled at world-creation time (only one world is active at a time),
+// so terrainAt / inStarterTown / wall torches all key off the active mode.
+let VALE_ACTIVE = false;
+export function setValeActive(on: boolean): void { VALE_ACTIVE = on; }
+/** A fixed seed whose town anchor sits on gentle, dry ground — the tutorial. */
+export const TUTORIAL_SEED = 20706;
 /** Virtual bounds: ~1M cells a side (≈300 hours of walking corner to corner). */
 export const ENDLESS_SIZE = 1_048_576;
 /**
@@ -360,10 +366,10 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
   else if (f.flora > 0.74) biome = 10;
 
   // The starter vale (walled plains + quarry + graded gate paths) at the origin —
-  // ON only when STARTER_VALE is set. For the random world it's disabled, so the
+  // ON only when the vale is active. For the random world it's disabled, so the
   // world is fully natural from spawn. Kept here to reuse for the tutorial region.
   let featherH: number | null = null;
-  if (STARTER_VALE) {
+  if (VALE_ACTIVE) {
     const wall = valeWall(seed, x, z);
     if (wall !== null) return { h: wall.h, block: wall.block, biome: 0, water: false };
     const a = townAnchor(seed);
@@ -703,7 +709,7 @@ function townAnchor(seed: number): { x: number; z: number; h: number } {
 /** True inside the flat starter meadow (features and streamed spawns keep out).
  *  Always false while the vale is disabled — the random world suppresses nothing. */
 export function inStarterTown(seed: number, x: number, z: number): boolean {
-  if (!STARTER_VALE) return false;
+  if (!VALE_ACTIVE) return false;
   const a = townAnchor(seed);
   const dx = x - a.x, dz = z - a.z;
   return dx * dx + dz * dz <= TOWN_RADIUS * TOWN_RADIUS;
@@ -1497,7 +1503,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   const id = () => `end.${cx}.${cz}.${n++}`;
 
   // Torches spaced around the top of the castle wall — only while the vale is on.
-  if (STARTER_VALE) {
+  if (VALE_ACTIVE) {
     const a = townAnchor(seed);
     const R = WALL_INNER + 1.5; // sit on the walkway ring
     const TORCHES = 72;
@@ -2235,5 +2241,22 @@ export function starterTownRegion(seed: number, spawn: Cell): RegionSpec {
   region.npcs = town.npcs;
   region.structures = town.structures;
   region.nodes = town.nodes;
+  return region;
+}
+
+/** The tutorial region: the walled vale plus a graduation gateway a few cells
+ *  from the spawn. Stepping through it carries the player into a fresh random
+ *  world (the seed is rolled by the caller). Requires the vale to be active. */
+export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
+  const region = starterTownRegion(seed, spawn);
+  region.objects = [
+    ...region.objects,
+    {
+      instanceId: "tutorial.graduate",
+      defId: "object.portal.graduate",
+      cell: { x: spawn.x, z: spawn.z + 4 },
+      portal: { targetRegionId: "region.endless", targetCell: { x: spawn.x, z: spawn.z } },
+    },
+  ];
   return region;
 }

@@ -4484,6 +4484,12 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     interaction: { mode: "adjacent_4", rangeCells: 1 },
     blocksNav: true,
   },
+  "object.portal.graduate": {
+    id: "object.portal.graduate",
+    name: "Gateway to the Wild",
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    blocksNav: true,
+  },
   // ---- scenery detail (not clickable; some block movement) ----
   "object.fence.wood": {
     id: "object.fence.wood",
