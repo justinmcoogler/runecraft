@@ -948,6 +948,18 @@ export class GameSimulation {
     this.events.emit({ type: "treasureFound", reward, chain });
   }
 
+  /** When the open dungeon chest is emptied, remember it as looted so it never
+   *  refills on a later re-entry (dyn dungeons regenerate from scratch). */
+  private noteChestLooted(): void {
+    const region = this.world.region.id;
+    if (!region.startsWith("dyn_")) return; // only the regenerating dungeons
+    const id = this.actions.openContainerId;
+    if (!id) return;
+    const chest = this.containers.get(id);
+    if (!chest || !chest.slots.every((s) => s === null)) return; // only when fully emptied
+    this.worldFlags.add(`looted.${id}`);
+  }
+
   // ── Factions & renown ────────────────────────────────────────────────────
   /** The player's rank (0..) with a faction. */
   factionRank(id: string): number {
@@ -1219,6 +1231,7 @@ export class GameSimulation {
         if (!chest) break;
         if (transferSlot(chest, c.slot, this.inventory) > 0) {
           this.events.emit({ type: "inventoryChanged" });
+          this.noteChestLooted();
         } else {
           this.events.emit({ type: "inventoryFull" });
         }

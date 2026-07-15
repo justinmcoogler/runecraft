@@ -36,6 +36,9 @@ export function applyWorldFlags(region: RegionSpec, flags: Iterable<string>): vo
     const depth = Number(depthS);
     const maxDepth = Number(maxS);
     const flagSet = flags instanceof Set ? (flags as Set<string>) : new Set(flags);
+    // Chests already emptied stay emptied — drop them so they never refill when
+    // the floor regenerates on a later visit.
+    region.objects = region.objects.filter((o) => !flagSet.has(`looted.${o.instanceId}`));
     if (maxDepth > 0 && depth >= maxDepth && flagSet.has(`cleared.dungeon.${style}.${seed}`)) {
       if (region.enemies) {
         region.enemies = region.enemies.filter(
