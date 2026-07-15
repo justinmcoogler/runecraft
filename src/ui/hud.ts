@@ -488,11 +488,7 @@ export class Hud {
           this.toast(`New task — ${ev.title}`, "info");
           break;
         case "tutorialLessonDone":
-          this.toast(
-            ev.optional ? `Bonus lesson: ${ev.title}!` : `Lesson complete: ${ev.title}!`,
-            "level",
-            ev.optional && ev.skillId ? skillIconHtml(ev.skillId, 20) : uiIconHtml("quest", 20),
-          );
+          this.toast(`Lesson complete: ${ev.title}!`, "level", uiIconHtml("quest", 20));
           break;
         case "tutorialComplete":
           this.setTutorialComplete();

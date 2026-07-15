@@ -352,6 +352,29 @@ export class GameRenderer {
   private playerXray = false;
   private ringPulse = 0;
   private elapsed = 0;
+  /** A glowing pillar over the current tutorial objective so the newcomer can
+   *  find the next (spread-out) station. */
+  private tutorialBeacon: THREE.Mesh | null = null;
+
+  private updateTutorialBeacon(): void {
+    const cell = this.sim.tutorial && !this.sim.tutorial.complete ? this.sim.tutorial.markerCell() : null;
+    if (!cell) {
+      if (this.tutorialBeacon) this.tutorialBeacon.visible = false;
+      return;
+    }
+    if (!this.tutorialBeacon) {
+      const geo = new THREE.BoxGeometry(0.5, 10, 0.5);
+      geo.translate(0, 5, 0);
+      const mat = new THREE.MeshBasicMaterial({ color: "#ffdc55", transparent: true, opacity: 0.5, depthWrite: false });
+      this.tutorialBeacon = new THREE.Mesh(geo, mat);
+      this.tutorialBeacon.renderOrder = 3;
+      this.scene.add(this.tutorialBeacon);
+    }
+    const mat = this.tutorialBeacon.material as THREE.MeshBasicMaterial;
+    mat.opacity = 0.32 + 0.22 * (0.5 + 0.5 * Math.sin(this.elapsed * 3));
+    this.tutorialBeacon.position.set(cell.x + 0.5, this.sim.world.surfaceY(cell), cell.z + 0.5);
+    this.tutorialBeacon.visible = true;
+  }
   /** Shared canopy-sway clock + amplitude (weather-driven), referenced by every
    *  leaf material so the whole forest breathes off one uniform. */
   private windTime = { value: 0 };
@@ -4912,6 +4935,8 @@ export class GameRenderer {
       const pulse = 0.5 + 0.5 * Math.sin(this.elapsed * 2.4);
       for (const g of this.portalGlows) g.mat.opacity = g.base + g.amp * pulse;
     }
+
+    this.updateTutorialBeacon();
 
     // Doors ease toward their open/closed angle.
     for (const [id, leaf] of this.doorLeaves) {

@@ -11,7 +11,6 @@ import type { StructurePlacement, StructureAsset } from "../../structures/types"
 import { effectiveSink, blockedColumns, solidColumns } from "../../structures/types";
 import { houseInteriorArrival, houseInteriorId } from "../world";
 import { getStructure } from "../../content/structures/index";
-import { TUTORIAL_STARTER_KIT } from "../../content/tutorial";
 import { cellHash, fbm, vnoise } from "./noise";
 import { WILD_SCHEMATICS, schematicFits, stampSchematic } from "./schematics";
 import { DUNGEON_SPAWN, dynDungeonId } from "./dungeons";
@@ -2285,8 +2284,9 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
       portal: { targetRegionId: "region.endless", targetCell: { x: spawn.x, z: spawn.z } },
     },
   ];
-  // The guide who points the newcomer through each lesson (villager skin for
-  // now — a custom Guide skin is tracked in ASSETS_NEEDED.md).
+  // The guide (villager skin for now — custom Guide skin tracked in
+  // ASSETS_NEEDED.md) and the slayer taskmaster. Reagents for each lesson are
+  // granted as it begins, so there's no supply crate to rummage through.
   region.npcs = [
     ...region.npcs,
     {
@@ -2296,9 +2296,8 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
       wanderRadius: 0,
       model: "mob.villager",
       lines: [
-        "Welcome to the vale. Work through the lessons and the gateway will open.",
-        "Grab your gear from the supply crate by the camp — take what each task needs.",
-        "Chop, burn, pray, spar — then step through to the wild.",
+        "Welcome to the vale. Do a lesson for every skill and the gateway opens.",
+        "Follow the glowing marker to your next task — I'll hand you the gear you need.",
       ],
     },
     {
@@ -2306,62 +2305,61 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
       // (see SLAYER_NPC_ID) — that's the Slaying lesson.
       instanceId: "village.npc.brusk",
       name: "Warden Brusk",
-      cell: { x: spawn.x + 4, z: spawn.z - 3 },
+      cell: { x: spawn.x + 9, z: spawn.z + 22 },
       wanderRadius: 0,
       model: "mob.villager",
       lines: ["Need a bounty? I'll mark a foe for you to hunt."],
     },
   ];
-  // Required-lesson targets (tree, foe) plus the optional-lesson stations
-  // (copper rock, berry bush, furnace, anvil, rune altar) the guide points to.
+  // Lesson stations, spread across the vale into loose zones so the newcomer
+  // tours the grounds: gathering to the WEST, processing to the EAST, the
+  // spiritual court to the NORTH, the combat pit to the SOUTH, and the pond to
+  // the southeast. The objective beacon points to whichever is next.
   region.nodes = [
     ...region.nodes,
-    { instanceId: "tutorial.tree", defId: "resource.tree.basic", cell: { x: spawn.x - 4, z: spawn.z + 1 } },
-    { instanceId: "tutorial.rock", defId: "resource.rock.copper", cell: { x: spawn.x - 6, z: spawn.z - 2 } },
-    { instanceId: "tutorial.bush", defId: "resource.bush.berry", cell: { x: spawn.x - 3, z: spawn.z - 3 } },
-    { instanceId: "tutorial.plot", defId: "resource.plot.wheat", cell: { x: spawn.x - 5, z: spawn.z + 4 } },
-    { instanceId: "tutorial.digsite", defId: "resource.digsite.basic", cell: { x: spawn.x - 8, z: spawn.z + 3 } },
-    { instanceId: "tutorial.herb", defId: "resource.herb.sage", cell: { x: spawn.x - 9, z: spawn.z - 2 } },
-    { instanceId: "tutorial.trail", defId: "resource.trail.rabbit", cell: { x: spawn.x - 9, z: spawn.z + 5 } },
-    { instanceId: "tutorial.stall", defId: "resource.stall.market", cell: { x: spawn.x - 2, z: spawn.z - 5 } },
+    // Gathering yard — west.
+    { instanceId: "tutorial.tree", defId: "resource.tree.basic", cell: { x: spawn.x - 10, z: spawn.z + 2 } },
+    { instanceId: "tutorial.rock", defId: "resource.rock.copper", cell: { x: spawn.x - 17, z: spawn.z - 4 } },
+    { instanceId: "tutorial.bush", defId: "resource.bush.berry", cell: { x: spawn.x - 13, z: spawn.z - 9 } },
+    { instanceId: "tutorial.herb", defId: "resource.herb.sage", cell: { x: spawn.x - 22, z: spawn.z + 4 } },
+    { instanceId: "tutorial.trail", defId: "resource.trail.rabbit", cell: { x: spawn.x - 25, z: spawn.z - 7 } },
+    { instanceId: "tutorial.plot", defId: "resource.plot.wheat", cell: { x: spawn.x - 19, z: spawn.z + 11 } },
+    { instanceId: "tutorial.stall", defId: "resource.stall.market", cell: { x: spawn.x - 30, z: spawn.z + 2 } },
+    { instanceId: "tutorial.digsite", defId: "resource.digsite.basic", cell: { x: spawn.x - 28, z: spawn.z + 10 } },
     // The Fishing spot sits on the near rim of the tutorial pond (see
     // TUTORIAL_POND); the bank cell just south of it is dry ground to cast from.
     { instanceId: "tutorial.fishing", defId: "resource.fishing.pond", cell: { x: spawn.x + 12, z: spawn.z + 5 } },
   ];
   region.objects = [
     ...region.objects,
-    { instanceId: "tutorial.furnace", defId: "object.furnace.basic", cell: { x: spawn.x + 7, z: spawn.z - 1 } },
-    { instanceId: "tutorial.anvil", defId: "object.anvil.basic", cell: { x: spawn.x + 7, z: spawn.z + 1 } },
-    { instanceId: "tutorial.altar", defId: "object.altar.rune", cell: { x: spawn.x - 7, z: spawn.z } },
-    { instanceId: "tutorial.campfire", defId: "object.campfire.basic", cell: { x: spawn.x + 6, z: spawn.z + 3 } },
-    { instanceId: "tutorial.workbench", defId: "object.workbench.basic", cell: { x: spawn.x + 9, z: spawn.z } },
-    { instanceId: "tutorial.cauldron", defId: "object.cauldron.basic", cell: { x: spawn.x + 9, z: spawn.z + 2 } },
-    { instanceId: "tutorial.obelisk", defId: "object.obelisk.summon", cell: { x: spawn.x - 9, z: spawn.z + 1 } },
-    { instanceId: "tutorial.enchanter", defId: "object.enchanter.basic", cell: { x: spawn.x + 9, z: spawn.z - 3 } },
-    { instanceId: "tutorial.buildsite", defId: "object.buildsite.ramp", cell: { x: spawn.x + 11, z: spawn.z + 2 } },
-    // The supply crate: all the optional-lesson tools + materials, so the pack
-    // never overflows and opening it teaches the container UI.
-    {
-      instanceId: "tutorial.crate",
-      defId: "object.storage_chest.basic",
-      cell: { x: spawn.x + 1, z: spawn.z - 2 },
-      initialItems: TUTORIAL_STARTER_KIT.map((k) => ({ itemId: k.itemId, qty: k.qty })),
-    },
+    // Forge row — east.
+    { instanceId: "tutorial.campfire", defId: "object.campfire.basic", cell: { x: spawn.x + 14, z: spawn.z - 4 } },
+    { instanceId: "tutorial.furnace", defId: "object.furnace.basic", cell: { x: spawn.x + 20, z: spawn.z + 2 } },
+    { instanceId: "tutorial.anvil", defId: "object.anvil.basic", cell: { x: spawn.x + 24, z: spawn.z - 3 } },
+    { instanceId: "tutorial.workbench", defId: "object.workbench.basic", cell: { x: spawn.x + 28, z: spawn.z + 5 } },
+    { instanceId: "tutorial.buildsite", defId: "object.buildsite.ramp", cell: { x: spawn.x + 18, z: spawn.z + 12 } },
+    // Altar court — north.
+    { instanceId: "tutorial.altar", defId: "object.altar.rune", cell: { x: spawn.x - 4, z: spawn.z - 16 } },
+    { instanceId: "tutorial.cauldron", defId: "object.cauldron.basic", cell: { x: spawn.x + 5, z: spawn.z - 21 } },
+    { instanceId: "tutorial.enchanter", defId: "object.enchanter.basic", cell: { x: spawn.x + 11, z: spawn.z - 18 } },
+    { instanceId: "tutorial.obelisk", defId: "object.obelisk.summon", cell: { x: spawn.x - 12, z: spawn.z - 20 } },
+    // Combat pit — south.
     {
       instanceId: "tutorial.shortcut",
       defId: "object.shortcut.log",
-      cell: { x: spawn.x - 6, z: spawn.z + 6 },
-      portal: { targetRegionId: "region.endless", targetCell: { x: spawn.x - 8, z: spawn.z + 6 } },
+      cell: { x: spawn.x - 8, z: spawn.z + 24 },
+      portal: { targetRegionId: "region.endless", targetCell: { x: spawn.x - 11, z: spawn.z + 24 } },
     },
   ];
   region.enemies = [
     ...(region.enemies ?? []),
-    { instanceId: "tutorial.foe", defId: "enemy.pig", cell: { x: spawn.x + 5, z: spawn.z + 4 } },
-    { instanceId: "tutorial.foe2", defId: "enemy.pig", cell: { x: spawn.x + 3, z: spawn.z + 7 } },
+    // Combat pit — south, spread out.
+    { instanceId: "tutorial.foe", defId: "enemy.pig", cell: { x: spawn.x + 2, z: spawn.z + 16 } },
+    { instanceId: "tutorial.foe2", defId: "enemy.pig", cell: { x: spawn.x + 9, z: spawn.z + 18 } },
     // Necromancy trains on felling the undead; Dungeoneering on felling a
     // boss/elite (the driver keys off the ".boss" instance-id suffix).
-    { instanceId: "tutorial.undead", defId: "enemy.skeleton", cell: { x: spawn.x + 7, z: spawn.z + 7 } },
-    { instanceId: "tutorial.boss", defId: "enemy.pig", cell: { x: spawn.x + 1, z: spawn.z + 9 } },
+    { instanceId: "tutorial.undead", defId: "enemy.skeleton", cell: { x: spawn.x - 4, z: spawn.z + 20 } },
+    { instanceId: "tutorial.boss", defId: "enemy.pig", cell: { x: spawn.x + 1, z: spawn.z + 28 } },
   ];
   return region;
 }

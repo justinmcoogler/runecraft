@@ -38,7 +38,7 @@ export class GameSimulation {
   readonly events = new SimEventBus();
   readonly rng: SimRng;
   readonly skills: SkillService;
-  readonly inventory = new Inventory(PLAYER_INVENTORY_SLOTS);
+  readonly inventory: Inventory;
   readonly containers = new Map<string, Inventory>();
   readonly movement = new MovementController();
   readonly nodes: ResourceNodeSystem;
@@ -83,9 +83,10 @@ export class GameSimulation {
   /** Optional client veto on streamed enemy spawns (model preferences). */
   spawnFilter: ((defId: string) => boolean) | null = null;
 
-  constructor(region: RegionSpec, seed = 1, terrain?: import("./world").TerrainSource) {
+  constructor(region: RegionSpec, seed = 1, terrain?: import("./world").TerrainSource, inventorySlots = PLAYER_INVENTORY_SLOTS) {
     this.seed = seed;
     this.rng = new SimRng(seed);
+    this.inventory = new Inventory(inventorySlots);
     this.world = new WorldState(region, terrain);
     this.skills = new SkillService(this.events);
     this.nodes = new ResourceNodeSystem(this.world, this.events, this.rng);
@@ -518,7 +519,9 @@ export class GameSimulation {
     setValeActive(true);
     const terrain = new EndlessTerrain(seed);
     const spawn = terrain.findSpawn();
-    const sim = new GameSimulation(tutorialRegion(seed, spawn), seed, terrain);
+    // A roomy pack: every skill lesson is required now, so the newcomer keeps a
+    // lot of gear + products across the full tour without the pack overflowing.
+    const sim = new GameSimulation(tutorialRegion(seed, spawn), seed, terrain, 40);
     sim.chunks = new ChunkManager(sim, terrain);
     sim.chunks.update(spawn);
     // Drive the required-core lessons and open the gateway on completion.
