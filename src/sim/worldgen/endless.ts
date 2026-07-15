@@ -17,12 +17,12 @@ import { DUNGEON_SPAWN, dynDungeonId } from "./dungeons";
 
 export const ECHUNK = 64;
 
-// Asset transition: the imported visual asset set (houses, trees, rocks, props,
-// mobs, structures and villages) is being replaced with a new one, so world
-// feature placement is switched off — the generated world is bare terrain with
-// only its roads, water and bridges (all from terrainAt) until the new assets
-// are parsed in. Flip back to false to restore the old placement.
-const CLEAR_ASSETS = true;
+// The new hand-authored asset set (trees, rocks, props, mobs, structures and
+// villages) is in, so the full rich world is ON: biome-scattered resource nodes
+// and beasts, villages, homesteads, landmarks, ruins, evil sites and dungeon
+// gates all generate (see the `if (!CLEAR_ASSETS)` block). Flip to true only to
+// temporarily blank the world back to bare terrain + roads during an asset swap.
+const CLEAR_ASSETS = false;
 // The walled starter vale at the origin is OFF for the random world — it is fully
 // random from spawn. The vale geometry (wall, gates, quarry, graded paths) is
 // kept in this file so the upcoming tutorial region can reuse it. Flip true only
@@ -1743,14 +1743,16 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.53) nodes.push({ instanceId: id(), defId: "resource.herb.mint", cell });
           else if (r < 0.545) objects.push({ instanceId: id(), defId: "object.log.fallen", cell });
           else if (r < 0.56) objects.push({ instanceId: id(), defId: "object.flora.wild", cell });
+          else if (r < 0.60) nodes.push({ instanceId: id(), defId: "resource.tree.maple", cell }); // autumn maples
           break;
         case 2: // taiga
-          if (r < 0.26) nodes.push({ instanceId: id(), defId: "resource.tree.spruce", cell });
-          else if (r < 0.29) nodes.push({ instanceId: id(), defId: "resource.rock.coal", cell });
-          else if (r < 0.31) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
-          else if (r < 0.325) objects.push({ instanceId: id(), defId: "object.log.fallen", cell });
-          else if (r < 0.33) enemies.push({ instanceId: id(), defId: "enemy.frost_wolf", cell });
-          else if (r < 0.337) enemies.push({ instanceId: id(), defId: "enemy.skeleton", cell });
+          if (r < 0.20) nodes.push({ instanceId: id(), defId: "resource.tree.spruce", cell });
+          else if (r < 0.28) nodes.push({ instanceId: id(), defId: "resource.tree.pine", cell }); // tall pines
+          else if (r < 0.31) nodes.push({ instanceId: id(), defId: "resource.rock.coal", cell });
+          else if (r < 0.33) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
+          else if (r < 0.345) objects.push({ instanceId: id(), defId: "object.log.fallen", cell });
+          else if (r < 0.35) enemies.push({ instanceId: id(), defId: "enemy.frost_wolf", cell });
+          else if (r < 0.357) enemies.push({ instanceId: id(), defId: "enemy.skeleton", cell });
           break;
         case 3: // desert
           if (BLOCK_LIST[blocks[i]] === "grass") {
@@ -1772,6 +1774,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.1512) enemies.push({ instanceId: id(), defId: "enemy.dragon.hydra", cell });
           else if (r < 0.16) objects.push({ instanceId: id(), defId: "object.plant.tropic", cell });
           else if (r < 0.168) objects.push({ instanceId: id(), defId: "object.mushroom.giant", cell });
+          else if (r < 0.22) nodes.push({ instanceId: id(), defId: "resource.tree.willow", cell }); // weeping willows over the mire
           break;
         case 5: // snowfield
           if (r < 0.05) nodes.push({ instanceId: id(), defId: "resource.tree.spruce", cell });
@@ -1794,6 +1797,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.517) enemies.push({ instanceId: id(), defId: "enemy.spider", cell });
           else if (r < 0.54) objects.push({ instanceId: id(), defId: "object.plant.tropic", cell });
           else if (r < 0.56) objects.push({ instanceId: id(), defId: "object.flora.wild", cell });
+          else if (r < 0.60) nodes.push({ instanceId: id(), defId: "resource.tree.palm", cell }); // palms
           break;
         case 8: // birch grove
           if (r < 0.36) nodes.push({ instanceId: id(), defId: "resource.tree.birch", cell });
@@ -1810,6 +1814,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.523) nodes.push({ instanceId: id(), defId: "resource.tree.grand.oak", cell });
           else if (r < 0.531) enemies.push({ instanceId: id(), defId: "enemy.zombie", cell });
           else if (r < 0.537) enemies.push({ instanceId: id(), defId: "enemy.creeper", cell });
+          else if (r < 0.57) nodes.push({ instanceId: id(), defId: "resource.tree.dead", cell }); // leafless snags
           break;
         case 10: // flower meadow
           if (r < 0.3) objects.push({ instanceId: id(), defId: "object.flowers.wild", cell });
