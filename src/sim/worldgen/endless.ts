@@ -1347,7 +1347,9 @@ const VILLAGER_NAMES = ["Wren", "Odo", "Mabel", "Cuthbert", "Nessa", "Tam", "Pet
 // country. Each dresses its green differently and its folk talk their trade,
 // so no two settlements read the same. The interiored homesteads still cluster
 // around every kind; only the plaza's centrepiece and chatter change.
-export type SettlementKind = "hamlet" | "farmstead" | "mining_camp" | "shrine" | "trade_post";
+export type SettlementKind =
+  | "hamlet" | "farmstead" | "mining_camp" | "shrine" | "trade_post"
+  | "fishing_wharf" | "waystation" | "monastery" | "lumber_camp" | "watch_post";
 interface SettlementDef {
   /** Plaza dressing, offset from the green centre. */
   dress: Array<{ defId: string; dx: number; dz: number }>;
@@ -1444,16 +1446,111 @@ export const SETTLEMENTS: Record<SettlementKind, SettlementDef> = {
       ["Name your price, then name a fairer one.", "Word travels the trade roads faster than any rider."],
     ],
   },
+  fishing_wharf: {
+    dress: [
+      { defId: "object.store.basic", dx: 0, dz: 0 },
+      { defId: "object.reeds.water", dx: -5, dz: 5 },
+      { defId: "object.reeds.water", dx: 5, dz: 5 },
+      { defId: "object.barrel.wood", dx: 4, dz: 2 },
+      { defId: "object.barrel.wood", dx: -4, dz: 2 },
+      { defId: "object.crate.wood", dx: 5, dz: -3 },
+      { defId: "object.bench.wood", dx: -4, dz: -3 },
+    ],
+    folk: [2, 3],
+    lines: [
+      ["Catch's been good — nets full most mornings.", "Smoked trout, if you've an appetite and coin."],
+      ["The water knows more than it tells.", "Row careful past the reeds; the deep's cold this time of year."],
+      ["A quiet life by the shore suits us fine.", "Boats for hire, if you can handle an oar."],
+    ],
+  },
+  waystation: {
+    dress: [
+      { defId: "object.well.basic", dx: 0, dz: 0 },
+      { defId: "object.signpost", dx: 0, dz: -6 },
+      { defId: "object.bench.wood", dx: -4, dz: 2 },
+      { defId: "object.bench.wood", dx: 4, dz: 2 },
+      { defId: "object.campfire.basic", dx: 0, dz: 5 },
+      { defId: "object.crate.wood", dx: 6, dz: -2 },
+    ],
+    folk: [1, 2],
+    lines: [
+      ["Rest here — the next town's a long walk yet.", "Fresh water, a warm fire. That's all we offer, and it's plenty."],
+      ["Roads are safer by day. Bide till dawn if you're wise.", "Many pass this way; few stay."],
+    ],
+  },
+  monastery: {
+    dress: [
+      { defId: "object.altar.rune", dx: 0, dz: 0 },
+      { defId: "object.enchanter.basic", dx: 0, dz: 4 },
+      { defId: "object.table.basic", dx: -4, dz: 2 },
+      { defId: "object.bench.wood", dx: -4, dz: 4 },
+      { defId: "object.bench.wood", dx: 4, dz: 4 },
+      { defId: "object.banner.red", dx: -3, dz: -3 },
+      { defId: "object.banner.red", dx: 3, dz: -3 },
+    ],
+    folk: [2, 2],
+    lines: [
+      ["Peace be with you. The library is open to the curious.", "We copy the old runes here, lest their meaning be lost."],
+      ["Study, prayer, and honest bread — a full life.", "The abbot says the stars have turned strange of late."],
+    ],
+  },
+  lumber_camp: {
+    dress: [
+      { defId: "object.workbench.basic", dx: 0, dz: 0 },
+      { defId: "object.log.fallen", dx: -5, dz: 3 },
+      { defId: "object.log.fallen", dx: 5, dz: -3 },
+      { defId: "object.crate.wood", dx: 4, dz: 3 },
+      { defId: "object.crate.wood", dx: 6, dz: 3 },
+      { defId: "object.campfire.basic", dx: -4, dz: -3 },
+      { defId: "object.fence.wood", dx: 7, dz: 0 },
+    ],
+    folk: [2, 3],
+    lines: [
+      ["Timber's good hereabouts — straight and true.", "Mind the falling wood; we work fast."],
+      ["An axe and a strong back, that's the trade.", "The old growth runs deep. Some of it's better left standing."],
+    ],
+  },
+  watch_post: {
+    dress: [
+      { defId: "object.anvil.basic", dx: 0, dz: 0 },
+      { defId: "object.banner.red", dx: -3, dz: -3 },
+      { defId: "object.banner.red", dx: 3, dz: -3 },
+      { defId: "object.campfire.basic", dx: 0, dz: 4 },
+      { defId: "object.crate.wood", dx: 5, dz: 2 },
+      { defId: "object.fence.wood", dx: -7, dz: 0 },
+      { defId: "object.fence.wood", dx: 7, dz: 0 },
+    ],
+    folk: [2, 3],
+    lines: [
+      ["Hold there — state your business on this road.", "We keep the watch so honest folk sleep sound."],
+      ["Trouble's been stirring in the wilds. Stay sharp.", "The Wardens posted us here. We don't leave our post."],
+    ],
+  },
 };
+
+// Weighted draw tables: rocky, cold country favours mines, garrisons and
+// waystations; green country favours farms, wharves, lumber camps and cloisters.
+const ROCKY_SETTLEMENTS: Array<[SettlementKind, number]> = [
+  ["mining_camp", 0.45], ["watch_post", 0.14], ["trade_post", 0.12],
+  ["waystation", 0.10], ["shrine", 0.09], ["hamlet", 0.10],
+];
+const GREEN_SETTLEMENTS: Array<[SettlementKind, number]> = [
+  ["hamlet", 0.18], ["farmstead", 0.17], ["lumber_camp", 0.12], ["fishing_wharf", 0.10],
+  ["trade_post", 0.11], ["waystation", 0.10], ["monastery", 0.08], ["watch_post", 0.06],
+  ["mining_camp", 0.04], ["shrine", 0.04],
+];
 
 /** Draw a settlement kind from the anchor and the country around it. */
 export function settlementKind(seed: number, cx: number, cz: number, biome: number): SettlementKind {
   const rocky = biome === 2 || biome === 5 || biome === 12;
+  const pool = rocky ? ROCKY_SETTLEMENTS : GREEN_SETTLEMENTS;
   const roll = cellHash(cx * 91 + 7, cz * 57 + 13, salt(seed, 101));
-  if (rocky) {
-    return roll < 0.5 ? "mining_camp" : roll < 0.72 ? "hamlet" : roll < 0.88 ? "trade_post" : "shrine";
+  let acc = 0;
+  for (const [kind, w] of pool) {
+    acc += w;
+    if (roll < acc) return kind;
   }
-  return roll < 0.4 ? "hamlet" : roll < 0.64 ? "farmstead" : roll < 0.8 ? "trade_post" : roll < 0.92 ? "mining_camp" : "shrine";
+  return pool[pool.length - 1][0];
 }
 
 /**

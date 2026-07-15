@@ -8,7 +8,7 @@ import { SETTLEMENTS, type SettlementKind, settlementKind } from "../worldgen/en
 describe("settlement types", () => {
   it("defines several kinds, each dressed from real object defs", () => {
     const kinds = Object.keys(SETTLEMENTS) as SettlementKind[];
-    expect(kinds.length).toBeGreaterThanOrEqual(5);
+    expect(kinds.length).toBeGreaterThanOrEqual(10);
     for (const kind of kinds) {
       const def = SETTLEMENTS[kind];
       expect(def.dress.length, `${kind}: has dressing`).toBeGreaterThan(2);
@@ -26,6 +26,9 @@ describe("settlement types", () => {
     expect(has("mining_camp", "object.anvil.basic")).toBe(true);
     expect(has("shrine", "object.altar.rune")).toBe(true);
     expect(has("farmstead", "object.workbench.basic")).toBe(true);
+    expect(has("monastery", "object.enchanter.basic")).toBe(true);
+    expect(has("lumber_camp", "object.log.fallen")).toBe(true);
+    expect(has("fishing_wharf", "object.reeds.water")).toBe(true);
     // A trade post fields more than one stall.
     expect(SETTLEMENTS.trade_post.dress.filter((d) => d.defId === "object.stall.market").length).toBeGreaterThan(1);
   });
@@ -40,15 +43,15 @@ describe("settlement types", () => {
         seen.add(settlementKind(1234, cx, cz, 2));
       }
     }
-    // Green country never yields a purely-rocky camp exclusively; the sweep as a
-    // whole surfaces at least four of the five kinds.
-    expect(seen.size).toBeGreaterThanOrEqual(4);
-    // Rocky country leans to mining camps.
+    // The sweep as a whole surfaces a broad spread of the roster.
+    expect(seen.size).toBeGreaterThanOrEqual(7);
+    // Rocky country leans to mining camps (sampled over a grid for stability).
     let camps = 0, total = 0;
     for (let cx = 0; cx < 40; cx++) {
-      const k = settlementKind(99, cx, 3, 2);
-      if (k === "mining_camp") camps++;
-      total++;
+      for (let cz = 0; cz < 40; cz++) {
+        if (settlementKind(99, cx, cz, 2) === "mining_camp") camps++;
+        total++;
+      }
     }
     expect(camps / total).toBeGreaterThan(0.35);
   });
