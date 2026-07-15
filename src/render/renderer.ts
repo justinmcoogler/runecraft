@@ -954,9 +954,10 @@ export class GameRenderer {
           }
         }
 
-        // Gate arch: cobble fills the TOP HALF of the gateway, up to the flanking
-        // wall's own top, so the archway reads as a tall covered gate that climbs
-        // to the battlements — with roughly half the wall's height as headroom.
+        // Gate arch: stone brick fills the TOP HALF of the gateway, up to the
+        // flanking wall's own top, so the archway reads as a tall covered gate
+        // that climbs to the battlements — with roughly half the wall's height
+        // as headroom. Same block as the wall so the span matches the rest.
         if (isGateArch) {
           let top = h;
           for (const [nx, nz] of [[x - 1, z], [x + 1, z], [x, z - 1], [x, z + 1]] as const) {
@@ -964,7 +965,7 @@ export class GameRenderer {
           }
           if (top > h + 4) {
             const bot = h + Math.floor((top - h) / 2);
-            pushBox(x, x + 1, z, z + 1, bot, top, topTile("cobble"), x, z);
+            pushBox(x, x + 1, z, z + 1, bot, top, topTile("stonebrick"), x, z);
           }
         }
 

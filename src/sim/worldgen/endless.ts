@@ -566,7 +566,7 @@ function slopeAt(seed: number, x: number, z: number, h: number, cache?: HeightCa
 /** The starter vale: a circle of natural ground kept clear of trees and nodes,
  *  ringed by a cobblestone castle wall. Everything within this radius is the
  *  player's clean building canvas; the wild begins at the wall. */
-export const TOWN_RADIUS = 250;
+export const TOWN_RADIUS = 125;
 const TOWN_FEATHER = 18;
 /** Back-compat alias: the old square half-extent some callers still reference. */
 export const TOWN_HALF = TOWN_RADIUS;
@@ -633,7 +633,8 @@ const WALL_HEIGHT = 12;             // a tall curtain wall; merlons rise one hig
 const GATE_HALF = 0.024;            // radians; margin used when checking gates are dry
 const PATH_HALF = 1.9;             // perpendicular half-width of an interior path
 // The mining quarry: a patch of stone in the plains, offset from the spawn.
-const STONE_CX = 74, STONE_CZ = -52, STONE_R = 26;
+// Kept well inside the (now smaller) wild interior so it doesn't touch the wall.
+const STONE_CX = 37, STONE_CZ = -26, STONE_R = 16;
 
 // The vale keeps its wild, rolling shape in the middle; only the outer band
 // ramps to a level base so the wall sits clean. Radius where the wild interior
@@ -728,7 +729,6 @@ function valeGates(seed: number): number[] {
  */
 /** How far a gate's trail winds out into the wild before it fades. */
 const PATH_REACH = TOWN_RADIUS + 170;
-const PATH_R0 = 4; // the trail's height profile starts just off the spawn
 
 /** The angular wobble of gate `gi`'s trail at radius `r`: one smooth, continuous
  *  wander from the spawn all the way out — so the path winds randomly inside the
@@ -770,16 +770,22 @@ function valePathAt(seed: number, x: number, z: number): boolean {
  */
 const valePathHtCache = new Map<string, Int16Array>();
 function valePathHeight(seed: number, gi: number, r: number): number {
+  const a = townAnchor(seed);
+  // Inside and under the wall the trail lies FLAT on the town floor (a.h) — so
+  // it passes through the gateway at ground level and the wall is cut into a
+  // clean hole/arch, never a ramp that climbs up and over the battlement. The
+  // switchback grade only kicks in OUTSIDE the wall, where the trail winds into
+  // the wild one block at a time.
+  if (r <= TOWN_RADIUS) return a.h;
   const key = `${seed}:${gi}`;
   let prof = valePathHtCache.get(key);
   if (!prof) {
-    const a = townAnchor(seed);
     const g = valeGates(seed)[gi] ?? 0;
-    const n = PATH_REACH - PATH_R0 + 1;
+    const n = PATH_REACH - TOWN_RADIUS + 1; // profile spans the wall out to the reach
     prof = new Int16Array(n);
-    let h = a.h; // leaves the wall at the town's own height
+    let h = a.h; // leaves the wall at the town's own floor height
     for (let i = 0; i < n; i++) {
-      const rr = PATH_R0 + i;
+      const rr = TOWN_RADIUS + i;
       const wob = valePathWobble(seed, gi, rr);
       const cx = Math.round(a.x + Math.cos(g + wob) * rr);
       const cz = Math.round(a.z + Math.sin(g + wob) * rr);
@@ -789,7 +795,7 @@ function valePathHeight(seed: number, gi: number, r: number): number {
     }
     valePathHtCache.set(key, prof);
   }
-  const i = Math.max(0, Math.min(prof.length - 1, Math.round(r) - PATH_R0));
+  const i = Math.max(0, Math.min(prof.length - 1, Math.round(r) - TOWN_RADIUS));
   return prof[i];
 }
 

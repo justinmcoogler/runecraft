@@ -115,8 +115,8 @@ const NATURAL: BlockDef[] = [
   // A plank bridge deck: solid to walk on, but rendered as a real bridge
   // (open underneath, on stone piers) rather than a filled plank column.
   uniform("bridge", "Bridge", "terrain.plank"),
-  // A gateway threshold: a gravel floor you walk on, with a cobble arch drawn
-  // over it (the covered top of the castle gate).
+  // A gateway threshold: a gravel floor you walk on, with a stone-brick arch
+  // drawn over it (the covered top of the castle gate, matching the wall).
   uniform("gatearch", "Gate Arch", "terrain.gravel"),
 ];
 
