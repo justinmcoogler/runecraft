@@ -1424,14 +1424,19 @@ export class GameRenderer {
           ember: "resource.tree.ember.side", glow: "resource.tree.glow.side",
           dusk: "resource.tree.dusk.side",
         };
+        // Leaves ALWAYS resolve to a baked Minecraft leaf tile — those carry
+        // the cutout alpha (RGBA) that makes foliage see-through. New species
+        // reuse the closest existing MC leaf art and are *recoloured* per
+        // species below, exactly like vanilla tints foliage.png. (Never a
+        // procedural/opaque tile here, or the canopy renders as solid blocks.)
         const LEAVES: Record<string, string> = {
           oak: "resource.tree.leaves", birch: "resource.tree.birch.leaves",
-          spruce: "resource.tree.spruce.leaves", pine: "resource.tree.pine.leaves",
+          spruce: "resource.tree.spruce.leaves", pine: "resource.tree.spruce.leaves",
           jungle: "resource.tree.jungle.leaves", acacia: "resource.tree.acacia.leaves",
-          darkoak: "resource.tree.darkoak.leaves", willow: "resource.tree.willow.leaves",
-          maple: "resource.tree.maple.leaves", palm: "resource.tree.palm.leaves",
-          blossom: "resource.tree.blossom.leaves", ember: "resource.tree.ember.leaves",
-          glow: "resource.tree.glow.leaves", dusk: "resource.tree.dusk.leaves",
+          darkoak: "resource.tree.darkoak.leaves", willow: "resource.tree.jungle.leaves",
+          maple: "resource.tree.acacia.leaves", palm: "resource.tree.jungle.leaves",
+          blossom: "resource.tree.blossom.leaves", ember: "resource.tree.darkoak.leaves",
+          glow: "resource.tree.jungle.leaves", dusk: "resource.tree.darkoak.leaves",
         };
         const trunkSide = this.lambert(TRUNKS[species] ?? "resource.tree.log.side");
         const leavesMat = this.lambert(LEAVES[species] ?? "resource.tree.leaves");
@@ -1440,34 +1445,41 @@ export class GameRenderer {
         // canopy behind. Cutout (not transparent) keeps leaves in the opaque
         // pass — no z-sorting artifacts — like MC's cutout_mipped leaves.
         leavesMat.alphaTest = 0.5;
-        // Per-tree colour + magical light. The fantasy woods self-illuminate
-        // (emissive) so they read as enchanted at night; the natural woods get
-        // a light per-tree jitter so a stand never looks like copies. Maple
-        // blazes across an autumn range (gold→orange→scarlet) per individual.
+        // Recolour the MC leaf art per species (× material colour, so the
+        // foliage detail + cutout show through the tint). The fantasy woods
+        // also self-illuminate (emissive) so they read as enchanted at night.
+        // Maple blazes across an autumn range (gold→orange→scarlet) per tree.
         let swayMode: "leaf" | "glow" | "ember" | "dusk" | "blossom" = "leaf";
         if (species === "glow") {
-          leavesMat.color.set("#8ffbe0");
+          leavesMat.color.set("#9ff0d6");
           leavesMat.emissive = new THREE.Color("#46e6c4");
           leavesMat.emissiveIntensity = 0.9;
           swayMode = "glow";
         } else if (species === "ember") {
-          leavesMat.color.set("#ff9a3c");
+          leavesMat.color.set("#ff8a4a");
           leavesMat.emissive = new THREE.Color("#ff5a1e");
-          leavesMat.emissiveIntensity = 0.75;
+          leavesMat.emissiveIntensity = 0.8;
           swayMode = "ember";
         } else if (species === "dusk") {
           leavesMat.color.set("#b79bea");
           leavesMat.emissive = new THREE.Color("#7a53c8");
-          leavesMat.emissiveIntensity = 0.45;
+          leavesMat.emissiveIntensity = 0.5;
           swayMode = "dusk";
         } else if (species === "blossom") {
-          leavesMat.color.setHSL(0.92, 0.45, 0.78 + variety * 0.08);
+          leavesMat.color.setHSL(0.92, 0.5, 0.82 + variety * 0.06);
           leavesMat.emissive = new THREE.Color("#f6c6de");
           leavesMat.emissiveIntensity = 0.12;
           swayMode = "blossom";
         } else if (species === "maple") {
-          // Autumn spread: hue 0.02 (scarlet) → 0.11 (gold) per tree.
-          leavesMat.color.setHSL(0.02 + variety * 0.09, 0.72, 0.5 + variety * 0.08);
+          // Autumn spread over the warm acacia leaf art. Bias to amber→orange
+          // (the olive base muddies pure scarlet), so it reads as fall gold.
+          leavesMat.color.setHSL(0.055 + variety * 0.05, 0.95, 0.66 + variety * 0.06);
+        } else if (species === "pine") {
+          leavesMat.color.setHSL(0.36, 0.5, 0.7); // deep blue-green needles
+        } else if (species === "willow") {
+          leavesMat.color.setHSL(0.22, 0.45, 0.92 + variety * 0.04); // soft sage
+        } else if (species === "palm") {
+          leavesMat.color.setHSL(0.30, 0.7, 0.9); // bright tropical
         } else {
           leavesMat.color.setHSL(0.28, 0.08, 0.86 + variety * 0.1);
         }

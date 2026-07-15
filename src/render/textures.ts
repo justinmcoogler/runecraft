@@ -74,22 +74,17 @@ const TILE_SPECS: Record<string, TileSpec> = {
   "resource.tree.acacia.leaves": { base: "#a3a23c", speckle: "#8e8d30", speckleDensity: 0.4 },
   "resource.tree.darkoak.leaves": { base: "#4e7a28", speckle: "#40691f", speckleDensity: 0.4 },
   "resource.tree.blossom.leaves": { base: "#e8a7c8", speckle: "#d891b6", speckleDensity: 0.4 },
-  // New hand-authored species — Minecraft-toned bark + foliage tiles.
+  // New hand-authored species — Minecraft-toned bark tiles (opaque). Their
+  // foliage reuses the baked RGBA leaf art recoloured per species in the
+  // renderer, so leaves stay see-through (cutout) rather than solid blocks.
   "resource.tree.pine.side": { base: "#3f2d1c", speckle: "#2f2013", speckleDensity: 0.35 },
-  "resource.tree.pine.leaves": { base: "#3f6146", speckle: "#33513a", speckleDensity: 0.4 },
   "resource.tree.willow.side": { base: "#5a4a34", speckle: "#493b28", speckleDensity: 0.35 },
-  "resource.tree.willow.leaves": { base: "#88a86a", speckle: "#75955a", speckleDensity: 0.4 },
   "resource.tree.maple.side": { base: "#6e4a2c", speckle: "#59391e", speckleDensity: 0.35 },
-  "resource.tree.maple.leaves": { base: "#d2652a", speckle: "#bd551f", speckleDensity: 0.42 },
   "resource.tree.palm.side": { base: "#8a6a3f", speckle: "#725636", speckleDensity: 0.35 },
-  "resource.tree.palm.leaves": { base: "#4fae2e", speckle: "#419522", speckleDensity: 0.4 },
   "resource.tree.dead.side": { base: "#6a5f52", speckle: "#544a3f", speckleDensity: 0.4 },
   "resource.tree.ember.side": { base: "#2a2018", speckle: "#1d1610", speckleDensity: 0.4 },
-  "resource.tree.ember.leaves": { base: "#7a2a12", speckle: "#5f1e0c", speckleDensity: 0.42 },
   "resource.tree.glow.side": { base: "#586a58", speckle: "#47563f", speckleDensity: 0.3 },
-  "resource.tree.glow.leaves": { base: "#57e0c0", speckle: "#43c6a8", speckleDensity: 0.35 },
   "resource.tree.dusk.side": { base: "#34283a", speckle: "#271d2d", speckleDensity: 0.35 },
-  "resource.tree.dusk.leaves": { base: "#9a7fd0", speckle: "#8168bd", speckleDensity: 0.4 },
   "resource.tree.log.top": { base: "#a5793f", speckle: "#8a6332", speckleDensity: 0.2 },
   "resource.tree.leaves": { base: "#3e8a2f", speckle: "#347526", speckleDensity: 0.4 },
   "resource.tree.stump.top": { base: "#a5793f", speckle: "#6b4a2a", speckleDensity: 0.25 },
