@@ -13,7 +13,7 @@ Open the prebuilt single-file build — it's completely self-contained (no serve
 no network):
 
 ```
-dist/stoneleaf-vale.html
+dist/runecraft.html
 ```
 
 Double-click it, or serve the folder and open it. Add `?seed=<number>` to the URL
@@ -33,7 +33,7 @@ Then open the printed local URL.
 ## Build the standalone
 
 ```bash
-npm run build      # -> dist/stoneleaf-vale.html (+ .fragment.html)
+npm run build      # -> dist/runecraft.html (+ .fragment.html)
 ```
 
 The build inlines all JS, CSS, fonts and textures into one HTML file.

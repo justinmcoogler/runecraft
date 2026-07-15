@@ -1,7 +1,7 @@
 // Bundle the game into self-contained HTML (no external requests, no build step
 // needed to play). Produces:
-//   dist/stoneleaf-vale.html          — full standalone page (open anywhere)
-//   dist/stoneleaf-vale.fragment.html — head/body-less fragment for hosts
+//   dist/runecraft.html          — full standalone page (open anywhere)
+//   dist/runecraft.fragment.html — head/body-less fragment for hosts
 //                                            that wrap content in their own skeleton
 // Run from the repo root: node scripts/build-standalone.mjs
 
@@ -48,8 +48,8 @@ ${body}</body>
 `;
 
 mkdirSync("dist", { recursive: true });
-writeFileSync("dist/stoneleaf-vale.html", full);
-writeFileSync("dist/stoneleaf-vale.fragment.html", body);
+writeFileSync("dist/runecraft.html", full);
+writeFileSync("dist/runecraft.fragment.html", body);
 console.log(
   `standalone: ${(full.length / 1024).toFixed(0)} KB, fragment: ${(body.length / 1024).toFixed(0)} KB`,
 );
