@@ -154,6 +154,16 @@ describe("the tutorial driver", () => {
     expect(sim.tutorial!.complete).toBe(false); // optionals never gate
   });
 
+  it("awards summoning and places the obelisk", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    expect(sim.world.region.objects.some((o) => o.instanceId === "tutorial.obelisk")).toBe(true);
+    sim.tick();
+    expect(sim.inventory.count("item.charm.bone")).toBeGreaterThanOrEqual(1);
+    sim.events.emit({ type: "xpGained", skillId: "skill.summoning", amount: 40 });
+    sim.tick();
+    expect(sim.tutorial!.optionalDone.has("tut.summon")).toBe(true);
+  });
+
   it("marks every optional lesson optional with an item+XP reward", () => {
     for (const l of TUTORIAL_OPTIONAL) {
       expect(l.optional).toBe(true);

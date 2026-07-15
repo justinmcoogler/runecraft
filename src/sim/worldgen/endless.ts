@@ -2311,6 +2311,7 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
     { instanceId: "tutorial.campfire", defId: "object.campfire.basic", cell: { x: spawn.x + 6, z: spawn.z + 3 } },
     { instanceId: "tutorial.workbench", defId: "object.workbench.basic", cell: { x: spawn.x + 9, z: spawn.z } },
     { instanceId: "tutorial.cauldron", defId: "object.cauldron.basic", cell: { x: spawn.x + 9, z: spawn.z + 2 } },
+    { instanceId: "tutorial.obelisk", defId: "object.obelisk.summon", cell: { x: spawn.x - 9, z: spawn.z + 1 } },
     {
       instanceId: "tutorial.shortcut",
       defId: "object.shortcut.log",

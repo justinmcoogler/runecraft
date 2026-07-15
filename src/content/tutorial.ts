@@ -260,6 +260,16 @@ export const TUTORIAL_OPTIONAL: TutorialLesson[] = [
     trigger: { kind: "skillXp", skillId: "skill.archery" },
     reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.archery", amount: 30 } },
   },
+  {
+    id: "tut.summon",
+    act: "Spiritual",
+    skillId: "skill.summoning",
+    optional: true,
+    title: "Bind a familiar",
+    blurb: "At the summoning obelisk, bind a charm and essence into a spirit pouch.",
+    trigger: { kind: "skillXp", skillId: "skill.summoning" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.summoning", amount: 30 } },
+  },
 ];
 
 // Granted silently at the start of the tutorial (no itemGained event, so it
@@ -271,7 +281,8 @@ export const TUTORIAL_STARTER_KIT: Array<{ itemId: string; qty: number }> = [
   { itemId: "item.ore.copper", qty: 3 },
   { itemId: "item.ore.tin", qty: 3 },
   { itemId: "item.bar.bronze", qty: 1 },
-  { itemId: "item.essence.rune", qty: 5 },
+  { itemId: "item.essence.rune", qty: 8 },  // runecrafting + summoning both draw on it
+  { itemId: "item.charm.bone", qty: 1 },    // summoning
   { itemId: "item.fish.raw", qty: 2 },   // cooking
   { itemId: "item.log.basic", qty: 6 },  // fletch shafts + cut planks + a log to alch
   { itemId: "item.rune.fire", qty: 5 },  // low-alchemy (magic)
