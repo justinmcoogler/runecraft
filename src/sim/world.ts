@@ -30,7 +30,7 @@ export function applyWorldFlags(region: RegionSpec, flags: Iterable<string>): vo
   // prize looted and the war-banners struck. The cleared flag is keyed to the
   // dungeon's (style, seed); the id also carries this floor's depth/maxDepth,
   // so only the finale floor is stripped and the descent still has teeth.
-  const dyn = region.id.match(/^dyn_(crypt|mine)_(\d+)_(\d+)_(\d+)_/);
+  const dyn = region.id.match(/^dyn_([a-z]+)_(\d+)_(\d+)_(\d+)_/);
   if (dyn) {
     const [, style, seed, depthS, maxS] = dyn;
     const depth = Number(depthS);

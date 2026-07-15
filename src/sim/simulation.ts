@@ -17,7 +17,7 @@ import { QuestService } from "./quests";
 import { SkillService } from "./skills";
 import { ChunkManager } from "./chunk-manager";
 import { EndlessTerrain, remoteness01, setValeActive, starterTownRegion, tutorialRegion } from "./worldgen/endless";
-import { dungeonSpecFor } from "./worldgen/dungeons";
+import { DUNGEON_ID_RE, type DungeonStyle, dungeonSpecFor } from "./worldgen/dungeons";
 import { CuratorService, SlayerService } from "./taskmasters";
 import type { ArmorSlot, Cell, Command, SimEvent } from "./types";
 import { SimEventBus, SimRng, TICK_DT } from "./types";
@@ -771,9 +771,9 @@ export class GameSimulation {
    *  one-time distance-scaled bounty, and announce it. Only the finale floor
    *  counts — intermediate boss floors and the endless descent never "clear". */
   private markDungeonCleared(regionId: string): void {
-    const m = regionId.match(/^dyn_(crypt|mine)_(\d+)_(\d+)_(\d+)_(-?\d+)_(-?\d+)$/);
+    const m = regionId.match(DUNGEON_ID_RE);
     if (!m) return;
-    const style = m[1] as "crypt" | "mine";
+    const style = m[1] as DungeonStyle;
     const seed = Number(m[2]);
     const depth = Number(m[3]);
     const maxDepth = Number(m[4]);

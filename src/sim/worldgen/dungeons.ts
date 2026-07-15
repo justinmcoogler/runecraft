@@ -34,8 +34,9 @@ export interface DungeonSpec {
   rocks?: Array<{ defId: string; weight: number }>;
   lootItems: Array<{ itemId: string; qty: number }>;
   seed: number;
-  /** Aesthetic: a stone crypt (default) or a timbered mineshaft. */
-  style?: "crypt" | "mine";
+  /** Which of the dungeon archetypes this floor belongs to (styling, foes,
+   *  loot and naming all key off it). */
+  style?: DungeonStyle;
   /** Floor number, 1 = top. Deeper floors are bigger, darker and richer. */
   depth?: number;
   /** Endless descent: the region id of the next-deeper floor. When set, the
@@ -50,17 +51,17 @@ export const DUNGEON_SPAWN = { x: 9, z: 10 };
 export function makeDungeon(spec: DungeonSpec): () => RegionSpec {
   return () => {
     const floorN = Math.max(1, spec.depth ?? 1);
-    const mine = spec.style === "mine";
+    const sd = STYLE_DEFS[spec.style ?? "crypt"] ?? STYLE_DEFS.crypt;
     // Bigger than the old crawls, and each floor down adds rooms — so a deep
-    // descent sprawls. Mineshafts run wider still.
-    const roomCount = Math.min(20, spec.rooms + (floorN - 1) * 2 + (mine ? 3 : 0));
+    // descent sprawls. Wide styles (mineshafts, warrens, vaults) run larger.
+    const roomCount = Math.min(20, spec.rooms + (floorN - 1) * 2 + (sd.wide ? 3 : 0));
     const cols = Math.min(5, Math.max(3, Math.ceil(Math.sqrt(roomCount))));
     const rows = Math.ceil(roomCount / cols);
-    const cellW = mine ? 30 : 27;
+    const cellW = sd.wide ? 30 : 27;
     const width = cols * cellW + 8;
     const depth = rows * cellW + 8;
     const heights = new Array<number>(width * depth).fill(3);
-    const blocks = new Array<BlockType>(width * depth).fill(mine ? "coarsedirt" : "stone");
+    const blocks = new Array<BlockType>(width * depth).fill(sd.wall);
     const nodes: NodePlacement[] = [];
     const objects: ObjectPlacement[] = [];
     const enemies: EnemyPlacement[] = [];
@@ -285,7 +286,9 @@ export function makeDungeon(spec: DungeonSpec): () => RegionSpec {
 // scheme: dyn_<style>_<seed>_<depth>_<exitX>_<exitZ>.
 // ---------------------------------------------------------------------------
 
-const CRYPT_FOES = [
+type Weighted = Array<{ defId: string; weight: number }>;
+
+const CRYPT_FOES: Weighted = [
   { defId: "enemy.skeleton", weight: 4 },
   { defId: "enemy.zombie", weight: 4 },
   { defId: "enemy.grave_shambler", weight: 3 },
@@ -294,7 +297,7 @@ const CRYPT_FOES = [
   { defId: "enemy.stone_sentinel", weight: 2 },
   { defId: "enemy.creeper", weight: 2 },
 ];
-const MINE_FOES = [
+const MINE_FOES: Weighted = [
   { defId: "enemy.cave_spider", weight: 5 },
   { defId: "enemy.gloom_spinner", weight: 3 },
   { defId: "enemy.thornback", weight: 3 },
@@ -303,7 +306,39 @@ const MINE_FOES = [
   { defId: "enemy.marsh_lurker", weight: 2 },
   { defId: "enemy.creeper", weight: 2 },
 ];
-const MINE_ROCKS = [
+// Pillager stronghold — an outpost gone underground: bandits, war-beasts.
+const WARREN_FOES: Weighted = [
+  { defId: "enemy.pillager", weight: 4 },
+  { defId: "enemy.vindicator", weight: 3 },
+  { defId: "enemy.timber_wolf", weight: 3 },
+  { defId: "enemy.boar", weight: 2 },
+  { defId: "enemy.evoker", weight: 1 },
+  { defId: "enemy.illusioner", weight: 1 },
+];
+// A living spider hive — skittering, web-choked, thick with brood.
+const HIVE_FOES: Weighted = [
+  { defId: "enemy.cave_spider", weight: 5 },
+  { defId: "enemy.spider", weight: 4 },
+  { defId: "enemy.gloom_spinner", weight: 3 },
+  { defId: "enemy.thornback", weight: 2 },
+  { defId: "enemy.bat", weight: 2 },
+];
+// A dwarven treasure vault, its wards still walking: stone and rust constructs.
+const VAULT_FOES: Weighted = [
+  { defId: "enemy.stone_sentinel", weight: 4 },
+  { defId: "enemy.rust_construct", weight: 4 },
+  { defId: "enemy.skeleton", weight: 2 },
+  { defId: "enemy.canyon_construct", weight: 1 },
+];
+// A blighted sanctum — corruption made flesh, presided over by dark casters.
+const SANCTUM_FOES: Weighted = [
+  { defId: "enemy.blight_slime", weight: 4 },
+  { defId: "enemy.spore_shambler", weight: 3 },
+  { defId: "enemy.hollow_wight", weight: 3 },
+  { defId: "enemy.witch", weight: 2 },
+  { defId: "enemy.evoker", weight: 1 },
+];
+const MINE_ROCKS: Weighted = [
   { defId: "resource.rock.coal", weight: 4 },
   { defId: "resource.rock.iron", weight: 4 },
   { defId: "resource.rock.copper", weight: 3 },
@@ -316,18 +351,86 @@ const MINE_ROCKS = [
   { defId: "resource.rock.quartz", weight: 1 },
   { defId: "resource.rock.netherite", weight: 1 },
 ];
+// A vault glitters with precious veins, no base metal.
+const VAULT_ROCKS: Weighted = [
+  { defId: "resource.rock.gold", weight: 4 },
+  { defId: "resource.rock.emerald", weight: 3 },
+  { defId: "resource.rock.lapis", weight: 3 },
+  { defId: "resource.rock.diamond", weight: 2 },
+  { defId: "resource.rock.quartz", weight: 2 },
+];
 const DEEP_BOSSES = [
   "enemy.old_gnasher", "enemy.silt_king", "enemy.rootbound_warden",
   "enemy.moss_golem", "enemy.liftworks_overseer",
   "enemy.dragon.hydra", "enemy.dragon.fire", "enemy.dragon.twoheaded",
 ];
-/** Elite mid-floor guardians: a step up from the rank and file, a step below
- *  the boss, seeded into deeper floors so the crawl builds tension. */
-const CRYPT_ELITES = ["enemy.hollow_wight", "enemy.grave_shambler", "enemy.glacial_wight", "enemy.barrow_lord"];
-const MINE_ELITES = ["enemy.ember_crawler", "enemy.canyon_construct", "enemy.dire_wolf"];
+
+// ── Dungeon archetypes ─────────────────────────────────────────────────────
+// Each style is a distinct kind of crawl: its own rock/floor palette, foe and
+// elite roster, lighting, and naming. Affixes layer on top of a style, so a
+// crawl reads as e.g. "Flooded Spider Hive". Keys appear verbatim in region
+// ids (dyn_<style>_…), so they must stay lowercase and stable.
+export type DungeonStyle = "crypt" | "mine" | "warren" | "hive" | "vault" | "sanctum";
+interface StyleDef {
+  /** Wide styles get larger rooms and a few extra chambers. */
+  wide: boolean;
+  /** Block filling the solid rock between rooms. */
+  wall: BlockType;
+  /** Default room floor (an affix may override it). */
+  floor: BlockType;
+  foes: Weighted;
+  elites: string[];
+  rocks?: Weighted;
+  /** Overrides the shared boss pool when set. */
+  bosses?: string[];
+  theme: { sky: string; ambient: number };
+  /** Name of a finite crawl of this style. */
+  surface: string;
+  /** Name of an endless descent of this style. */
+  endless: string;
+}
+const STYLE_DEFS: Record<DungeonStyle, StyleDef> = {
+  crypt: {
+    wide: false, wall: "stone", floor: "stone",
+    foes: CRYPT_FOES, elites: ["enemy.hollow_wight", "enemy.grave_shambler", "enemy.glacial_wight", "enemy.barrow_lord"],
+    theme: { sky: "#141018", ambient: 0.3 }, surface: "Sunken Crypt", endless: "The Endless Descent",
+  },
+  mine: {
+    wide: true, wall: "coarsedirt", floor: "gravel",
+    foes: MINE_FOES, elites: ["enemy.ember_crawler", "enemy.canyon_construct", "enemy.dire_wolf"], rocks: MINE_ROCKS,
+    theme: { sky: "#181410", ambient: 0.34 }, surface: "Abandoned Mineshaft", endless: "Deepdelve Mine",
+  },
+  warren: {
+    wide: true, wall: "dirt", floor: "coarsedirt",
+    foes: WARREN_FOES, elites: ["enemy.dire_wolf", "enemy.ravager", "enemy.evoker"],
+    bosses: ["enemy.ravager", "enemy.old_gnasher", "enemy.liftworks_overseer", "enemy.dragon.twoheaded"],
+    theme: { sky: "#1a1408", ambient: 0.32 }, surface: "Pillager Warren", endless: "The Warren Deeps",
+  },
+  hive: {
+    wide: false, wall: "stone", floor: "moss",
+    foes: HIVE_FOES, elites: ["enemy.thornback", "enemy.gloom_spinner", "enemy.old_gnasher"],
+    theme: { sky: "#0e1410", ambient: 0.26 }, surface: "Spider Hive", endless: "The Endless Hive",
+  },
+  vault: {
+    wide: true, wall: "stonebrick", floor: "stonebrick",
+    foes: VAULT_FOES, elites: ["enemy.canyon_construct", "enemy.stone_sentinel"], rocks: VAULT_ROCKS,
+    bosses: ["enemy.liftworks_overseer", "enemy.canyon_construct", "enemy.dragon.hydra", "enemy.rootbound_warden"],
+    theme: { sky: "#141008", ambient: 0.4 }, surface: "Ironward Vault", endless: "The Bottomless Vault",
+  },
+  sanctum: {
+    wide: false, wall: "stone", floor: "mycelium",
+    foes: SANCTUM_FOES, elites: ["enemy.barrow_lord", "enemy.glacial_wight", "enemy.witch"],
+    rocks: [{ defId: "resource.rock.essence", weight: 4 }, { defId: "resource.rock.redstone", weight: 2 }],
+    bosses: ["enemy.rootbound_warden", "enemy.moss_golem", "enemy.silt_king", "enemy.dragon.fire"],
+    theme: { sky: "#0c0a16", ambient: 0.22 }, surface: "Blighted Sanctum", endless: "The Sunless Sanctum",
+  },
+};
+
+/** The dungeon styles, for worldgen to pick among and tests to sweep. */
+export const DUNGEON_STYLES = Object.keys(STYLE_DEFS) as DungeonStyle[];
 
 export function dynDungeonId(
-  style: "crypt" | "mine",
+  style: DungeonStyle,
   seed: number,
   depth: number,
   maxDepth: number,
@@ -410,28 +513,35 @@ function applyAffix(spec: DungeonSpec, affix: Affix | null): DungeonSpec {
 }
 
 export function dungeonSpecFor(
-  style: "crypt" | "mine",
+  style: DungeonStyle,
   seed: number,
   depth: number,
   maxDepth: number,
   exit: { x: number; z: number },
 ): DungeonSpec {
-  const mine = style === "mine";
+  const sd = STYLE_DEFS[style] ?? STYLE_DEFS.crypt;
+  const bossPool = sd.bosses ?? DEEP_BOSSES;
   const endless = maxDepth === 0;
   const isFinale = !endless && depth >= maxDepth;
   // A boss guards every third floor, and always the finale of a finite crawl.
   const boss = isFinale || depth % 3 === 0
-    ? DEEP_BOSSES[(depth + (mine ? 1 : 0)) % DEEP_BOSSES.length]
+    ? bossPool[(depth + style.length) % bossPool.length]
     : undefined;
   const lootItems = [
     { itemId: "item.coin", qty: 20 + depth * 15 + (isFinale ? 60 : 0) },
-    mine
+    // Ore styles pay in bars; the rest in gems, and a vault in richer gems.
+    sd.rocks
       ? { itemId: "item.bar.iron", qty: 1 + Math.floor(depth / 2) }
       : { itemId: "item.gem.diamond", qty: Math.max(1, Math.floor(depth / 3)) },
   ];
+  // A vault is a hoard: it always adds a coin purse and a gem on top.
+  if (style === "vault") {
+    lootItems.push({ itemId: "item.coin", qty: 40 + depth * 25 });
+    lootItems.push({ itemId: "item.gem.emerald", qty: 1 + Math.floor(depth / 2) });
+  }
   const label = endless
-    ? `${mine ? "Deepdelve Mine" : "The Endless Descent"} — Floor ${depth}`
-    : `${mine ? "Abandoned Mineshaft" : "Sunken Crypt"} — Floor ${depth}/${maxDepth}`;
+    ? `${sd.endless} — Floor ${depth}`
+    : `${sd.surface} — Floor ${depth}/${maxDepth}`;
   // Ascending goes up exactly one floor: the surface only from floor 1, else
   // the floor directly above (landing at its fixed entrance spawn). Previously
   // every floor's exit jumped straight to the surface.
@@ -441,21 +551,19 @@ export function dungeonSpecFor(
     name: label,
     exitRegionId: ascendToSurface ? "region.endless" : dynDungeonId(style, seed, depth - 1, maxDepth, exit),
     exitCell: ascendToSurface ? exit : DUNGEON_SPAWN,
-    rooms: mine ? 7 : 6,
-    floor: mine ? "gravel" : "stone",
+    rooms: sd.wide ? 7 : 6,
+    floor: sd.floor,
     // Every floor down is a shade darker, to a floor.
     theme: {
-      sky: mine ? "#181410" : "#141018",
+      sky: sd.theme.sky,
       sun: 0.22,
-      ambient: Math.max(0.14, (mine ? 0.34 : 0.3) - depth * 0.02),
+      ambient: Math.max(0.14, sd.theme.ambient - depth * 0.02),
     },
-    enemies: mine ? MINE_FOES : CRYPT_FOES,
+    enemies: sd.foes,
     boss,
     // Deeper floors post an elite guardian in a middle room.
-    elite: depth >= 2
-      ? (mine ? MINE_ELITES : CRYPT_ELITES)[depth % (mine ? MINE_ELITES : CRYPT_ELITES).length]
-      : undefined,
-    rocks: mine ? MINE_ROCKS : undefined,
+    elite: depth >= 2 ? sd.elites[depth % sd.elites.length] : undefined,
+    rocks: sd.rocks,
     lootItems,
     seed: seed + depth * 101,
     style,
@@ -472,12 +580,15 @@ export function dungeonAffix(seed: number): string | null {
   return affixFor(seed);
 }
 
+/** Region-id form for any endless dungeon floor: dyn_<style>_<seed>_<depth>_<maxDepth>_<x>_<z>. */
+export const DUNGEON_ID_RE = /^dyn_([a-z]+)_(\d+)_(\d+)_(\d+)_(-?\d+)_(-?\d+)$/;
+
 /** Resolve a dyn_* region id into a region builder, or null if it isn't one. */
 export function buildDynamicDungeon(regionId: string): (() => RegionSpec) | null {
-  const m = regionId.match(/^dyn_(crypt|mine)_(\d+)_(\d+)_(\d+)_(-?\d+)_(-?\d+)$/);
-  if (!m) return null;
+  const m = regionId.match(DUNGEON_ID_RE);
+  if (!m || !(m[1] in STYLE_DEFS)) return null;
   return makeDungeon(dungeonSpecFor(
-    m[1] as "crypt" | "mine",
+    m[1] as DungeonStyle,
     Number(m[2]), Number(m[3]), Number(m[4]),
     { x: Number(m[5]), z: Number(m[6]) },
   ));

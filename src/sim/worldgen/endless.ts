@@ -13,7 +13,7 @@ import { houseInteriorArrival, houseInteriorId } from "../world";
 import { getStructure } from "../../content/structures/index";
 import { cellHash, fbm, vnoise } from "./noise";
 import { WILD_SCHEMATICS, schematicFits, stampSchematic } from "./schematics";
-import { DUNGEON_SPAWN, dynDungeonId } from "./dungeons";
+import { DUNGEON_SPAWN, type DungeonStyle, dynDungeonId } from "./dungeons";
 
 export const ECHUNK = 64;
 
@@ -1717,9 +1717,14 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           for (let dx = 0; dx < w; dx++) heights[(ez + dz) * ECHUNK + (ex + dx)] = anchor;
         }
         const bi = biomes[mid];
-        // Mines burrow into rocky, cold or corrupt country; crypts elsewhere.
-        const mine = bi === 2 || bi === 5 || bi === 12 || bi === 16 ||
-          cellHash(x0 + ex, z0 + ez, salt(seed, 66)) < 0.4;
+        // The archetype is drawn from the surrounding country: rocky, cold or
+        // corrupt ground bores mines, vaults and sanctums; greener land hides
+        // warrens, hives and old crypts. Each biome still rolls variety.
+        const roll = cellHash(x0 + ex, z0 + ez, salt(seed, 66));
+        const rocky = bi === 2 || bi === 5 || bi === 12 || bi === 16;
+        const style: DungeonStyle = rocky
+          ? (roll < 0.45 ? "mine" : roll < 0.72 ? "vault" : roll < 0.88 ? "sanctum" : "crypt")
+          : (roll < 0.34 ? "crypt" : roll < 0.55 ? "warren" : roll < 0.74 ? "hive" : roll < 0.88 ? "mine" : "sanctum");
         const dseed = Math.floor(cellHash(cx * 13 + 5, cz * 17 + 6, salt(seed, 67)) * 1e9);
         // Most gates open a finite crawl of 2-5 floors with a real finale;
         // a rare few (about one in seven) plunge into an endless descent.
@@ -1734,7 +1739,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           defId: "object.portal.cave",
           cell: { x: doorX, z: doorZ },
           portal: {
-            targetRegionId: dynDungeonId(mine ? "mine" : "crypt", dseed, 1, maxDepth, { x: doorX, z: doorZ }),
+            targetRegionId: dynDungeonId(style, dseed, 1, maxDepth, { x: doorX, z: doorZ }),
             targetCell: DUNGEON_SPAWN,
           },
         });
