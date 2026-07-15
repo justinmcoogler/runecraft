@@ -57,6 +57,30 @@ const SEASON_DATA: Record<Season, { label: string; tint: string; cold: boolean; 
   winter: { label: "Winter", tint: "#cfe0ec", cold: true, clearBias: 0.52 },
 };
 
+/** The great factions of the wild. Deeds build renown with each — conquering
+ *  crypts pleases the Wardens, treasure the Free Companies, quiet old places the
+ *  Grove — and reaching a new rank pays a standing reward. */
+export interface Faction { id: string; name: string; blurb: string; }
+export const FACTIONS: Record<string, Faction> = {
+  order: { id: "order", name: "Wardens of the Reach", blurb: "Knights who hold the deep places at bay." },
+  guild: { id: "guild", name: "Free Companies", blurb: "Traders, caravans and treasure-seekers." },
+  grove: { id: "grove", name: "Keepers of the Grove", blurb: "Wardens of ruins, stones and old ways." },
+};
+/** Renown thresholds and their titles (shared across factions). */
+export const REP_RANKS = [
+  { at: 0, name: "Unknown" },
+  { at: 40, name: "Recognised" },
+  { at: 120, name: "Friendly" },
+  { at: 260, name: "Trusted" },
+  { at: 500, name: "Honoured" },
+  { at: 900, name: "Exalted" },
+];
+function rankOf(standing: number): number {
+  let r = 0;
+  for (let i = 0; i < REP_RANKS.length; i++) if (standing >= REP_RANKS[i].at) r = i;
+  return r;
+}
+
 export class GameSimulation {
   readonly world: WorldState;
   readonly events = new SimEventBus();
@@ -80,6 +104,8 @@ export class GameSimulation {
   readonly waypoints: Array<{ id: string; name: string; x: number; z: number }> = [];
   /** The buried cache the player's current treasure map points to, if any. */
   treasureHunt: { x: number; z: number } | null = null;
+  /** Renown with each great faction (see FACTIONS). Persisted. */
+  readonly reputation: Record<string, number> = { order: 0, guild: 0, grove: 0 };
   /** Tutorial lesson driver (present only in the tutorial region). */
   tutorial: TutorialDriver | null = null;
   /** Timed potion effects: kind -> seconds remaining. */
@@ -812,6 +838,10 @@ export class GameSimulation {
       const reward = 5 + Math.floor(remoteness01(p.x, p.z) * 45);
       this.inventory.add("item.coin", reward);
       this.events.emit({ type: "itemGained", itemId: "item.coin", qty: reward });
+      // Finding a place earns a little standing with whoever cares for its kind.
+      if (name === "a homestead") this.adjustRep("guild", 5);
+      else if (name === "a dungeon" || name === "a dungeon gate") this.adjustRep("order", 4);
+      else this.adjustRep("grove", 5); // ruins, stones, towers and old landmarks
       this.events.emit({ type: "poiDiscovered", id, name, reward, total: this.discoveryCount() });
     };
     for (const o of this.world.region.objects) {
@@ -914,7 +944,37 @@ export class GameSimulation {
       this.events.emit({ type: "itemGained", itemId: "item.treasure_map", qty: 1 });
     }
     this.skills.grantXp("skill.archaeology", 40 + Math.floor(r * 120));
+    this.adjustRep("guild", 12); // treasure delights the Free Companies
     this.events.emit({ type: "treasureFound", reward, chain });
+  }
+
+  // ── Factions & renown ────────────────────────────────────────────────────
+  /** The player's rank (0..) with a faction. */
+  factionRank(id: string): number {
+    return rankOf(this.reputation[id] ?? 0);
+  }
+
+  /** Build renown with a faction; crossing a rank pays a standing reward. */
+  adjustRep(id: string, delta: number): void {
+    if (!(id in this.reputation) || delta === 0) return;
+    const before = this.reputation[id];
+    const after = Math.max(0, before + delta);
+    this.reputation[id] = after;
+    const beforeRank = rankOf(before);
+    const afterRank = rankOf(after);
+    if (afterRank > beforeRank) {
+      const reward = 30 + afterRank * 40;
+      this.inventory.add("item.coin", reward);
+      this.events.emit({ type: "itemGained", itemId: "item.coin", qty: reward });
+      this.events.emit({
+        type: "factionRankUp",
+        faction: id,
+        name: FACTIONS[id].name,
+        rank: afterRank,
+        rankName: REP_RANKS[afterRank].name,
+        reward,
+      });
+    }
   }
 
   /** How many endless-world dungeons the player has ever conquered (persisted). */
@@ -953,6 +1013,7 @@ export class GameSimulation {
     this.inventory.add("item.coin", reward);
     this.events.emit({ type: "itemGained", itemId: "item.coin", qty: reward });
     const name = dungeonSpecFor(style, seed, depth, maxDepth, exit).name.split(" — ")[0];
+    this.adjustRep("order", 25); // conquering the deep places honours the Wardens
     this.events.emit({ type: "dungeonCleared", id: flag, name, reward, total: this.clearedCount() });
   }
 

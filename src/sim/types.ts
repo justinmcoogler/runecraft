@@ -90,6 +90,7 @@ export type SimEvent =
   | { type: "fastTraveled"; id: string; name: string; cell: Cell }
   | { type: "treasureHuntBegan"; hint: string; x: number; z: number }
   | { type: "treasureFound"; reward: number; chain: boolean }
+  | { type: "factionRankUp"; faction: string; name: string; rank: number; rankName: string; reward: number }
   | { type: "tutorialObjective"; index: number; total: number; title: string; blurb: string }
   | { type: "tutorialLessonDone"; index: number; title: string; optional?: boolean; skillId?: string }
   | { type: "tutorialComplete" }

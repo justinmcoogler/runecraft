@@ -516,6 +516,9 @@ export class Hud {
             "level", uiIconHtml("quest", 22),
           );
           break;
+        case "factionRankUp":
+          this.toast(`${ev.name}: ${ev.rankName}! +${ev.reward} coins`, "level", uiIconHtml("quest", 20));
+          break;
         case "itemGained":
           this.floatText(
             `+${ev.qty} ${ITEMS[ev.itemId].name} ${itemIconHtml(ev.itemId, ITEMS[ev.itemId].icon, 18)}`,

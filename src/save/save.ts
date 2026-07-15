@@ -39,6 +39,8 @@ interface SaveDataV1 {
   waypoints?: Waypoint[];
   /** The buried cache the player's current treasure map points to, if any. */
   treasureHunt?: { x: number; z: number } | null;
+  /** Renown with each great faction. */
+  reputation?: Record<string, number>;
 }
 
 /** A discovered endless-world landmark, saved so it can be revisited. */
@@ -73,6 +75,8 @@ export interface SharedState {
   waypoints?: Waypoint[];
   /** The buried cache the player's current treasure map points to, if any. */
   treasureHunt?: { x: number; z: number } | null;
+  /** Renown with each great faction. */
+  reputation?: Record<string, number>;
 }
 
 // Items renamed by content updates: keep old saves' stacks meaningful.
@@ -142,6 +146,7 @@ export function captureSharedState(sim: GameSimulation): SharedState {
     homePoint: sim.homePoint ? { regionId: sim.homePoint.regionId, cell: { ...sim.homePoint.cell } } : null,
     waypoints: sim.waypoints.map((w) => ({ ...w })),
     treasureHunt: sim.treasureHunt ? { ...sim.treasureHunt } : null,
+    reputation: { ...sim.reputation },
   };
 }
 
@@ -161,6 +166,7 @@ export function applySharedState(sim: GameSimulation, shared: SharedState): void
   sim.curator.donated = new Set(shared.donatedRelics ?? []);
   if (shared.waypoints) sim.restoreWaypoints(shared.waypoints);
   if (shared.treasureHunt !== undefined) sim.treasureHunt = shared.treasureHunt ? { ...shared.treasureHunt } : null;
+  if (shared.reputation) for (const [k, v] of Object.entries(shared.reputation)) if (k in sim.reputation) sim.reputation[k] = v;
   if (shared.homePoint !== undefined) {
     sim.homePoint = shared.homePoint
       ? { regionId: shared.homePoint.regionId, cell: { ...shared.homePoint.cell } }
@@ -221,6 +227,7 @@ export function serialize(
     homePoint: sim.homePoint ? { regionId: sim.homePoint.regionId, cell: { ...sim.homePoint.cell } } : null,
     waypoints: sim.waypoints.map((w) => ({ ...w })),
     treasureHunt: sim.treasureHunt ? { ...sim.treasureHunt } : null,
+    reputation: { ...sim.reputation },
   };
 }
 
@@ -242,6 +249,7 @@ export function applySave(sim: GameSimulation, data: SaveDataV1): void {
   for (const flag of data.worldFlags ?? []) sim.setWorldFlag(flag);
   if (data.waypoints) sim.restoreWaypoints(data.waypoints);
   if (data.treasureHunt !== undefined) sim.treasureHunt = data.treasureHunt ? { ...data.treasureHunt } : null;
+  if (data.reputation) for (const [k, v] of Object.entries(data.reputation)) if (k in sim.reputation) sim.reputation[k] = v;
   for (const [skillId, xp] of Object.entries(data.skills)) {
     if (skillId in sim.skills.xp) sim.skills.xp[skillId] = xp;
   }
