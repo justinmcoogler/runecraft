@@ -134,6 +134,26 @@ describe("the tutorial driver", () => {
     expect(sim.inventory.count("item.herb.sage")).toBeGreaterThanOrEqual(2); // brewing reagent stocked
   });
 
+  it("awards the herblore/hunting/thieving/archery batch and stocks their gear", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    const r = sim.world.region;
+    expect(r.nodes.some((n) => n.instanceId === "tutorial.herb")).toBe(true);
+    expect(r.nodes.some((n) => n.instanceId === "tutorial.trail")).toBe(true);
+    expect(r.nodes.some((n) => n.instanceId === "tutorial.stall")).toBe(true);
+    expect((r.enemies ?? []).some((e) => e.instanceId === "tutorial.foe2")).toBe(true);
+    sim.tick();
+    expect(sim.inventory.count("tool.trap.basic")).toBeGreaterThanOrEqual(1);
+    expect(sim.inventory.count("tool.bow.wood")).toBeGreaterThanOrEqual(1);
+    for (const s of ["skill.herblore", "skill.hunting", "skill.thieving", "skill.archery"]) {
+      sim.events.emit({ type: "xpGained", skillId: s, amount: 10 });
+    }
+    sim.tick();
+    for (const id of ["tut.herb", "tut.hunt", "tut.thieve", "tut.archery"]) {
+      expect(sim.tutorial!.optionalDone.has(id)).toBe(true);
+    }
+    expect(sim.tutorial!.complete).toBe(false); // optionals never gate
+  });
+
   it("marks every optional lesson optional with an item+XP reward", () => {
     for (const l of TUTORIAL_OPTIONAL) {
       expect(l.optional).toBe(true);

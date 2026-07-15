@@ -2299,6 +2299,9 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
     { instanceId: "tutorial.bush", defId: "resource.bush.berry", cell: { x: spawn.x - 3, z: spawn.z - 3 } },
     { instanceId: "tutorial.plot", defId: "resource.plot.wheat", cell: { x: spawn.x - 5, z: spawn.z + 4 } },
     { instanceId: "tutorial.digsite", defId: "resource.digsite.basic", cell: { x: spawn.x - 8, z: spawn.z + 3 } },
+    { instanceId: "tutorial.herb", defId: "resource.herb.sage", cell: { x: spawn.x - 9, z: spawn.z - 2 } },
+    { instanceId: "tutorial.trail", defId: "resource.trail.rabbit", cell: { x: spawn.x - 9, z: spawn.z + 5 } },
+    { instanceId: "tutorial.stall", defId: "resource.stall.market", cell: { x: spawn.x - 2, z: spawn.z - 5 } },
   ];
   region.objects = [
     ...region.objects,
@@ -2318,6 +2321,7 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
   region.enemies = [
     ...(region.enemies ?? []),
     { instanceId: "tutorial.foe", defId: "enemy.pig", cell: { x: spawn.x + 5, z: spawn.z + 4 } },
+    { instanceId: "tutorial.foe2", defId: "enemy.pig", cell: { x: spawn.x + 3, z: spawn.z + 7 } },
   ];
   return region;
 }

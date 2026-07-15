@@ -220,6 +220,46 @@ export const TUTORIAL_OPTIONAL: TutorialLesson[] = [
     trigger: { kind: "eventType", eventType: "shortcutUsed" },
     reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.agility", amount: 30 } },
   },
+  {
+    id: "tut.herb",
+    act: "Gathering",
+    skillId: "skill.herblore",
+    optional: true,
+    title: "Gather a herb",
+    blurb: "Pick the wild sage growing by the path.",
+    trigger: { kind: "skillXp", skillId: "skill.herblore" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.herblore", amount: 30 } },
+  },
+  {
+    id: "tut.hunt",
+    act: "Gathering",
+    skillId: "skill.hunting",
+    optional: true,
+    title: "Set a trap",
+    blurb: "Lay your box trap on the game trail to catch prey.",
+    trigger: { kind: "skillXp", skillId: "skill.hunting" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.hunting", amount: 30 } },
+  },
+  {
+    id: "tut.thieve",
+    act: "Gathering",
+    skillId: "skill.thieving",
+    optional: true,
+    title: "Pick a pocket",
+    blurb: "Pilfer from the market stall — mind you don't get caught.",
+    trigger: { kind: "skillXp", skillId: "skill.thieving" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.thieving", amount: 30 } },
+  },
+  {
+    id: "tut.archery",
+    act: "Combat",
+    skillId: "skill.archery",
+    optional: true,
+    title: "Loose an arrow",
+    blurb: "Equip the shortbow and shoot the second foe from range.",
+    trigger: { kind: "skillXp", skillId: "skill.archery" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.archery", amount: 30 } },
+  },
 ];
 
 // Granted silently at the start of the tutorial (no itemGained event, so it
@@ -238,6 +278,9 @@ export const TUTORIAL_STARTER_KIT: Array<{ itemId: string; qty: number }> = [
   { itemId: "item.seed.wheat", qty: 2 }, // farming
   { itemId: "item.herb.sage", qty: 2 },  // brewing
   { itemId: "item.feather", qty: 2 },    // brewing
+  { itemId: "tool.trap.basic", qty: 1 }, // hunting
+  { itemId: "tool.bow.wood", qty: 1 },   // archery
+  { itemId: "item.arrow.bronze", qty: 15 }, // archery
 ];
 
 /** Instance ids of the props the tutorial region places for these lessons. */
