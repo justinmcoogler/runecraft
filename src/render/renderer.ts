@@ -811,22 +811,44 @@ export class GameRenderer {
       if (x < 0 || z < 0 || x >= region.width || z >= region.depth) return -2;
       return world.heightAt({ x, z });
     };
-    // Depth of the water bed below the flat surface at a cell (0 on land), and
-    // a smooth per-corner average so the depth shading flows instead of
-    // banding on the stepped bed.
+    // Depth of the water bed below the flat surface at a cell (0 on land). The
+    // raw bed is integer-stepped, which shades into hard contour bands — so we
+    // box-blur it over a wide kernel to get a smooth, continuous depth field.
+    const bedDepthCache = new Map<number, number>();
     const bedDepth = (x: number, z: number): number => {
-      if (x < 0 || z < 0 || x >= region.width || z >= region.depth) return 2;
-      if (world.blockAt({ x, z }) !== "water") return 0;
-      return Math.max(0, WATER_SURFACE_Y - world.heightAt({ x, z }));
+      const key = x * 8388608 + z;
+      const hit = bedDepthCache.get(key);
+      if (hit !== undefined) return hit;
+      const v = x < 0 || z < 0 || x >= region.width || z >= region.depth
+        ? 3
+        : world.blockAt({ x, z }) !== "water"
+          ? 0
+          : Math.max(0, WATER_SURFACE_Y - world.heightAt({ x, z }));
+      bedDepthCache.set(key, v);
+      return v;
     };
-    const cornerDepth = (gx: number, gz: number): number =>
-      (bedDepth(gx - 1, gz - 1) + bedDepth(gx, gz - 1) + bedDepth(gx - 1, gz) + bedDepth(gx, gz)) / 4;
+    // Wide box-blur of the bed depth (radius R), memoised per grid corner, so
+    // the depth — and thus the colour — varies smoothly instead of in steps.
+    const R = 4;
+    const cornerDepthCache = new Map<number, number>();
+    const cornerDepth = (gx: number, gz: number): number => {
+      const key = gx * 8388608 + gz;
+      const hit = cornerDepthCache.get(key);
+      if (hit !== undefined) return hit;
+      let sum = 0, n = 0;
+      for (let dz = -R; dz <= R; dz++) {
+        for (let dx = -R; dx <= R; dx++) { sum += bedDepth(gx + dx, gz + dz); n++; }
+      }
+      const v = sum / n;
+      cornerDepthCache.set(key, v);
+      return v;
+    };
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-    // Shallow teal near the shore deepening to dark blue; multiplies the
-    // ripple texture. Smoothstep on depth so the gradient reads as water,
+    // Shallow teal near the shore deepening to dark blue; multiplies the ripple
+    // texture. Smoothstep on the blurred depth so the gradient reads as water,
     // not contour lines.
     const waterColorAt = (gx: number, gz: number): [number, number, number] => {
-      const t = Math.min(1, cornerDepth(gx, gz) / 4.5);
+      const t = Math.min(1, cornerDepth(gx, gz) / 6);
       const s = t * t * (3 - 2 * t);
       return [lerp(0.58, 0.12, s), lerp(0.80, 0.24, s), lerp(0.86, 0.46, s)];
     };
