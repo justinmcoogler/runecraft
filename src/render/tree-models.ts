@@ -1,8 +1,7 @@
-// Voxel tree models: 363 hand-built trees converted from the user-licensed
-// schematic library (see game/scripts/convert-tree-schematics.mjs). Every
-// tree node in the world picks a model deterministically from its species'
-// pool, so a stand of oaks is a stand of individuals — and the same world
-// seed always grows the same forest.
+// Voxel tree models converted from the user-licensed 1k tree pack (see
+// scripts/convert-tree-schematics.mjs). Every tree node in the world picks a
+// model deterministically from its species' pool, so a stand of oaks is a stand
+// of individuals — and the same world seed always grows the same forest.
 
 import * as THREE from "three";
 import { TREES_JSON } from "../content/trees-data";
@@ -40,12 +39,14 @@ export const TREES_BY_SPECIES: Record<string, TreeModel[]> = {};
 for (const m of MODELS) (TREES_BY_SPECIES[m.species] ??= []).push(m);
 for (const list of Object.values(TREES_BY_SPECIES)) list.sort((a, b) => a.h - b.h || a.logs - b.logs);
 
-/** The fantasy woods borrow the nearest real species' silhouettes. */
+/** Species not present in the imported pack borrow the nearest one's silhouette
+ *  (the fantasy woods, plus acacia which this pack doesn't include). */
 const SPECIES_ALIAS: Record<string, string> = {
   blossom: "birch",
   ember: "darkoak",
   glow: "jungle",
   dusk: "darkoak",
+  acacia: "oak",
 };
 
 /**

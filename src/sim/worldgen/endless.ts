@@ -1511,6 +1511,40 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
     }
   }
 
+  // Trees populate the world even while other content is cleared, so
+  // woodcutting works on the imported tree pack. ONLY tree nodes are placed
+  // here — no houses, mobs, or other props. (When CLEAR_ASSETS is turned off,
+  // the full biome scatter below owns trees instead, so this is skipped.)
+  if (CLEAR_ASSETS) {
+    const step = 6;
+    for (let gz = 2; gz < ECHUNK - 2; gz += step) {
+      for (let gx = 2; gx < ECHUNK - 2; gx += step) {
+        const jx = gx + Math.floor(cellHash(x0 + gx, z0 + gz, salt(seed, 81)) * (step - 2));
+        const jz = gz + Math.floor(cellHash(z0 + gz, x0 + gx, salt(seed, 82)) * (step - 2));
+        if (jx >= ECHUNK - 2 || jz >= ECHUNK - 2) continue;
+        const i = jz * ECHUNK + jx;
+        if (BLOCK_LIST[blocks[i]] !== "grass") continue; // trees grow on grass
+        const wx = x0 + jx, wz = z0 + jz;
+        if (roadDist(seed, wx, wz) < 3) continue;         // keep roads walkable
+        const h = heights[i];
+        if (h > 44) continue;                             // below the treeline
+        if (slopeAt(seed, wx, wz, h, cache) > 2) continue; // not on cliffs
+        const r = cellHash(wx, wz, salt(seed, 83));
+        const b = biomes[i];
+        let def: string | null = null;
+        // Species + density by biome, keyed to the imported pack's species.
+        if (b === 2 || b === 5 || b === 20 || b === 22) def = r < 0.30 ? "resource.tree.spruce" : null; // conifer
+        else if (b === 7 || b === 11) def = r < 0.32 ? "resource.tree.jungle" : null;                   // tropical
+        else if (b === 4 || b === 15 || b === 17) def = r < 0.20 ? "resource.tree.darkoak" : null;       // wetland/dark
+        else if (b === 1 || b === 8 || b === 13 || b === 24) def = r < 0.34 ? (r < 0.20 ? "resource.tree.basic" : "resource.tree.birch") : null; // forest
+        else if (b === 21) def = r < 0.30 ? "resource.tree.birch" : null;                                // cherry (birch silhouette)
+        else if (b === 6 || b === 10 || b === 23) def = r < 0.09 ? "resource.tree.basic" : null;         // plains/prairie — sparse
+        else def = r < 0.10 ? "resource.tree.basic" : null;                                              // everywhere else — light cover
+        if (def) nodes.push({ instanceId: id(), defId: def, cell: { x: wx, z: wz } });
+      }
+    }
+  }
+
   // All feature/structure/mob placement is gated off during the asset
   // transition (see CLEAR_ASSETS) — the world stays bare terrain + roads.
   if (!CLEAR_ASSETS) {
