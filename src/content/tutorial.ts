@@ -270,6 +270,86 @@ export const TUTORIAL_OPTIONAL: TutorialLesson[] = [
     trigger: { kind: "skillXp", skillId: "skill.summoning" },
     reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.summoning", amount: 30 } },
   },
+  {
+    id: "tut.fish",
+    act: "Gathering",
+    skillId: "skill.fishing",
+    optional: true,
+    title: "Catch a fish",
+    blurb: "Fish the pond from the bank with your rod.",
+    trigger: { kind: "skillXp", skillId: "skill.fishing" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.fishing", amount: 30 } },
+  },
+  {
+    id: "tut.boat",
+    act: "Combat",
+    skillId: "skill.boating",
+    optional: true,
+    title: "Paddle a raft",
+    blurb: "Launch your raft and paddle out onto the pond.",
+    trigger: { kind: "skillXp", skillId: "skill.boating" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.boating", amount: 30 } },
+  },
+  {
+    id: "tut.enchant",
+    act: "Spiritual",
+    skillId: "skill.enchanting",
+    optional: true,
+    title: "Enchant a tool",
+    blurb: "At the enchanter, rune your iron axe with the idol's power.",
+    trigger: { kind: "skillXp", skillId: "skill.enchanting" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.enchanting", amount: 30 } },
+  },
+  {
+    id: "tut.invent",
+    act: "Processing",
+    skillId: "skill.invention",
+    optional: true,
+    title: "Salvage for parts",
+    blurb: "At the workbench, salvage the iron bar into components.",
+    trigger: { kind: "skillXp", skillId: "skill.invention" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.invention", amount: 30 } },
+  },
+  {
+    id: "tut.construct",
+    act: "Processing",
+    skillId: "skill.construction",
+    optional: true,
+    title: "Raise the ramp",
+    blurb: "Build the marked ramp from your bricks and planks.",
+    trigger: { kind: "skillXp", skillId: "skill.construction" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.construction", amount: 30 } },
+  },
+  {
+    id: "tut.necro",
+    act: "Combat",
+    skillId: "skill.necromancy",
+    optional: true,
+    title: "Down the undead",
+    blurb: "Defeat the risen skeleton to channel Necromancy.",
+    trigger: { kind: "skillXp", skillId: "skill.necromancy" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.necromancy", amount: 30 } },
+  },
+  {
+    id: "tut.dungeon",
+    act: "Combat",
+    skillId: "skill.dungeoneering",
+    optional: true,
+    title: "Best the champion",
+    blurb: "Fell the training champion to learn Dungeoneering.",
+    trigger: { kind: "skillXp", skillId: "skill.dungeoneering" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.dungeoneering", amount: 30 } },
+  },
+  {
+    id: "tut.slay",
+    act: "Combat",
+    skillId: "skill.slaying",
+    optional: true,
+    title: "Take a bounty",
+    blurb: "Speak to Warden Brusk to take a slayer assignment.",
+    trigger: { kind: "eventType", eventType: "slayerTaskAssigned" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.slaying", amount: 30 } },
+  },
 ];
 
 // Granted silently at the start of the tutorial (no itemGained event, so it
@@ -292,6 +372,13 @@ export const TUTORIAL_STARTER_KIT: Array<{ itemId: string; qty: number }> = [
   { itemId: "tool.trap.basic", qty: 1 }, // hunting
   { itemId: "tool.bow.wood", qty: 1 },   // archery
   { itemId: "item.arrow.bronze", qty: 15 }, // archery
+  { itemId: "tool.fishingrod.basic", qty: 1 }, // fishing
+  { itemId: "tool.boat.raft", qty: 1 },  // boating
+  { itemId: "tool.axe.iron", qty: 1 },   // enchanting input
+  { itemId: "item.relic.idol", qty: 1 }, // enchanting input
+  { itemId: "item.bar.iron", qty: 1 },   // invention salvage
+  { itemId: "item.brick.stone", qty: 6 }, // construction
+  { itemId: "item.plank.cut", qty: 4 },  // construction
 ];
 
 /** Instance ids of the props the tutorial region places for these lessons. */

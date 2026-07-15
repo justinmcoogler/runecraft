@@ -11,6 +11,7 @@ import type { StructurePlacement, StructureAsset } from "../../structures/types"
 import { effectiveSink, blockedColumns, solidColumns } from "../../structures/types";
 import { houseInteriorArrival, houseInteriorId } from "../world";
 import { getStructure } from "../../content/structures/index";
+import { TUTORIAL_STARTER_KIT } from "../../content/tutorial";
 import { cellHash, fbm, vnoise } from "./noise";
 import { WILD_SCHEMATICS, schematicFits, stampSchematic } from "./schematics";
 import { DUNGEON_SPAWN, dynDungeonId } from "./dungeons";
@@ -383,6 +384,13 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
     if (ground !== null) {
       const inside = (x - a.x) * (x - a.x) + (z - a.z) * (z - a.z) <= TOWN_RADIUS * TOWN_RADIUS;
       if (inside) {
+        // A small tutorial pond southeast of the camp so the newcomer can learn
+        // Fishing and Boating without leaving the vale. Water surface sits one
+        // block below the grassy rim.
+        const pdx = x - (a.x + TUTORIAL_POND.dx), pdz = z - (a.z + TUTORIAL_POND.dz);
+        if (pdx * pdx + pdz * pdz <= TUTORIAL_POND.r * TUTORIAL_POND.r) {
+          return { h: ground - 1, block: "water", biome: 0, water: true };
+        }
         const block: BlockType = inValeQuarry(seed, x, z) ? "stone" : "grass";
         return { h: ground, block, biome: 0, water: false };
       }
@@ -658,6 +666,9 @@ function slopeAt(seed: number, x: number, z: number, h: number, cache?: HeightCa
  *  ringed by a cobblestone castle wall. Everything within this radius is the
  *  player's clean building canvas; the wild begins at the wall. */
 export const TOWN_RADIUS = 125;
+/** The tutorial pond, offset from the town anchor (see terrainAt). Its centre
+ *  is where the Fishing spot sits; a raft launched here trains Boating. */
+export const TUTORIAL_POND = { dx: 12, dz: 14, r: 3 };
 const TOWN_FEATHER = 18;
 /** Back-compat alias: the old square half-extent some callers still reference. */
 export const TOWN_HALF = TOWN_RADIUS;
@@ -2286,8 +2297,19 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
       model: "mob.villager",
       lines: [
         "Welcome to the vale. Work through the lessons and the gateway will open.",
+        "Grab your gear from the supply crate by the camp — take what each task needs.",
         "Chop, burn, pray, spar — then step through to the wild.",
       ],
+    },
+    {
+      // Reuses the slayer taskmaster's id so greeting him hands out a bounty
+      // (see SLAYER_NPC_ID) — that's the Slaying lesson.
+      instanceId: "village.npc.brusk",
+      name: "Warden Brusk",
+      cell: { x: spawn.x + 4, z: spawn.z - 3 },
+      wanderRadius: 0,
+      model: "mob.villager",
+      lines: ["Need a bounty? I'll mark a foe for you to hunt."],
     },
   ];
   // Required-lesson targets (tree, foe) plus the optional-lesson stations
@@ -2302,6 +2324,9 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
     { instanceId: "tutorial.herb", defId: "resource.herb.sage", cell: { x: spawn.x - 9, z: spawn.z - 2 } },
     { instanceId: "tutorial.trail", defId: "resource.trail.rabbit", cell: { x: spawn.x - 9, z: spawn.z + 5 } },
     { instanceId: "tutorial.stall", defId: "resource.stall.market", cell: { x: spawn.x - 2, z: spawn.z - 5 } },
+    // The Fishing spot sits on the near rim of the tutorial pond (see
+    // TUTORIAL_POND); the bank cell just south of it is dry ground to cast from.
+    { instanceId: "tutorial.fishing", defId: "resource.fishing.pond", cell: { x: spawn.x + 12, z: spawn.z + 5 } },
   ];
   region.objects = [
     ...region.objects,
@@ -2312,6 +2337,16 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
     { instanceId: "tutorial.workbench", defId: "object.workbench.basic", cell: { x: spawn.x + 9, z: spawn.z } },
     { instanceId: "tutorial.cauldron", defId: "object.cauldron.basic", cell: { x: spawn.x + 9, z: spawn.z + 2 } },
     { instanceId: "tutorial.obelisk", defId: "object.obelisk.summon", cell: { x: spawn.x - 9, z: spawn.z + 1 } },
+    { instanceId: "tutorial.enchanter", defId: "object.enchanter.basic", cell: { x: spawn.x + 9, z: spawn.z - 3 } },
+    { instanceId: "tutorial.buildsite", defId: "object.buildsite.ramp", cell: { x: spawn.x + 11, z: spawn.z + 2 } },
+    // The supply crate: all the optional-lesson tools + materials, so the pack
+    // never overflows and opening it teaches the container UI.
+    {
+      instanceId: "tutorial.crate",
+      defId: "object.storage_chest.basic",
+      cell: { x: spawn.x + 1, z: spawn.z - 2 },
+      initialItems: TUTORIAL_STARTER_KIT.map((k) => ({ itemId: k.itemId, qty: k.qty })),
+    },
     {
       instanceId: "tutorial.shortcut",
       defId: "object.shortcut.log",
@@ -2323,6 +2358,10 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
     ...(region.enemies ?? []),
     { instanceId: "tutorial.foe", defId: "enemy.pig", cell: { x: spawn.x + 5, z: spawn.z + 4 } },
     { instanceId: "tutorial.foe2", defId: "enemy.pig", cell: { x: spawn.x + 3, z: spawn.z + 7 } },
+    // Necromancy trains on felling the undead; Dungeoneering on felling a
+    // boss/elite (the driver keys off the ".boss" instance-id suffix).
+    { instanceId: "tutorial.undead", defId: "enemy.skeleton", cell: { x: spawn.x + 7, z: spawn.z + 7 } },
+    { instanceId: "tutorial.boss", defId: "enemy.pig", cell: { x: spawn.x + 1, z: spawn.z + 9 } },
   ];
   return region;
 }

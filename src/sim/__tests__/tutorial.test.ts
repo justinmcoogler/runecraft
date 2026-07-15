@@ -6,6 +6,12 @@ import { GameSimulation } from "../simulation";
 import { TUTORIAL_SEED } from "../worldgen/endless";
 import { TUTORIAL_LESSONS, TUTORIAL_OPTIONAL } from "../../content/tutorial";
 
+/** The optional-lesson gear lives in the camp supply crate, not the pack. */
+function crateHas(sim: GameSimulation, itemId: string): boolean {
+  const crate = sim.world.region.objects.find((o) => o.instanceId === "tutorial.crate");
+  return (crate?.initialItems ?? []).some((i) => i.itemId === itemId);
+}
+
 describe("the tutorial driver", () => {
   it("places the guide, tree and sparring foe in the tutorial region", () => {
     const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
@@ -72,10 +78,10 @@ describe("the tutorial driver", () => {
     expect(r.objects.some((o) => o.instanceId === "tutorial.furnace")).toBe(true);
     expect(r.objects.some((o) => o.instanceId === "tutorial.anvil")).toBe(true);
     expect(r.objects.some((o) => o.instanceId === "tutorial.altar")).toBe(true);
-    // Silent starter kit: reagents are in the pack, but did NOT trip a lesson.
+    // Reagents live in the supply crate; boot trips no lesson.
     sim.tick();
-    expect(sim.inventory.count("tool.pickaxe.basic")).toBeGreaterThanOrEqual(1);
-    expect(sim.inventory.count("item.ore.copper")).toBeGreaterThanOrEqual(3);
+    expect(crateHas(sim, "tool.pickaxe.basic")).toBe(true);
+    expect(crateHas(sim, "item.ore.copper")).toBe(true);
     expect(sim.tutorial!.optionalDone.size).toBe(0);
   });
 
@@ -109,13 +115,13 @@ describe("the tutorial driver", () => {
     expect(sim.tutorial!.complete).toBe(false);
   });
 
-  it("stocks the batch-2 reagents silently (no lesson tripped at boot)", () => {
+  it("stocks the batch-2 reagents in the crate (no lesson tripped at boot)", () => {
     const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
     sim.tick();
-    expect(sim.inventory.count("item.fish.raw")).toBeGreaterThanOrEqual(2);
-    expect(sim.inventory.count("item.rune.fire")).toBeGreaterThanOrEqual(5);
-    expect(sim.inventory.count("item.seed.wheat")).toBeGreaterThanOrEqual(2);
-    expect(sim.tutorial!.optionalDone.size).toBe(0); // silent grants trip nothing
+    expect(crateHas(sim, "item.fish.raw")).toBe(true);
+    expect(crateHas(sim, "item.rune.fire")).toBe(true);
+    expect(crateHas(sim, "item.seed.wheat")).toBe(true);
+    expect(sim.tutorial!.optionalDone.size).toBe(0); // stocking the crate trips nothing
   });
 
   it("awards the crafting/brewing/agility batch and places their stations", () => {
@@ -131,7 +137,7 @@ describe("the tutorial driver", () => {
     expect(sim.tutorial!.optionalDone.has("tut.craft")).toBe(true);
     expect(sim.tutorial!.optionalDone.has("tut.brew")).toBe(true);
     expect(sim.tutorial!.optionalDone.has("tut.agility")).toBe(true);
-    expect(sim.inventory.count("item.herb.sage")).toBeGreaterThanOrEqual(2); // brewing reagent stocked
+    expect(crateHas(sim, "item.herb.sage")).toBe(true); // brewing reagent stocked
   });
 
   it("awards the herblore/hunting/thieving/archery batch and stocks their gear", () => {
@@ -142,8 +148,8 @@ describe("the tutorial driver", () => {
     expect(r.nodes.some((n) => n.instanceId === "tutorial.stall")).toBe(true);
     expect((r.enemies ?? []).some((e) => e.instanceId === "tutorial.foe2")).toBe(true);
     sim.tick();
-    expect(sim.inventory.count("tool.trap.basic")).toBeGreaterThanOrEqual(1);
-    expect(sim.inventory.count("tool.bow.wood")).toBeGreaterThanOrEqual(1);
+    expect(crateHas(sim, "tool.trap.basic")).toBe(true);
+    expect(crateHas(sim, "tool.bow.wood")).toBe(true);
     for (const s of ["skill.herblore", "skill.hunting", "skill.thieving", "skill.archery"]) {
       sim.events.emit({ type: "xpGained", skillId: s, amount: 10 });
     }
@@ -158,10 +164,52 @@ describe("the tutorial driver", () => {
     const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
     expect(sim.world.region.objects.some((o) => o.instanceId === "tutorial.obelisk")).toBe(true);
     sim.tick();
-    expect(sim.inventory.count("item.charm.bone")).toBeGreaterThanOrEqual(1);
+    expect(crateHas(sim, "item.charm.bone")).toBe(true);
     sim.events.emit({ type: "xpGained", skillId: "skill.summoning", amount: 40 });
     sim.tick();
     expect(sim.tutorial!.optionalDone.has("tut.summon")).toBe(true);
+  });
+
+  it("carves the tutorial pond and places the water/build/combat stations", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    const r = sim.world.region;
+    const sp = r.spawn;
+    // The pond: the Fishing spot sits on water; the bank just south is dry.
+    expect(sim.world.blockAt({ x: sp.x + 12, z: sp.z + 5 })).toBe("water");
+    expect(sim.world.walkable({ x: sp.x + 12, z: sp.z + 4 })).toBe(true);
+    expect(r.nodes.some((n) => n.instanceId === "tutorial.fishing")).toBe(true);
+    expect(r.objects.some((o) => o.instanceId === "tutorial.enchanter")).toBe(true);
+    expect(r.objects.some((o) => o.instanceId === "tutorial.buildsite")).toBe(true);
+    expect(r.npcs.some((n) => n.instanceId === "village.npc.brusk")).toBe(true);
+    expect((r.enemies ?? []).some((e) => e.instanceId === "tutorial.undead")).toBe(true);
+    expect((r.enemies ?? []).some((e) => e.instanceId === "tutorial.boss")).toBe(true);
+    // Gear lives in the supply crate (not the 20-slot pack) so nothing overflows.
+    const crate = r.objects.find((o) => o.instanceId === "tutorial.crate");
+    expect(crate).toBeTruthy();
+    const crated = new Set((crate!.initialItems ?? []).map((i) => i.itemId));
+    for (const id of ["tool.fishingrod.basic", "tool.boat.raft", "tool.axe.iron", "item.brick.stone", "item.bar.iron"]) {
+      expect(crated.has(id), `${id} missing from supply crate`).toBe(true);
+    }
+  });
+
+  it("awards the final skill batch (fishing…slaying) off their triggers", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    sim.tick();
+    for (const s of [
+      "skill.fishing", "skill.boating", "skill.enchanting", "skill.invention",
+      "skill.necromancy", "skill.construction", "skill.dungeoneering",
+    ]) {
+      sim.events.emit({ type: "xpGained", skillId: s, amount: 10 });
+    }
+    sim.events.emit({ type: "slayerTaskAssigned", enemyName: "Goblin", count: 3 });
+    sim.tick();
+    for (const id of [
+      "tut.fish", "tut.boat", "tut.enchant", "tut.invent",
+      "tut.necro", "tut.construct", "tut.dungeon", "tut.slay",
+    ]) {
+      expect(sim.tutorial!.optionalDone.has(id), `${id} not awarded`).toBe(true);
+    }
+    expect(sim.tutorial!.complete).toBe(false); // still never gates
   });
 
   it("marks every optional lesson optional with an item+XP reward", () => {

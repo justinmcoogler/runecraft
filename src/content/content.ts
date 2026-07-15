@@ -2395,7 +2395,7 @@ export const RECIPES: Record<string, RecipeDef> = {
     id: "recipe.runed_axe",
     name: "Runed Axe",
     skillId: "skill.enchanting",
-    requiredLevel: 2,
+    requiredLevel: 1,
     cycleTimeS: 4.0,
     inputs: [
       { itemId: "tool.axe.iron", qty: 1 },

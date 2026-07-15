@@ -9,7 +9,6 @@
 import {
   TUTORIAL_LESSONS,
   TUTORIAL_OPTIONAL,
-  TUTORIAL_STARTER_KIT,
   TUTORIAL_GUIDE_ID,
   TUTORIAL_TREE_ID,
   TUTORIAL_FOE_ID,
@@ -51,11 +50,12 @@ export class TutorialDriver {
     }
   }
 
-  /** Announce the first objective and stock the optional stations. Call once. */
+  /** Announce the first objective. The optional-lesson gear lives in the
+   *  supply crate at camp (see tutorialRegion), not force-fed into the 20-slot
+   *  pack, so nothing overflows and opening the crate itself teaches containers. */
   begin(): void {
     if (this.started) return;
     this.started = true;
-    for (const kit of TUTORIAL_STARTER_KIT) this.grant(kit.itemId, kit.qty, true);
     this.enter(0);
   }
 

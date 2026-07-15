@@ -547,10 +547,18 @@ export class GameRenderer {
     return mesh;
   }
 
+  /** The water surface height at a cell: the global sea level for natural
+   *  water, or just under the bank for an elevated pool (see the water-mesh
+   *  branch) so actors ride the tutorial pond instead of the far-below sea. */
+  private waterSurfaceY(cell: Cell): number {
+    const h = this.sim.world.heightAt(cell);
+    return h > WATER_SURFACE_Y + 1 ? h - 0.3 : WATER_SURFACE_Y;
+  }
+
   /** Ground height for markers: water cells use the water surface, not the bed;
    *  slabs/stairs stand a half-block proud (via world.surfaceY). */
   private surfaceY(cell: Cell): number {
-    return this.sim.world.blockAt(cell) === "water" ? WATER_SURFACE_Y : this.sim.world.surfaceY(cell);
+    return this.sim.world.blockAt(cell) === "water" ? this.waterSurfaceY(cell) : this.sim.world.surfaceY(cell);
   }
 
   // Top-face and cliff-wall tiles come straight from the block registry
@@ -912,19 +920,26 @@ export class GameRenderer {
         const block = world.blockAt({ x, z });
         const h = world.heightAt({ x, z });
         if (block === "water") {
+          // Natural water sits at the global sea surface; an elevated pool
+          // (the tutorial vale pond, well above sea level) instead floats its
+          // surface just under its own bank so it reads as a shallow pond
+          // rather than a sunken sandy pit far below.
+          const elevated = h > WATER_SURFACE_Y + 1;
+          const surfY = elevated ? h - 0.3 : WATER_SURFACE_Y;
+          const bedY = elevated ? h - 1 : h;
           // Bed under the translucent surface: sandy in the shallows,
           // dark silt in the deeps.
           pushQuad(
-            [[x, h, z + 1], [x + 1, h, z + 1], [x + 1, h, z], [x, h, z]],
-            h >= -1 ? "terrain.sand" : "terrain.dirt",
-            h >= -1 ? 0.72 : 0.45,
+            [[x, bedY, z + 1], [x + 1, bedY, z + 1], [x + 1, bedY, z], [x, bedY, z]],
+            bedY >= -1 ? "terrain.sand" : "terrain.dirt",
+            bedY >= -1 ? 0.72 : 0.45,
           );
           const wBase = waterPositions.length / 3;
           waterPositions.push(
-            x, WATER_SURFACE_Y, z + 1,
-            x + 1, WATER_SURFACE_Y, z + 1,
-            x + 1, WATER_SURFACE_Y, z,
-            x, WATER_SURFACE_Y, z,
+            x, surfY, z + 1,
+            x + 1, surfY, z + 1,
+            x + 1, surfY, z,
+            x, surfY, z,
           );
           // Continuous world-space UVs so the ripple texture flows across
           // cells instead of tiling with a seam at every block edge.
@@ -1344,7 +1359,7 @@ export class GameRenderer {
       const built = this.buildNodeVisual(kind, variety, NODES[node.defId].viewMaterial);
       for (const mat of built.fadeMaterials) addPeepHole(mat);
       const baseScale = built.baseScale;
-      built.activeGroup.position.set(cx, kind === "pond" ? WATER_SURFACE_Y + 0.015 : baseY, cz);
+      built.activeGroup.position.set(cx, kind === "pond" ? this.waterSurfaceY(node.cell) + 0.015 : baseY, cz);
       built.activeGroup.scale.setScalar(baseScale);
       built.activeGroup.traverse((o) => (o.userData.instanceId = node.instanceId));
       built.depletedMesh.position.set(cx, baseY + built.depletedYOffset, cz);
@@ -4428,7 +4443,7 @@ export class GameRenderer {
       // Squid rides the waterline; the ghast drifts well above the ground.
       const onWater = this.sim.world.blockAt(enemy.movement.currentCell()) === "water";
       let cellH = view3 === "squid" && onWater
-        ? WATER_SURFACE_Y
+        ? this.waterSurfaceY(enemy.movement.currentCell())
         : this.sim.world.surfaceY(enemy.movement.currentCell());
       if (view3 === "ghast") cellH += 2.6 + Math.sin(this.elapsed * 1.5) * 0.2;
       const moving = enemy.movement.isMoving();
@@ -4880,7 +4895,7 @@ export class GameRenderer {
     const onWater = this.sim.world.blockAt(this.sim.movement.currentCell()) === "water";
     const boating = onWater && this.sim.bestBoat() !== null;
     // On the water the player rides at the flat surface, not down on the bed.
-    const cellH = onWater ? WATER_SURFACE_Y + (boating ? 0.18 : 0) : this.sim.world.surfaceY(this.sim.movement.currentCell());
+    const cellH = onWater ? this.waterSurfaceY(this.sim.movement.currentCell()) + (boating ? 0.18 : 0) : this.sim.world.surfaceY(this.sim.movement.currentCell());
     const acting = this.sim.actions.phase === "active" || this.sim.actions.phase === "waitingForNextCycle";
     this.playerView.update(dt, {
       x: pos.x,
