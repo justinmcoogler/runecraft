@@ -503,6 +503,9 @@ export class Hud {
         case "worldEvent":
           this.toast(`${ev.title} — ${ev.blurb}`, ev.kind === "cache" ? "level" : "warn", uiIconHtml("quest", 20));
           break;
+        case "fastTraveled":
+          this.toast(`Travelled to ${ev.name}.`, "info", uiIconHtml("quest", 18));
+          break;
         case "itemGained":
           this.floatText(
             `+${ev.qty} ${ITEMS[ev.itemId].name} ${itemIconHtml(ev.itemId, ITEMS[ev.itemId].icon, 18)}`,

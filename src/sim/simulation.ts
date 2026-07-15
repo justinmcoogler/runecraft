@@ -53,6 +53,8 @@ export class GameSimulation {
   equippedArmor: Record<ArmorSlot, string | null> = { head: null, body: null, legs: null, feet: null };
   /** Persistent world-state flags (repaired bridges, stabilized anchors…). */
   readonly worldFlags = new Set<string>();
+  /** Discovered endless-world landmarks the player can fast-travel between. */
+  readonly waypoints: Array<{ id: string; name: string; x: number; z: number }> = [];
   /** Tutorial lesson driver (present only in the tutorial region). */
   tutorial: TutorialDriver | null = null;
   /** Timed potion effects: kind -> seconds remaining. */
@@ -745,10 +747,14 @@ export class GameSimulation {
     const p = this.movement.currentCell();
     const near = (cell: Cell, r: number) =>
       Math.abs(cell.x - p.x) <= r && Math.abs(cell.z - p.z) <= r;
-    const found = (id: string, name: string): void => {
+    const found = (id: string, name: string, cell: Cell): void => {
       const flag = `found.${id}`;
       if (this.worldFlags.has(flag)) return;
       this.worldFlags.add(flag);
+      // Record a fast-travel waypoint at the landmark's own cell.
+      if (!this.waypoints.some((w) => w.id === id)) {
+        this.waypoints.push({ id, name, x: cell.x, z: cell.z });
+      }
       const reward = 5 + Math.floor(remoteness01(p.x, p.z) * 45);
       this.inventory.add("item.coin", reward);
       this.events.emit({ type: "itemGained", itemId: "item.coin", qty: reward });
@@ -757,13 +763,55 @@ export class GameSimulation {
     for (const o of this.world.region.objects) {
       if (!near(o.cell, 9)) continue;
       const name = this.poiName(o);
-      if (name === "a dungeon") found(o.instanceId, name);
+      if (name === "a dungeon") found(o.instanceId, name, o.cell);
     }
     for (const s of this.world.region.structures ?? []) {
       if (!near(s.cell, 12)) continue;
       const name = this.poiName(s);
-      if (name) found(s.instanceId, name);
+      if (name) found(s.instanceId, name, s.cell);
     }
+  }
+
+  /** Replace the fast-travel waypoint list from a save (deduped by id). */
+  restoreWaypoints(list: Array<{ id: string; name: string; x: number; z: number }>): void {
+    this.waypoints.length = 0;
+    const seen = new Set<string>();
+    for (const w of list) {
+      if (seen.has(w.id)) continue;
+      seen.add(w.id);
+      this.waypoints.push({ id: w.id, name: w.name, x: w.x, z: w.z });
+    }
+  }
+
+  /** Fast-travel to a discovered waypoint. Only from the open endless world,
+   *  never mid-combat or from a dungeon/interior. Returns false if it can't. */
+  fastTravelTo(id: string): boolean {
+    if (this.world.region.id !== "region.endless" || this.hp <= 0) return false;
+    const w = this.waypoints.find((v) => v.id === id);
+    if (!w) return false;
+    this.actions.cancel();
+    // Stream the destination in first, then land on solid ground beside it (the
+    // landmark cell itself is often a blocker — a gate, a wall, a house).
+    this.chunks?.update({ x: w.x, z: w.z });
+    const land = this.landingNear({ x: w.x, z: w.z }) ?? { x: w.x, z: w.z };
+    this.movement.setCellPosition(land);
+    this.chunks?.update(land);
+    this.events.emit({ type: "fastTraveled", id, name: w.name, cell: { ...land } });
+    return true;
+  }
+
+  /** Nearest walkable, dry cell to a target (searched outward), or null. */
+  private landingNear(c: Cell): Cell | null {
+    for (let r = 0; r <= 6; r++) {
+      for (let dz = -r; dz <= r; dz++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+          const cell = { x: c.x + dx, z: c.z + dz };
+          if (this.world.walkable(cell) && this.world.blockAt(cell) !== "water") return cell;
+        }
+      }
+    }
+    return null;
   }
 
   /** How many endless-world dungeons the player has ever conquered (persisted). */

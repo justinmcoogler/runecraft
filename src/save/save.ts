@@ -35,6 +35,16 @@ interface SaveDataV1 {
   timeS?: number;
   /** Bed respawn point, if one has been set. */
   homePoint?: { regionId: string; cell: { x: number; z: number } } | null;
+  /** Discovered endless-world landmarks the player can fast-travel between. */
+  waypoints?: Waypoint[];
+}
+
+/** A discovered endless-world landmark, saved so it can be revisited. */
+export interface Waypoint {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
 }
 
 /** Per-region world state, kept while the player is in another region. */
@@ -57,6 +67,8 @@ export interface SharedState {
   donatedRelics: string[];
   /** Bed respawn point, if one has been set. */
   homePoint?: { regionId: string; cell: { x: number; z: number } } | null;
+  /** Discovered endless-world landmarks the player can fast-travel between. */
+  waypoints?: Waypoint[];
 }
 
 // Items renamed by content updates: keep old saves' stacks meaningful.
@@ -124,6 +136,7 @@ export function captureSharedState(sim: GameSimulation): SharedState {
     slayer: { ...sim.slayer.state },
     donatedRelics: [...sim.curator.donated],
     homePoint: sim.homePoint ? { regionId: sim.homePoint.regionId, cell: { ...sim.homePoint.cell } } : null,
+    waypoints: sim.waypoints.map((w) => ({ ...w })),
   };
 }
 
@@ -141,6 +154,7 @@ export function applySharedState(sim: GameSimulation, shared: SharedState): void
   for (const flag of shared.worldFlags ?? []) sim.setWorldFlag(flag);
   if (shared.slayer) sim.slayer.state = { ...shared.slayer };
   sim.curator.donated = new Set(shared.donatedRelics ?? []);
+  if (shared.waypoints) sim.restoreWaypoints(shared.waypoints);
   if (shared.homePoint !== undefined) {
     sim.homePoint = shared.homePoint
       ? { regionId: shared.homePoint.regionId, cell: { ...shared.homePoint.cell } }
@@ -199,6 +213,7 @@ export function serialize(
     slayer: { ...sim.slayer.state },
     donatedRelics: [...sim.curator.donated],
     homePoint: sim.homePoint ? { regionId: sim.homePoint.regionId, cell: { ...sim.homePoint.cell } } : null,
+    waypoints: sim.waypoints.map((w) => ({ ...w })),
   };
 }
 
@@ -218,6 +233,7 @@ function restorePlayerPosition(sim: GameSimulation, cell: { x: number; z: number
 export function applySave(sim: GameSimulation, data: SaveDataV1): void {
   // World flags first: they can repair terrain the player was standing on.
   for (const flag of data.worldFlags ?? []) sim.setWorldFlag(flag);
+  if (data.waypoints) sim.restoreWaypoints(data.waypoints);
   for (const [skillId, xp] of Object.entries(data.skills)) {
     if (skillId in sim.skills.xp) sim.skills.xp[skillId] = xp;
   }

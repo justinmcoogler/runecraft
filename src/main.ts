@@ -9,6 +9,7 @@ import { InputController } from "./input/input";
 import { CameraPanel } from "./ui/camera-panel";
 import { MapPanel } from "./ui/map-panel";
 import { DebugMap } from "./ui/debug-map";
+import { WaypointsPanel } from "./ui/waypoints-panel";
 import { Sfx, type SfxName } from "./render/audio";
 import { GameRenderer } from "./render/renderer";
 import { isModelEnabled, loadModelPrefs } from "./render/model-prefs";
@@ -181,6 +182,8 @@ async function boot(): Promise<void> {
   if (!endlessMode) new MapPanel(hudRoot, () => sim);
   // Endless-world debug overlay (biome/height/danger/features) — toggle with `~`.
   new DebugMap(hudRoot, () => sim);
+  // Fast-travel between discovered landmarks — toggle with `T` (endless world).
+  if (endlessMode) new WaypointsPanel(hudRoot, () => sim);
 
   // Character skins: apply a persisted skin, and handle uploads from the HUD.
   const applySkinDataUrl = async (dataUrl: string, persist: boolean): Promise<void> => {
