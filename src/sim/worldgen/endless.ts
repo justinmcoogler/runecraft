@@ -1928,8 +1928,10 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
         const roll = cellHash(x0 + ex, z0 + ez, salt(seed, 66));
         const rocky = bi === 2 || bi === 5 || bi === 12 || bi === 16;
         const style: DungeonStyle = rocky
-          ? (roll < 0.45 ? "mine" : roll < 0.72 ? "vault" : roll < 0.88 ? "sanctum" : "crypt")
-          : (roll < 0.34 ? "crypt" : roll < 0.55 ? "warren" : roll < 0.74 ? "hive" : roll < 0.88 ? "mine" : "sanctum");
+          ? (roll < 0.26 ? "mine" : roll < 0.44 ? "foundry" : roll < 0.60 ? "vault"
+            : roll < 0.74 ? "frostwarren" : roll < 0.87 ? "sanctum" : "crypt")
+          : (roll < 0.19 ? "crypt" : roll < 0.35 ? "catacomb" : roll < 0.50 ? "warren"
+            : roll < 0.64 ? "hive" : roll < 0.77 ? "seacave" : roll < 0.89 ? "mine" : "sanctum");
         const dseed = Math.floor(cellHash(cx * 13 + 5, cz * 17 + 6, salt(seed, 67)) * 1e9);
         // Most gates open a finite crawl of 2-5 floors with a real finale;
         // a rare few (about one in seven) plunge into an endless descent.

@@ -338,6 +338,38 @@ const SANCTUM_FOES: Weighted = [
   { defId: "enemy.witch", weight: 2 },
   { defId: "enemy.evoker", weight: 1 },
 ];
+// Bone-choked catacombs — the honoured dead who did not stay buried.
+const CATACOMB_FOES: Weighted = [
+  { defId: "enemy.skeleton", weight: 5 },
+  { defId: "enemy.stray", weight: 3 },
+  { defId: "enemy.grave_shambler", weight: 3 },
+  { defId: "enemy.hollow_wight", weight: 2 },
+  { defId: "enemy.bat", weight: 2 },
+];
+// A ruined foundry — its forge-wards and molten guardians still labour.
+const FOUNDRY_FOES: Weighted = [
+  { defId: "enemy.rust_construct", weight: 4 },
+  { defId: "enemy.ember_crawler", weight: 3 },
+  { defId: "enemy.ash_hound", weight: 3 },
+  { defId: "enemy.stone_sentinel", weight: 2 },
+  { defId: "enemy.canyon_construct", weight: 1 },
+];
+// A drowned sea-cavern — brine, brood and things that never surfaced.
+const SEACAVE_FOES: Weighted = [
+  { defId: "enemy.drowned", weight: 4 },
+  { defId: "enemy.bog_slime", weight: 3 },
+  { defId: "enemy.marsh_lurker", weight: 3 },
+  { defId: "enemy.mire_husk", weight: 2 },
+  { defId: "enemy.cave_spider", weight: 2 },
+];
+// A frostbound warren — a frozen den of wolves and wights.
+const FROST_FOES: Weighted = [
+  { defId: "enemy.frost_wolf", weight: 4 },
+  { defId: "enemy.stray", weight: 3 },
+  { defId: "enemy.glacial_wight", weight: 3 },
+  { defId: "enemy.dire_wolf", weight: 2 },
+  { defId: "enemy.timber_wolf", weight: 2 },
+];
 const MINE_ROCKS: Weighted = [
   { defId: "resource.rock.coal", weight: 4 },
   { defId: "resource.rock.iron", weight: 4 },
@@ -370,7 +402,9 @@ const DEEP_BOSSES = [
 // elite roster, lighting, and naming. Affixes layer on top of a style, so a
 // crawl reads as e.g. "Flooded Spider Hive". Keys appear verbatim in region
 // ids (dyn_<style>_…), so they must stay lowercase and stable.
-export type DungeonStyle = "crypt" | "mine" | "warren" | "hive" | "vault" | "sanctum";
+export type DungeonStyle =
+  | "crypt" | "mine" | "warren" | "hive" | "vault" | "sanctum"
+  | "catacomb" | "foundry" | "seacave" | "frostwarren";
 interface StyleDef {
   /** Wide styles get larger rooms and a few extra chambers. */
   wide: boolean;
@@ -423,6 +457,34 @@ const STYLE_DEFS: Record<DungeonStyle, StyleDef> = {
     rocks: [{ defId: "resource.rock.essence", weight: 4 }, { defId: "resource.rock.redstone", weight: 2 }],
     bosses: ["enemy.rootbound_warden", "enemy.moss_golem", "enemy.silt_king", "enemy.dragon.fire"],
     theme: { sky: "#0c0a16", ambient: 0.22 }, surface: "Blighted Sanctum", endless: "The Sunless Sanctum",
+  },
+  catacomb: {
+    wide: false, wall: "stone", floor: "calcite",
+    foes: CATACOMB_FOES, elites: ["enemy.barrow_lord", "enemy.hollow_wight", "enemy.grave_shambler"],
+    bosses: ["enemy.barrow_lord", "enemy.old_gnasher", "enemy.silt_king", "enemy.dragon.twoheaded"],
+    theme: { sky: "#12121a", ambient: 0.28 }, surface: "Ossuary Catacombs", endless: "The Endless Ossuary",
+  },
+  foundry: {
+    wide: true, wall: "blackstone", floor: "basalt",
+    foes: FOUNDRY_FOES, elites: ["enemy.canyon_construct", "enemy.stone_sentinel", "enemy.ember_crawler"],
+    rocks: [
+      { defId: "resource.rock.iron", weight: 4 }, { defId: "resource.rock.gold", weight: 2 },
+      { defId: "resource.rock.redstone", weight: 3 }, { defId: "resource.rock.coal", weight: 3 },
+    ],
+    bosses: ["enemy.liftworks_overseer", "enemy.canyon_construct", "enemy.dragon.fire", "enemy.moss_golem"],
+    theme: { sky: "#2a1206", ambient: 0.36 }, surface: "Ruined Foundry", endless: "The Molten Deeps",
+  },
+  seacave: {
+    wide: false, wall: "deepslate", floor: "mud",
+    foes: SEACAVE_FOES, elites: ["enemy.silt_king", "enemy.marsh_lurker", "enemy.mire_husk"],
+    bosses: ["enemy.silt_king", "enemy.dragon.hydra", "enemy.rootbound_warden", "enemy.old_gnasher"],
+    theme: { sky: "#0a1622", ambient: 0.26 }, surface: "Tidal Cavern", endless: "The Drowned Deep",
+  },
+  frostwarren: {
+    wide: true, wall: "ice", floor: "snow",
+    foes: FROST_FOES, elites: ["enemy.glacial_wight", "enemy.dire_wolf", "enemy.frost_wolf"],
+    bosses: ["enemy.glacial_wight", "enemy.dragon.ice", "enemy.silt_king", "enemy.ravager"],
+    theme: { sky: "#16222e", ambient: 0.34 }, surface: "Frostbound Warren", endless: "The Frostbound Deep",
   },
 };
 

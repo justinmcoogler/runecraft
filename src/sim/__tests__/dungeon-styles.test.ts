@@ -10,10 +10,12 @@ import {
 const EXIT = { x: 300, z: 300 };
 
 describe("dungeon archetypes", () => {
-  it("exposes more than the original two styles", () => {
+  it("exposes a broad roster of styles", () => {
     expect(DUNGEON_STYLES).toContain("crypt");
     expect(DUNGEON_STYLES).toContain("mine");
-    expect(DUNGEON_STYLES.length).toBeGreaterThanOrEqual(6);
+    expect(DUNGEON_STYLES).toContain("foundry");
+    expect(DUNGEON_STYLES).toContain("frostwarren");
+    expect(DUNGEON_STYLES.length).toBeGreaterThanOrEqual(10);
   });
 
   it("gives every style its own name, floor palette and foe roster", () => {
