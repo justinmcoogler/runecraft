@@ -1473,7 +1473,11 @@ export class GameRenderer {
         } else if (species === "maple") {
           // Autumn spread over the warm acacia leaf art. Bias to amber→orange
           // (the olive base muddies pure scarlet), so it reads as fall gold.
-          leavesMat.color.setHSL(0.055 + variety * 0.05, 0.95, 0.66 + variety * 0.06);
+          // A low warm emissive lifts the tint past what a plain multiply can
+          // reach, so the canopy blazes vividly instead of muddying to olive.
+          leavesMat.color.setHSL(0.045 + variety * 0.055, 1.0, 0.68 + variety * 0.07);
+          leavesMat.emissive = new THREE.Color().setHSL(0.045 + variety * 0.05, 0.95, 0.35);
+          leavesMat.emissiveIntensity = 0.5;
         } else if (species === "pine") {
           leavesMat.color.setHSL(0.36, 0.5, 0.7); // deep blue-green needles
         } else if (species === "willow") {
@@ -4726,6 +4730,23 @@ export class GameRenderer {
             const soul = l.color !== "#ffd873";
             near.push({ x: l.x, y: l.y, z: l.z, color: l.color, dist: 9.5, power: soul ? 1.7 : 2.0, d2 });
           }
+        }
+      }
+      // Enchanted trees cast their own coloured glow into the canopy at night
+      // — a glow-tree lights a clearing cyan, an ember-tree burns it orange.
+      // These are rare, so the scan stays cheap.
+      for (const n of this.sim.world.region.nodes) {
+        const glow = n.defId === "resource.tree.grand.glow";
+        const ember = !glow && n.defId === "resource.tree.grand.ember";
+        if (!glow && !ember) continue;
+        const wx = n.cell.x + 0.5, wz = n.cell.z + 0.5;
+        const dx = wx - p.x, dz = wz - p.z;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < 46 * 46) {
+          near.push({
+            x: wx, y: this.sim.world.surfaceY(n.cell) + 6, z: wz,
+            color: glow ? "#46e6c4" : "#ff6a2a", dist: 14, power: glow ? 2.4 : 2.0, d2,
+          });
         }
       }
       near.sort((a, b) => a.d2 - b.d2);
