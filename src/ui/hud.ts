@@ -982,7 +982,7 @@ export class Hud {
     const w = this.sim.weather();
     const icon =
       w === "storm" ? "⛈" : w === "rain" ? "🌧" : w === "overcast" ? "☁" : this.sim.daylight() > 0 ? "☀" : "🌙";
-    const text = `${icon} ${hh}:${mm} · Day ${this.sim.dayCount()}`;
+    const text = `${icon} ${hh}:${mm} · Day ${this.sim.dayCount()} · ${this.sim.seasonInfo().label}`;
     if (el.textContent !== text) el.textContent = text;
   }
 

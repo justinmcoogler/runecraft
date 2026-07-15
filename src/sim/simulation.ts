@@ -34,6 +34,29 @@ const DOOR_OPEN_S = 12;
 
 export type WeatherKind = "clear" | "overcast" | "rain" | "storm";
 
+/** In-game days per season; four seasons make a twelve-day year. */
+export const DAYS_PER_SEASON = 3;
+export type Season = "spring" | "summer" | "autumn" | "winter";
+const SEASON_ORDER: Season[] = ["spring", "summer", "autumn", "winter"];
+export interface SeasonInfo {
+  season: Season;
+  label: string;
+  /** 0..1 through this season. */
+  progress: number;
+  /** A foliage/sky tint the renderer leans the outdoors toward. */
+  tint: string;
+  /** True in the cold season: precipitation falls as snow anywhere. */
+  cold: boolean;
+  /** Fraction of clear skies this season leans toward (weather bias). */
+  clearBias: number;
+}
+const SEASON_DATA: Record<Season, { label: string; tint: string; cold: boolean; clearBias: number }> = {
+  spring: { label: "Spring", tint: "#bfe08a", cold: false, clearBias: 0.70 },
+  summer: { label: "Summer", tint: "#ffe9a8", cold: false, clearBias: 0.80 },
+  autumn: { label: "Autumn", tint: "#e0a45a", cold: false, clearBias: 0.60 },
+  winter: { label: "Winter", tint: "#cfe0ec", cold: true, clearBias: 0.52 },
+};
+
 export class GameSimulation {
   readonly world: WorldState;
   readonly events = new SimEventBus();
@@ -546,6 +569,27 @@ export class GameSimulation {
     return Math.floor(this.timeS / DAY_LENGTH_S) + 1;
   }
 
+  /** The current season, cycling spring→summer→autumn→winter over the year. */
+  season(): Season {
+    const day0 = this.timeS / DAY_LENGTH_S; // 0-based fractional days
+    return SEASON_ORDER[Math.floor(day0 / DAYS_PER_SEASON) % 4];
+  }
+
+  /** Season with its label, 0..1 progress, tint and precipitation lean. */
+  seasonInfo(): SeasonInfo {
+    const day0 = this.timeS / DAY_LENGTH_S;
+    const season = SEASON_ORDER[Math.floor(day0 / DAYS_PER_SEASON) % 4];
+    const d = SEASON_DATA[season];
+    return {
+      season,
+      label: d.label,
+      progress: (day0 % DAYS_PER_SEASON) / DAYS_PER_SEASON,
+      tint: d.tint,
+      cold: d.cold,
+      clearBias: d.clearBias,
+    };
+  }
+
   /**
    * Daylight strength 0..1: night is 0, full noon is 1, with smooth dawn
    * (~05:30) and dusk (~20:30) shoulders.
@@ -568,9 +612,13 @@ export class GameSimulation {
     let hsh = (this.seed * 374761393 + epoch * 668265263) >>> 0;
     hsh = Math.imul(hsh ^ (hsh >>> 16), 2246822507) >>> 0;
     const r = ((hsh ^ (hsh >>> 13)) >>> 0) / 4294967296;
-    if (r < 0.68) return "clear";
-    if (r < 0.85) return "overcast";
-    if (r < 0.965) return "rain";
+    // Seasons lean the skies: summer runs clear, autumn and winter grey and
+    // foul (winter's precipitation falls as snow via seasonInfo().cold).
+    const clearCut = this.seasonInfo().clearBias;
+    if (r < clearCut) return "clear";
+    const rest = (r - clearCut) / (1 - clearCut); // 0..1 across the foul band
+    if (rest < 0.5) return "overcast";
+    if (rest < 0.85) return "rain";
     return "storm";
   }
 

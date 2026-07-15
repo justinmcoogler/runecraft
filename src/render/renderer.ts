@@ -4719,6 +4719,7 @@ export class GameRenderer {
   private precip: THREE.Points | null = null;
   private precipKind: "rain" | "snow" | "storm" | null = null;
   private readonly skyWork = new THREE.Color();
+  private readonly seasonSky = new THREE.Color();
   private static readonly NIGHT_SKY = new THREE.Color("#0c1524");
   private static readonly STORM_SKY = new THREE.Color("#4c5866");
   private static readonly FLASH_SKY = new THREE.Color("#e8eef6");
@@ -4833,8 +4834,12 @@ export class GameRenderer {
     }
 
     // Night pulls the sky toward deep blue; foul weather greys it out; a bolt
-    // whitens it for an instant.
-    this.skyWork.copy(this.baseSky).lerp(GameRenderer.NIGHT_SKY, (1 - daylight) * 0.92);
+    // whitens it for an instant. The season leans daytime skies toward its own
+    // hue (autumn amber, winter pale blue…), strongest under a clear noon.
+    this.skyWork.copy(this.baseSky);
+    this.seasonSky.set(this.sim.seasonInfo().tint);
+    this.skyWork.lerp(this.seasonSky, daylight * (1 - wDim) * 0.14);
+    this.skyWork.lerp(GameRenderer.NIGHT_SKY, (1 - daylight) * 0.92);
     this.skyWork.lerp(GameRenderer.STORM_SKY, wDim);
     if (this.lightning > 0) this.skyWork.lerp(GameRenderer.FLASH_SKY, this.lightning * this.lightning * 0.85);
     if (this.scene.background instanceof THREE.Color) {
@@ -4844,7 +4849,8 @@ export class GameRenderer {
     // Precipitation: rain streaks or snow, riding along with the player.
     const playerCell = this.sim.movement.currentCell();
     const ground = this.sim.world.blockAt(playerCell);
-    const cold = ground === "snow" || ground === "ice";
+    // Snow falls on cold ground — and everywhere in the depths of winter.
+    const cold = ground === "snow" || ground === "ice" || this.sim.seasonInfo().cold;
     const want: "rain" | "snow" | "storm" | null =
       weather === "rain" || weather === "storm" ? (cold ? "snow" : weather === "storm" ? "storm" : "rain") : null;
     if (want !== this.precipKind) {
