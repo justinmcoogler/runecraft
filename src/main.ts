@@ -8,6 +8,7 @@ import { serializeLayer, type EditorLayer } from "./editor/layer";
 import { InputController } from "./input/input";
 import { CameraPanel } from "./ui/camera-panel";
 import { MapPanel } from "./ui/map-panel";
+import { DebugMap } from "./ui/debug-map";
 import { Sfx, type SfxName } from "./render/audio";
 import { GameRenderer } from "./render/renderer";
 import { isModelEnabled, loadModelPrefs } from "./render/model-prefs";
@@ -178,6 +179,8 @@ async function boot(): Promise<void> {
   input.editor = editor;
   new CameraPanel(hudRoot, renderer.rig);
   if (!endlessMode) new MapPanel(hudRoot, () => sim);
+  // Endless-world debug overlay (biome/height/danger/features) — toggle with `~`.
+  new DebugMap(hudRoot, () => sim);
 
   // Character skins: apply a persisted skin, and handle uploads from the HUD.
   const applySkinDataUrl = async (dataUrl: string, persist: boolean): Promise<void> => {
