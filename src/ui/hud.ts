@@ -185,7 +185,7 @@ export class Hud {
       </div>
       <div class="hud-top-center toast-stack"></div>
       <div class="hud-top-left">
-        <div><span class="save-dot" title="Saved">●</span> <span class="game-title">Stoneleaf Vale</span></div>
+        <div><span class="save-dot" title="Saved">●</span> <span class="game-title">Runecraft</span></div>
         <div class="clock-chip" data-testid="clock"><span class="clock-text"></span></div>
         <div class="quest-tracker hidden" data-cmd="questlog" data-testid="quest-tracker" title="Quest log (J)">
           <span class="quest-mark">${uiIconHtml("quest", 14)}</span>

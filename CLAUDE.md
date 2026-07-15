@@ -1,4 +1,4 @@
-# Stoneleaf Vale — working rules
+# Runecraft — working rules
 
 - **Everything in the world is made of cubes (HARD RULE).** Every visible thing
   in the world — terrain, roads, bridges, walls, props, structures — must be

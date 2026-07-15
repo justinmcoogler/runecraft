@@ -55,7 +55,7 @@ export function showStartScreen(opts: StartScreenOptions): Promise<StartChoice> 
     const root = document.createElement("div");
     root.className = "start-screen";
     root.setAttribute("role", "dialog");
-    root.setAttribute("aria-label", "Stoneleaf Vale — start");
+    root.setAttribute("aria-label", "Runecraft — start");
     document.body.appendChild(root);
 
     const finish = (choice: StartChoice): void => {
@@ -71,7 +71,7 @@ export function showStartScreen(opts: StartScreenOptions): Promise<StartChoice> 
 
       const title = document.createElement("h1");
       title.className = "start-title";
-      title.textContent = "Stoneleaf Vale";
+      title.textContent = "Runecraft";
       const tag = document.createElement("p");
       tag.className = "start-tagline";
       tag.textContent = "a voxel skilling world";

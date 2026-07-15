@@ -1,4 +1,4 @@
-# Stoneleaf Vale
+# Runecraft
 
 A top-down **voxel skilling RPG** for the browser — chop, mine, fish, farm,
 fight and build your way up 20+ skills across an endless, seed-generated world.

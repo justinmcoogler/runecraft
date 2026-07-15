@@ -27,7 +27,7 @@ for (const file of result.outputFiles) {
 // Keep inline <script> parseable regardless of bundled string contents.
 js = js.replaceAll("</script", "<\\/script").replaceAll("<!--", "<\\!--");
 
-const body = `<title>Stoneleaf Vale</title>
+const body = `<title>Runecraft</title>
 <style>
 ${css}</style>
 <canvas id="game-canvas"></canvas>

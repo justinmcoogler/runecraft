@@ -44,7 +44,7 @@ export class MapPanel {
     this.panel.style.display = "none";
     const title = document.createElement("div");
     title.className = "map-title";
-    title.textContent = "Stoneleaf Vale";
+    title.textContent = "Runecraft";
     this.canvas = document.createElement("canvas");
     this.canvas.width = 512;
     this.canvas.height = 512;
