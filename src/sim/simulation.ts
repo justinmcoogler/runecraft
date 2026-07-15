@@ -16,7 +16,7 @@ import { NpcSystem } from "./npc";
 import { QuestService } from "./quests";
 import { SkillService } from "./skills";
 import { ChunkManager } from "./chunk-manager";
-import { EndlessTerrain, setValeActive, starterTownRegion, tutorialRegion } from "./worldgen/endless";
+import { EndlessTerrain, remoteness01, setValeActive, starterTownRegion, tutorialRegion } from "./worldgen/endless";
 import { CuratorService, SlayerService } from "./taskmasters";
 import type { ArmorSlot, Cell, Command, SimEvent } from "./types";
 import { SimEventBus, SimRng, TICK_DT } from "./types";
@@ -637,6 +637,11 @@ export class GameSimulation {
     this.npcs.tick(TICK_DT, this.rng);
     this.enemies.tick(TICK_DT, this.rng);
 
+    // Stumbling onto a landmark or dungeon in the endless wild logs it as a
+    // discovery (persisted via world flags) and pays a small explorer's bounty
+    // that grows the farther out you find it.
+    if (this.world.region.id === "region.endless") this.discoverScan();
+
     // Crossing into a named zone announces it (world map only).
     if (this.world.region.id === "region.vale_clearing") {
       const cell = this.movement.currentCell();
@@ -696,6 +701,52 @@ export class GameSimulation {
       region.objects.splice(region.objects.indexOf(obj), 1);
     }
     this.events.emit({ type: "worldFlagSet", flag });
+  }
+
+  /** How many endless-world POIs the player has ever discovered (persisted). */
+  discoveryCount(): number {
+    let n = 0;
+    for (const f of this.worldFlags) if (f.startsWith("found.")) n++;
+    return n;
+  }
+
+  private poiName(o: { defId?: string; structureId?: string }): string | null {
+    if (o.defId?.includes("portal.cave")) return "a dungeon";
+    const s = o.structureId ?? "";
+    if (!s) return null;
+    if (s.startsWith("portal")) return "a dungeon gate";
+    if (s.startsWith("ihouse") || s.startsWith("house") || s.startsWith("home")) return "a homestead";
+    if (s.startsWith("ruin")) return "an old ruin";
+    if (s.includes("tower")) return "a watchtower";
+    if (s.includes("stone") || s.includes("circle") || s.includes("henge")) return "a standing-stone circle";
+    return "a landmark";
+  }
+
+  /** Log any nearby, not-yet-found landmark or dungeon as a discovery, pay a
+   *  distance-scaled explorer's bounty, and persist it as a world flag. */
+  private discoverScan(): void {
+    const p = this.movement.currentCell();
+    const near = (cell: Cell, r: number) =>
+      Math.abs(cell.x - p.x) <= r && Math.abs(cell.z - p.z) <= r;
+    const found = (id: string, name: string): void => {
+      const flag = `found.${id}`;
+      if (this.worldFlags.has(flag)) return;
+      this.worldFlags.add(flag);
+      const reward = 5 + Math.floor(remoteness01(p.x, p.z) * 45);
+      this.inventory.add("item.coin", reward);
+      this.events.emit({ type: "itemGained", itemId: "item.coin", qty: reward });
+      this.events.emit({ type: "poiDiscovered", id, name, reward, total: this.discoveryCount() });
+    };
+    for (const o of this.world.region.objects) {
+      if (!near(o.cell, 9)) continue;
+      const name = this.poiName(o);
+      if (name === "a dungeon") found(o.instanceId, name);
+    }
+    for (const s of this.world.region.structures ?? []) {
+      if (!near(s.cell, 12)) continue;
+      const name = this.poiName(s);
+      if (name) found(s.instanceId, name);
+    }
   }
 
   private route(c: Command): void {

@@ -84,6 +84,7 @@ export type SimEvent =
   | { type: "doorClosed"; instanceId: string; cell: Cell }
   | { type: "stairsChoice"; cell: Cell; options: Array<{ dir: "up" | "down"; targetRegionId: string; targetCell: Cell }> }
   | { type: "worldFlagSet"; flag: string }
+  | { type: "poiDiscovered"; id: string; name: string; reward: number; total: number }
   | { type: "tutorialObjective"; index: number; total: number; title: string; blurb: string }
   | { type: "tutorialLessonDone"; index: number; title: string; optional?: boolean; skillId?: string }
   | { type: "tutorialComplete" }

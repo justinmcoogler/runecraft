@@ -2,7 +2,8 @@
 // that climb with distance, seam-free terrain/roads, and meaningful world
 // content for the whole skill spread — across several seeds.
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { GameSimulation } from "../simulation";
 import {
   EndlessTerrain, ENDLESS_CENTER, ECHUNK, generateChunk, terrainAt, roadDist,
   remoteness01, dangerTier, setValeActive,
@@ -33,6 +34,10 @@ function sweep(seed: number, chunkRadius: number, ringFrom = 0) {
 }
 
 describe("the endless world", () => {
+  // The wild world is generated with the starter vale OFF; keep the shared
+  // module flag pinned so a neighbouring suite can't gate the near-origin scatter.
+  beforeEach(() => setValeActive(false));
+
   it("gives every seed a safe, dry, low-danger beginner spawn", () => {
     for (const seed of SEEDS) {
       const terrain = new EndlessTerrain(seed);
@@ -66,6 +71,22 @@ describe("the endless world", () => {
       expect([...near].some((d) => DEADLY.test(d)), `${seed}: boss near home`).toBe(false);
       expect([...far].some((d) => DEADLY.test(d)), `${seed}: no boss in the deep`).toBe(true);
     }
+  });
+
+  it("logs discoveries, pays a bounty, and persists them as world flags", () => {
+    const sim = GameSimulation.createEndless(42);
+    const p = sim.movement.currentCell();
+    sim.world.region.structures = [{ instanceId: "test.ruin", structureId: "ruin_broch", cell: { x: p.x + 2, z: p.z + 2 } }];
+    const before = sim.inventory.count("item.coin");
+    const evs = sim.tick();
+    expect(evs.some((e) => e.type === "poiDiscovered")).toBe(true);
+    expect(sim.worldFlags.has("found.test.ruin")).toBe(true); // persisted via worldFlags
+    expect(sim.inventory.count("item.coin")).toBeGreaterThan(before);
+    expect(sim.discoveryCount()).toBe(1);
+    // Idempotent: re-scanning the same landmark never pays twice.
+    const held = sim.inventory.count("item.coin");
+    sim.tick();
+    expect(sim.inventory.count("item.coin")).toBe(held);
   });
 
   it("has seam-free terrain and continuous roads across chunk borders", () => {

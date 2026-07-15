@@ -494,6 +494,9 @@ export class Hud {
           this.setTutorialComplete();
           this.toast("Tutorial complete — step through the gateway to the wild!", "level", uiIconHtml("quest", 20));
           break;
+        case "poiDiscovered":
+          this.toast(`Discovered ${ev.name}! +${ev.reward} coins · ${ev.total} found`, "level", uiIconHtml("quest", 20));
+          break;
         case "itemGained":
           this.floatText(
             `+${ev.qty} ${ITEMS[ev.itemId].name} ${itemIconHtml(ev.itemId, ITEMS[ev.itemId].icon, 18)}`,
