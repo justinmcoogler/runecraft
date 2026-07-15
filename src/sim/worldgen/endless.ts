@@ -2297,12 +2297,16 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
     { instanceId: "tutorial.tree", defId: "resource.tree.basic", cell: { x: spawn.x - 4, z: spawn.z + 1 } },
     { instanceId: "tutorial.rock", defId: "resource.rock.copper", cell: { x: spawn.x - 6, z: spawn.z - 2 } },
     { instanceId: "tutorial.bush", defId: "resource.bush.berry", cell: { x: spawn.x - 3, z: spawn.z - 3 } },
+    { instanceId: "tutorial.plot", defId: "resource.plot.wheat", cell: { x: spawn.x - 5, z: spawn.z + 4 } },
+    { instanceId: "tutorial.digsite", defId: "resource.digsite.basic", cell: { x: spawn.x - 8, z: spawn.z + 3 } },
   ];
   region.objects = [
     ...region.objects,
     { instanceId: "tutorial.furnace", defId: "object.furnace.basic", cell: { x: spawn.x + 7, z: spawn.z - 1 } },
     { instanceId: "tutorial.anvil", defId: "object.anvil.basic", cell: { x: spawn.x + 7, z: spawn.z + 1 } },
     { instanceId: "tutorial.altar", defId: "object.altar.rune", cell: { x: spawn.x - 7, z: spawn.z } },
+    { instanceId: "tutorial.campfire", defId: "object.campfire.basic", cell: { x: spawn.x + 6, z: spawn.z + 3 } },
+    { instanceId: "tutorial.workbench", defId: "object.workbench.basic", cell: { x: spawn.x + 9, z: spawn.z } },
   ];
   region.enemies = [
     ...(region.enemies ?? []),

@@ -90,6 +90,8 @@ export class TutorialDriver {
         return events.some((e) => e.type === "itemGained" && e.itemId.startsWith(trigger.prefix));
       case "skillXp":
         return events.some((e) => e.type === "xpGained" && e.skillId === trigger.skillId);
+      case "eventType":
+        return events.some((e) => e.type === trigger.eventType);
     }
   }
 

@@ -11,7 +11,8 @@ export type LessonTrigger =
   | { kind: "bonesBuried" }                      // prayer: bones buried
   | { kind: "enemyDefeated" }                    // combat: the sparring foe falls
   | { kind: "itemPrefix"; prefix: string }       // any item with this id prefix is gained
-  | { kind: "skillXp"; skillId: string };        // XP is earned in this skill
+  | { kind: "skillXp"; skillId: string }         // XP is earned in this skill
+  | { kind: "eventType"; eventType: string };    // any event of this type fires
 
 export interface TutorialLesson {
   id: string;
@@ -139,6 +140,56 @@ export const TUTORIAL_OPTIONAL: TutorialLesson[] = [
     trigger: { kind: "skillXp", skillId: "skill.runecrafting" },
     reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.runecrafting", amount: 40 } },
   },
+  {
+    id: "tut.cook",
+    act: "Processing",
+    skillId: "skill.cooking",
+    optional: true,
+    title: "Cook a meal",
+    blurb: "Cook the raw fish on the campfire.",
+    trigger: { kind: "skillXp", skillId: "skill.cooking" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.cooking", amount: 30 } },
+  },
+  {
+    id: "tut.fletch",
+    act: "Processing",
+    skillId: "skill.fletching",
+    optional: true,
+    title: "Fletch arrow shafts",
+    blurb: "At the workbench, carve a log into arrow shafts.",
+    trigger: { kind: "skillXp", skillId: "skill.fletching" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.fletching", amount: 30 } },
+  },
+  {
+    id: "tut.magic",
+    act: "Spiritual",
+    skillId: "skill.magic",
+    optional: true,
+    title: "Cast a spell",
+    blurb: "Open your pack and low-alch a log with your fire rune for coins.",
+    trigger: { kind: "eventType", eventType: "spellCast" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.magic", amount: 40 } },
+  },
+  {
+    id: "tut.farm",
+    act: "Gathering",
+    skillId: "skill.farming",
+    optional: true,
+    title: "Sow a seed",
+    blurb: "Plant a wheat seed in the plot — come back later to harvest.",
+    trigger: { kind: "eventType", eventType: "planted" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.farming", amount: 30 } },
+  },
+  {
+    id: "tut.dig",
+    act: "Gathering",
+    skillId: "skill.archaeology",
+    optional: true,
+    title: "Excavate a relic",
+    blurb: "Dig at the excavation site to unearth something old.",
+    trigger: { kind: "skillXp", skillId: "skill.archaeology" },
+    reward: { items: [{ itemId: "item.coin", qty: 10 }], xp: { skillId: "skill.archaeology", amount: 30 } },
+  },
 ];
 
 // Granted silently at the start of the tutorial (no itemGained event, so it
@@ -151,6 +202,10 @@ export const TUTORIAL_STARTER_KIT: Array<{ itemId: string; qty: number }> = [
   { itemId: "item.ore.tin", qty: 3 },
   { itemId: "item.bar.bronze", qty: 1 },
   { itemId: "item.essence.rune", qty: 5 },
+  { itemId: "item.fish.raw", qty: 2 },   // cooking
+  { itemId: "item.log.basic", qty: 4 },  // fletching shafts + a log to alch
+  { itemId: "item.rune.fire", qty: 5 },  // low-alchemy (magic)
+  { itemId: "item.seed.wheat", qty: 2 }, // farming
 ];
 
 /** Instance ids of the props the tutorial region places for these lessons. */

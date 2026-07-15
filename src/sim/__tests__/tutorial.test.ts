@@ -94,6 +94,30 @@ describe("the tutorial driver", () => {
     expect(sim.tutorial!.complete).toBe(false);
   });
 
+  it("awards optional lessons off skillXp and event triggers too", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    sim.tick();
+    // Cooking (skillXp), Magic (spellCast event), Farming (planted event).
+    sim.events.emit({ type: "xpGained", skillId: "skill.cooking", amount: 22 });
+    sim.events.emit({ type: "spellCast", spell: "low_alch", coins: 4 });
+    sim.events.emit({ type: "planted", instanceId: "tutorial.plot", seedItemId: "item.seed.wheat" });
+    sim.tick();
+    expect(sim.tutorial!.optionalDone.has("tut.cook")).toBe(true);
+    expect(sim.tutorial!.optionalDone.has("tut.magic")).toBe(true);
+    expect(sim.tutorial!.optionalDone.has("tut.farm")).toBe(true);
+    // Core track still untouched.
+    expect(sim.tutorial!.complete).toBe(false);
+  });
+
+  it("stocks the batch-2 reagents silently (no lesson tripped at boot)", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    sim.tick();
+    expect(sim.inventory.count("item.fish.raw")).toBeGreaterThanOrEqual(2);
+    expect(sim.inventory.count("item.rune.fire")).toBeGreaterThanOrEqual(5);
+    expect(sim.inventory.count("item.seed.wheat")).toBeGreaterThanOrEqual(2);
+    expect(sim.tutorial!.optionalDone.size).toBe(0); // silent grants trip nothing
+  });
+
   it("marks every optional lesson optional with an item+XP reward", () => {
     for (const l of TUTORIAL_OPTIONAL) {
       expect(l.optional).toBe(true);
