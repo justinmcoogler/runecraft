@@ -136,6 +136,10 @@ white-with-black patches.** Baked keys become `entity.<name>`.
 | Old Gnasher (boss) | `entity.gnasher` | 64×32 |
 | Straw Target dummy | `entity.dummy` | small, 32×32 |
 
+- **Tutorial Guide NPC** (`entity.guide`) — the friendly instructor who stands at
+  the tutorial spawn and points to each lesson. Reusing a villager skin for now;
+  wants its own RuneScape-styled 64×32 humanoid skin.
+
 Already have skins: chicken, pig, zombie, husk (+ chest). Dragons use a
 separate Blockbench model system, not these.
 

@@ -103,7 +103,9 @@ next lesson.
 
 ## Graduation ✅
 
-When the **required** lessons (1–6, 14, 15, 29) are done, the Guide says
+Required set (locked): **one lesson per act** — Basics, one Gathering, one
+Processing, one Spiritual, one Combat (see the P2 list below). When these are
+done, the Guide says
 "You're ready for the wild," the **gateway** lights fully, and a "**Skip the rest
 & graduate**" prompt appears. Stepping through:
 - marks `tutorial.done`,
@@ -127,9 +129,8 @@ Optional lessons stay available until you graduate, so completionists can do all
 3. Guide NPC + objective pointer; the "skip & graduate" prompt.
 
 ## Open questions for you
-- **Required set** — is 1–6, 14, 15, 29 the right "must-do" core, or do you want
-  more (e.g. one from each act) before the gateway opens?
-- **Guide NPC** — reuse a villager skin for now, or wait for custom art?
-- **Rewards** — grant a small item per lesson, or just XP?
+- **Required set** — LOCKED: one lesson from every act.
+- **Guide NPC** — LOCKED: reuse a villager skin for now; custom art tracked in ASSETS_NEEDED.md.
+- **Rewards** — LOCKED: a small item **and** XP per lesson.
 - Any **signature moment** you want scripted (e.g. "first tree → first fire →
   first cooked fish" as a mandatory opening beat)?
