@@ -81,7 +81,7 @@ export class EnemySystem {
 
   engage(instanceId: string): void {
     const enemy = this.enemies.get(instanceId);
-    if (enemy && enemy.phase === "alive") {
+    if (enemy && enemy.phase === "alive" && !ENEMIES[enemy.defId].stationary) {
       enemy.engaged = true;
       enemy.returningHome = false;
     }
@@ -97,7 +97,9 @@ export class EnemySystem {
   damage(instanceId: string, amount: number): boolean {
     const enemy = this.enemies.get(instanceId);
     if (!enemy || enemy.phase !== "alive") return false;
-    enemy.engaged = true;
+    // Stationary targets never retaliate/chase — engaging one would trip its
+    // leash and heal it to full, making it unkillable.
+    if (!ENEMIES[enemy.defId].stationary) enemy.engaged = true;
     enemy.hp -= amount;
     if (enemy.hp > 0) return false;
     const def = ENEMIES[enemy.defId];
@@ -136,6 +138,9 @@ export class EnemySystem {
         }
         continue;
       }
+
+      // A stationary target just stands there: no wander, chase or leash.
+      if (def.stationary) continue;
 
       enemy.movement.tick(dtSeconds);
 

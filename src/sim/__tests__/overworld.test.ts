@@ -345,6 +345,7 @@ describe("province gameplay", () => {
   it("a bow shoots from range and trains Archery", () => {
     const sim = new GameSimulation(buildRegion("region.vale_clearing"), 11);
     sim.equippedTool = "tool.bow.wood";
+    sim.inventory.add("item.arrow.bronze", 20); // bows consume arrows per shot
     const dummy = (region.enemies ?? []).find((e) => e.instanceId === "gv.dummy.002")!;
     sim.movement.setCellPosition({ x: dummy.cell.x, z: dummy.cell.z + 4 });
     sim.enqueue({ type: "interact", targetId: "gv.dummy.002" });

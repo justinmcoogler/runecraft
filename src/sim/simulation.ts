@@ -1491,6 +1491,39 @@ export class GameSimulation {
         this.events.emit({ type: "inventoryChanged" });
         break;
       }
+      case "tillSlot": {
+        // Till the ground underfoot with a hoe: turns bare grass/dirt into a
+        // personal wheat plot ready to sow, anywhere in the world. Sometimes
+        // turns up stray seeds in the soil.
+        const s = this.inventory.slots[c.slot];
+        if (!s || !(ITEMS[s.itemId].toolTags ?? []).includes("hoe")) break;
+        const cell = this.movement.currentCell();
+        const soil = this.world.blockAt(cell);
+        if (!["grass", "dirt", "coarsedirt", "podzol", "moss"].includes(soil)) {
+          this.events.emit({ type: "actionRejected", reason: "no_target", targetId: "till" });
+          break;
+        }
+        const occupied =
+          this.world.region.nodes.some((n) => n.cell.x === cell.x && n.cell.z === cell.z) ||
+          this.world.region.objects.some((o) => o.cell.x === cell.x && o.cell.z === cell.z);
+        if (occupied) {
+          this.events.emit({ type: "actionRejected", reason: "no_target", targetId: "till" });
+          break;
+        }
+        this.addEditorNodePlain({
+          instanceId: `tilled.${cell.x}.${cell.z}`,
+          defId: "resource.plot.wheat",
+          cell: { ...cell },
+        });
+        this.skills.grantXp("skill.farming", 4);
+        if (this.rng.next() < 0.35 && this.inventory.canAdd("item.seed.wheat", 1)) {
+          this.inventory.add("item.seed.wheat", 1);
+          this.events.emit({ type: "itemGained", itemId: "item.seed.wheat", qty: 1 });
+          this.events.emit({ type: "inventoryChanged" });
+        }
+        this.events.emit({ type: "tilled", cell: { ...cell } });
+        break;
+      }
       case "alchSlot": {
         const s = this.inventory.slots[c.slot];
         if (!s) break;

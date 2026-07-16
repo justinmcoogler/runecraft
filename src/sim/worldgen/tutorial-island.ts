@@ -92,7 +92,7 @@ const TUTORS: Tutor[] = [
   { skill: "skill.brewing", skin: "brewer", ground: "grass", station: "object.cauldron.basic" },
   { skill: "skill.enchanting", skin: "enchanter", ground: "purpur", station: "object.enchanter.basic" },
   { skill: "skill.hunting", skin: "hunter", ground: "grass", station: "resource.trail.rabbit", pen: "enemy.chicken" },
-  { skill: "skill.thieving", skin: "rogue", ground: "coarsedirt", station: "object.stall.market" },
+  { skill: "skill.thieving", skin: "rogue", ground: "coarsedirt", station: "resource.stall.market" },
   { skill: "skill.agility", skin: "freerunner", ground: "grass", station: "object.shortcut.log" },
   { skill: "skill.slaying", skin: "slayer", ground: "podzol", pen: "enemy.sheep" },
   { skill: "skill.boating", skin: "sailor", ground: "sand", station: "object.workbench.basic", water: true },
@@ -282,10 +282,11 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
     }
   });
 
-  // 4) Dress the field: scattered trees/boulders/flowers on the raised grass,
-  //    kept clear of the path AND only on ground that is flat all around, so
-  //    nothing ever perches on an exposed column and floats.
-  decorateField(blocks, heights, trail, objects, nodes);
+  // 4) Dress the field: scattered trees/bushes/tufts on the raised grass, kept
+  //    clear of the path AND well away from every master's clearing (in the
+  //    isometric view a tall tree south-east of a clearing draws in front of
+  //    it, hiding the stall/station behind its canopy).
+  decorateField(blocks, heights, trail, objects, nodes, stops);
 
   // --- gateway (last stop) ---
   const gate = stops[STOPS - 1];
@@ -344,7 +345,12 @@ function decorateField(
   trail: Uint8Array,
   objects: ObjectPlacement[],
   nodes: NodePlacement[],
+  stops: Cell[] = [],
 ): void {
+  // No tall trees near any master's clearing: a canopy south-east of a stop
+  // renders IN FRONT of it in the isometric view and hides the station.
+  const nearStop = (x: number, z: number, r: number) =>
+    stops.some((s) => Math.max(Math.abs(s.x - x), Math.abs(s.z - z)) <= r);
   const at = (x: number, z: number) => z * W + x;
   // Distance from the nearest path/clearing/water cell (multi-source BFS).
   const dist = new Int16Array(W * D).fill(-1);
@@ -395,7 +401,7 @@ function decorateField(
       // boulders (stray rocks read as odd) and no showy flowers (they tower into
       // weird voxel masses). Trees and bushes only where the ground is flat all
       // around, so they never perch on an edge and float.
-      if (d >= 12 && r < 5 && flatHere(x, z)) put(x, z, "resource.tree.basic", true);
+      if (d >= 12 && r < 5 && flatHere(x, z) && !nearStop(x, z, 16)) put(x, z, "resource.tree.basic", true);
       else if (d >= 6 && r < 8 && flatHere(x, z)) put(x, z, "resource.bush.berry", true);
       else if (r < 48) put(x, z, "object.grass.tuft");
     }
@@ -429,9 +435,15 @@ function buildPen(
   // you open it to get at the animals (and it swings shut behind you).
   objects.push({ instanceId: `tut.pen.${short}.gate`, defId: "object.gate.oak", cell: { x: gx, z: gz } });
   const primary = boss ? `tut.pen.${short}.boss` : `tut.pen.${short}.a`;
-  enemies.push(
-    { instanceId: primary, defId: enemyDef, cell: { x: cx, z: cz - 1 } },
-    { instanceId: `tut.pen.${short}.b`, defId: enemyDef, cell: { x: cx, z: cz + 1 } },
-  );
-  if (combat) enemies.push({ instanceId: `tut.pen.${short}.c`, defId: enemyDef, cell: { x: cx, z: cz } });
+  if (enemyDef === "enemy.target_dummy") {
+    // The archery range: ONE straw target at the back wall, so there's a clear
+    // single mark to shoot at over the fence.
+    enemies.push({ instanceId: primary, defId: enemyDef, cell: { x: cx - gateDir.dx, z: cz - gateDir.dz } });
+  } else {
+    enemies.push(
+      { instanceId: primary, defId: enemyDef, cell: { x: cx, z: cz - 1 } },
+      { instanceId: `tut.pen.${short}.b`, defId: enemyDef, cell: { x: cx, z: cz + 1 } },
+    );
+    if (combat) enemies.push({ instanceId: `tut.pen.${short}.c`, defId: enemyDef, cell: { x: cx, z: cz } });
+  }
 }

@@ -915,6 +915,14 @@ export const ITEMS: Record<string, ItemDef> = {
     maxStack: 1,
     toolTags: ["hammer"],
   },
+  "tool.hoe.basic": {
+    id: "tool.hoe.basic",
+    name: "Garden Hoe",
+    icon: "🪓",
+    stackable: false,
+    maxStack: 1,
+    toolTags: ["hoe"],
+  },
   "tool.pickaxe.copper": {
     id: "tool.pickaxe.copper",
     name: "Copper Pickaxe",
@@ -4788,6 +4796,7 @@ export const SHOPS: Record<string, ShopDef> = {
       { itemId: "tool.pickaxe.basic", price: 25 },
       { itemId: "tool.fishingrod.basic", price: 25 },
       { itemId: "tool.hammer.basic", price: 25 },
+      { itemId: "tool.hoe.basic", price: 20 },
       { itemId: "tool.bow.wood", price: 45 },
       { itemId: "tool.trap.basic", price: 30 },
       { itemId: "item.seed.wheat", price: 3 },
@@ -5040,12 +5049,12 @@ const LESSONS: Record<string, Lesson> = {
   "skill.smelting": { action: [train("skill.smelting", "Smelt a copper bar at the furnace")], gift: [{ itemId: "item.ore.copper", qty: 2 }], note: "Take this copper ore — smelt it in the furnace." },
   "skill.smithing": { action: [train("skill.smithing", "Hammer something on the anvil")], gift: [{ itemId: "tool.hammer.basic", qty: 1 }, { itemId: "item.bar.copper", qty: 2 }], note: "Here's a hammer and two copper bars — hammer them into a blade on the anvil." },
   "skill.attack": { action: [train("skill.attack", "Strike a pig on Accurate style — trains Attack"), train("skill.strength", "Tap the attack-style button to Aggressive, then strike — trains Strength")], gift: [{ itemId: "tool.sword.bronze", qty: 1 }] },
-  "skill.farming": { deliver: { itemId: "item.wheat", qty: 2 }, gift: [{ itemId: "item.seed.wheat", qty: 3 }], note: "Here are wheat seeds — click the empty plot to sow one, wait a short while for it to grow, then harvest the wheat and bring me two." },
+  "skill.farming": { deliver: { itemId: "item.wheat", qty: 2 }, gift: [{ itemId: "tool.hoe.basic", qty: 1 }, { itemId: "item.seed.wheat", qty: 3 }], note: "Here's a hoe and wheat seeds. Use the hoe from your pack to till any grass into a plot (or use mine here), sow a seed on it, wait for it to grow, then harvest the wheat and bring me two. Harvests always give seed back, so keep replanting." },
   "skill.herblore": { deliver: { itemId: "item.herb.sage", qty: 2 }, note: "Pick a couple of sage and bring them to me." },
   "skill.crafting": { action: [train("skill.crafting", "Cut planks at the workbench")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "Here's some timber — cut it into planks at the workbench." },
   "skill.archaeology": { action: [train("skill.archaeology", "Dig at the excavation")], note: "Take a trowel to the dig site and see what you turn up." },
   "skill.archery": { action: [{ id: "do", label: "Fell a target dummy", type: "slay", enemyDefId: "enemy.target_dummy", qty: 1 }], gift: [{ itemId: "tool.bow.oak", qty: 1 }, { itemId: "item.arrow.bronze", qty: 30 }], note: "Here's a bow and arrows — equip the bow and loose at the dummy." },
-  "skill.construction": { action: [train("skill.construction", "Raise the ramp at the build site")], gift: [{ itemId: "item.brick.stone", qty: 6 }, { itemId: "item.plank.cut", qty: 4 }], note: "Bricks and planks — raise the ramp at the build site." },
+  "skill.construction": { action: [train("skill.construction", "Repair the collapsed ramp")], gift: [{ itemId: "item.brick.stone", qty: 6 }, { itemId: "item.plank.cut", qty: 4 }], note: "See that scaffolded wreck beside me? The ramp collapsed in the last storm. Take these bricks and planks, click the broken ramp, and build it back up" },
   "skill.brewing": { action: [train("skill.brewing", "Brew a draught in the cauldron")], gift: [{ itemId: "item.herb.sage", qty: 1 }, { itemId: "item.feather", qty: 1 }], note: "Sage and a feather — brew a draught in the cauldron." },
   "skill.enchanting": { action: [train("skill.enchanting", "Rune the axe at the table")], gift: [{ itemId: "tool.axe.iron", qty: 1 }, { itemId: "item.relic.idol", qty: 1 }], note: "An iron axe and a relic idol — rune the axe at the table." },
   "skill.hunting": { action: [{ id: "do", label: "Catch a chicken", type: "slay", enemyDefId: "enemy.chicken", qty: 1 }] },
@@ -5223,6 +5232,9 @@ export interface EnemyDef {
   scale?: number;
   /** Regional recolor of the view rig's main body material. */
   tint?: string;
+  /** Never engages, chases, leashes or wanders — a fixed training target.
+   *  Being hit can't heal it (no leash reset), so it can actually be felled. */
+  stationary?: boolean;
 }
 
 export const ENEMIES: Record<string, EnemyDef> = {
@@ -5307,6 +5319,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     xpOnDefeat: 6,
     loot: [],
     view: "dummy",
+    stationary: true, // never shuffles or leash-heals — it can actually be felled
   },
   "enemy.spider": {
     id: "enemy.spider",

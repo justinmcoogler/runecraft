@@ -655,6 +655,9 @@ export class Hud {
         case "inventoryFull":
           this.toast("Your pack is full.", "warn");
           break;
+        case "tilled":
+          this.toast("You till the earth into a farm plot — sow a seed on it.", "info");
+          break;
         case "nodeDepleted": {
           // The same event fires for every gatherable — branch the message on
           // the node kind so mining a rock dry doesn't read "The tree is felled."
@@ -1257,6 +1260,13 @@ export class Hud {
           if (this.sim.hp >= this.sim.maxHp()) this.toast("You're already at full health.", "info");
           else this.sim.enqueue({ type: "eatSlot", slot: this.selectedSlot! });
         },
+      };
+    } else if (item.toolTags?.includes("hoe")) {
+      // The hoe works straight from the pack: till the ground you stand on
+      // into a farm plot ready to sow.
+      action = {
+        label: "Till the ground here",
+        run: () => this.sim.enqueue({ type: "tillSlot", slot: this.selectedSlot! }),
       };
     } else if (item.toolTags || item.armorSlot) {
       action = {

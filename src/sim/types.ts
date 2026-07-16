@@ -24,6 +24,7 @@ export type Command =
   | { type: "eatSlot"; slot: number }
   | { type: "burnSlot"; slot: number }
   | { type: "burySlot"; slot: number }
+  | { type: "tillSlot"; slot: number }
   | { type: "alchSlot"; slot: number; high: boolean }
   | { type: "unequipArmor"; slot: ArmorSlot }
   | { type: "shopBuy"; itemId: string }
@@ -58,6 +59,7 @@ export type SimEvent =
   | { type: "gemFound"; itemId: string }
   | { type: "logBurned"; itemId: string }
   | { type: "bonesBuried"; itemId: string }
+  | { type: "tilled"; cell: Cell }
   | { type: "spellCast"; spell: string; coins: number }
   | { type: "xpGained"; skillId: string; amount: number }
   | { type: "levelUp"; skillId: string; level: number }

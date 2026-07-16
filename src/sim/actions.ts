@@ -301,10 +301,15 @@ export class ActionController {
       return;
     }
 
-    // Ranged weapons stop early on the way in; pathing always aims for the
-    // melee ring so a clear shot is never required to start walking.
+    // Ranged weapons stop early on the way in; pathing aims for the melee ring
+    // first so a clear shot is never required to start walking — but when the
+    // melee ring is fenced off (a penned target), a ranged attacker instead
+    // walks to any reachable cell WITHIN range and shoots over the fence.
     const pathRange = kind === "enemy" ? 1 : rangeCells;
-    const path = this.pathToInteractionCell(playerCell, targetCell, pathRange);
+    let path = this.pathToInteractionCell(playerCell, targetCell, pathRange);
+    if (!path && kind === "enemy" && rangeCells > 1) {
+      path = this.pathToInteractionCell(playerCell, targetCell, rangeCells);
+    }
     if (!path) {
       // A solid building's door is walled into its mass, so no cell around it is
       // walkable — clicking the building still takes you inside. Any portal (or
@@ -683,6 +688,17 @@ export class ActionController {
       d.inventory.add(drop.itemId, qty);
       d.events.emit({ type: "itemGained", itemId: drop.itemId, qty });
       d.events.emit({ type: "inventoryChanged" });
+      // Harvesting a sown crop always returns seed for the next planting, so
+      // farming sustains itself (overflow falls at your feet).
+      if (def.plantable && drop.itemId !== def.plantable.seedItemId) {
+        const seeds = d.rng.intBetween(1, 2);
+        if (d.inventory.canAdd(def.plantable.seedItemId, seeds)) {
+          d.inventory.add(def.plantable.seedItemId, seeds);
+          d.events.emit({ type: "itemGained", itemId: def.plantable.seedItemId, qty: seeds });
+        } else {
+          d.spawnGroundItem(d.movement.currentCell(), def.plantable.seedItemId, seeds);
+        }
+      }
       d.skills.grantXp(def.skillId, def.xpPerCycle);
       // Mining also has a rare chance to strike a gem — the finer the stone,
       // the rarer the find. Slips silently if the pack is full.
@@ -790,6 +806,21 @@ export class ActionController {
     }
     d.movement.faceToward(pipeline.targetCell);
 
+    // Bows loose a real arrow per shot: no arrows, no shooting. A missed
+    // arrow lands by the target and can be picked back up; a hit breaks it
+    // half the time (the rest are recoverable too).
+    const usingBow = d.combatSkillId() === "skill.archery";
+    let arrowId: string | null = null;
+    if (usingBow) {
+      arrowId = ["item.arrow.bronze", "item.arrow.iron"].find((id) => d.inventory.count(id) > 0) ?? null;
+      if (!arrowId) {
+        this.reject("missing_inputs", pipeline.targetId);
+        return this.end("failed", "out_of_arrows");
+      }
+      d.inventory.removeItemById(arrowId, 1);
+      d.events.emit({ type: "inventoryChanged" });
+    }
+
     const attack = PLAYER_COMBAT.attack;
     const level = d.attackLevel();
     const accuracy = Math.min(
@@ -806,6 +837,8 @@ export class ActionController {
         d.rng.intBetween(attack.dmgMin, attack.dmgMax + levelDamageBonus) + d.weaponBonus() + strengthBonus;
       const killed = d.enemies.damage(pipeline.targetId, damage);
       d.events.emit({ type: "playerAttack", instanceId: pipeline.targetId, damage, killed });
+      // A landed arrow survives half the time, stuck in the target's cell.
+      if (arrowId && d.rng.next() < 0.5) d.spawnGroundItem(pipeline.targetCell, arrowId, 1);
       // Combat XP is routed by attack style (Attack / Strength / Defense, or
       // Archery for bows) with Constitution always taking a share.
       d.awardCombatXp(damage * attack.xpPerDamage);
@@ -836,6 +869,9 @@ export class ActionController {
       }
     } else {
       d.events.emit({ type: "playerAttack", instanceId: pipeline.targetId, damage: null, killed: false });
+      // A missed arrow sails past and lands by the target — walk over to
+      // collect it once the fight is done.
+      if (arrowId) d.spawnGroundItem(pipeline.targetCell, arrowId, 1);
     }
     pipeline.cycleTicksLeft = this.cycleTicksTotal();
     this.phase = "waitingForNextCycle";
