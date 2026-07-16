@@ -126,6 +126,12 @@ export class ActionController {
     return this.pipeline?.targetId ?? null;
   }
 
+  /** The recipe being crafted right now, if the live pipeline is a craft. Lets
+   *  the HUD label the progress bar with what's being made. */
+  currentRecipeId(): string | null {
+    return this.pipeline && this.pipeline.kind === "craft" ? this.pipeline.recipeId ?? null : null;
+  }
+
   /** The animation the player rig should play for the live action, or null when
    *  idle/moving. Derived from the pipeline kind and (for gather/craft) skill. */
   currentActionAnim(): ActionAnim | null {

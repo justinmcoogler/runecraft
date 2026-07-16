@@ -4885,6 +4885,12 @@ export interface QuestObjectiveDef {
    *  craft once at the master's station and it ticks). */
   skillId?: string;
   qty?: number;
+  /** World instance the guidance should lead to for this objective — the
+   *  resource node / crafting station to go and use (resolved to a cell by the
+   *  quest helper). Lets a lesson point at the tree or furnace, not just the
+   *  master. For a deliver, guidance follows this until you're carrying enough,
+   *  then swaps to the giver to hand in. */
+  atId?: string;
 }
 
 export interface QuestDef {
@@ -5026,7 +5032,7 @@ const LESSONS: Record<string, Lesson> = {
   "skill.fishing": { deliver: { itemId: "item.fish.raw", qty: 2 }, gift: [{ itemId: "tool.fishingrod.basic", qty: 1 }], note: "Here's a rod — catch a couple of fish and bring them back." },
   "skill.cooking": { action: [train("skill.cooking", "Cook a fish on the campfire")], gift: [{ itemId: "item.fish.raw", qty: 2 }], note: "Here's a raw fish — cook it on the campfire." },
   "skill.smelting": { action: [train("skill.smelting", "Smelt a copper bar at the furnace")], gift: [{ itemId: "item.ore.copper", qty: 2 }], note: "Take this copper ore — smelt it in the furnace." },
-  "skill.smithing": { action: [train("skill.smithing", "Hammer something on the anvil")], gift: [{ itemId: "item.bar.copper", qty: 2 }], note: "Two copper bars — hammer them into a blade on the anvil." },
+  "skill.smithing": { action: [train("skill.smithing", "Hammer something on the anvil")], gift: [{ itemId: "tool.hammer.basic", qty: 1 }, { itemId: "item.bar.copper", qty: 2 }], note: "Here's a hammer and two copper bars — hammer them into a blade on the anvil." },
   "skill.attack": { action: [{ id: "do", label: "Cull 3 pigs, switching attack styles", type: "slay", enemyDefId: "enemy.pig", qty: 3 }], gift: [{ itemId: "tool.sword.bronze", qty: 1 }] },
   "skill.farming": { deliver: { itemId: "item.wheat", qty: 2 }, note: "Harvest a couple of wheat from the plot and bring them to me." },
   "skill.herblore": { deliver: { itemId: "item.herb.sage", qty: 2 }, note: "Pick a couple of sage and bring them to me." },
@@ -5070,7 +5076,10 @@ TUTORIAL_ORDER.forEach((skill, i) => {
   const npc = masterNpcId(skill);
   const skillName = SKILLS[skill]?.name ?? short;
   const lesson = LESSONS[skill] ?? {};
-  const action = lesson.action ?? [];
+  // Point "train" objectives at the master's station so the guidance leads you
+  // to the furnace / anvil / dig site, not just back to the tutor.
+  const station = `tut.station.${short}`;
+  const action = (lesson.action ?? []).map((o) => (o.type === "train" ? { ...o, atId: station } : o));
   const gift = lesson.gift ? { items: lesson.gift, note: lesson.note ?? "" } : undefined;
   const combat = skill === "skill.attack";
   // Sequential unlock: the first lesson follows the welcome; the rest each
@@ -5082,7 +5091,7 @@ TUTORIAL_ORDER.forEach((skill, i) => {
   // what you gathered (no fragile intermediate step to desync). The rest do
   // their action, then report in.
   const closer: QuestObjectiveDef = lesson.deliver
-    ? { id: "hand", label: `Bring the ${ITEMS[lesson.deliver.itemId]?.name ?? "goods"} to ${giverName}`, type: "deliver", npcId: npc, itemId: lesson.deliver.itemId, qty: lesson.deliver.qty }
+    ? { id: "hand", label: `Bring the ${ITEMS[lesson.deliver.itemId]?.name ?? "goods"} to ${giverName}`, type: "deliver", npcId: npc, itemId: lesson.deliver.itemId, qty: lesson.deliver.qty, atId: station }
     : { id: "report", label: `Report back to ${giverName}`, type: "talk", npcId: npc };
   QUESTS[`quest.tut_${short}`] = {
     id: `quest.tut_${short}`,

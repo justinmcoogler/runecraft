@@ -8,6 +8,7 @@ import { GameSimulation } from "../simulation";
 import type { SimEvent } from "../types";
 import { TUTORIAL_SEED } from "../worldgen/endless";
 import { masterNpcId, QUESTS, TUTORIAL_ORDER } from "../../content/content";
+import { activeQuestTarget } from "../../ui/quest-helper";
 
 describe("Tutor's Trail", () => {
   it("is a finite region — no endless terrain source or chunk streaming", () => {
@@ -73,6 +74,25 @@ describe("Tutor's Trail", () => {
     expect(sim.world.blockAt(node!.cell)).toBe("water");
     const bank = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => sim.world.walkable({ x: node!.cell.x + dx, z: node!.cell.z + dz }));
     expect(bank).toBe(true);
+  });
+
+  it("guides a gatherer lesson to the resource, then to the master to hand in", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    const q = sim.quests;
+    // Accept the welcome + the woodcutting lesson.
+    q.process([{ type: "npcChat", instanceId: "tutorial.guide", name: "" }]);
+    q.process([{ type: "npcChat", instanceId: masterNpcId("skill.woodcutting"), name: "" }]);
+    expect(q.states["quest.tut_woodcutting"].status).toBe("active");
+    // Carrying nothing yet: the guidance points at the tree to chop, not the tutor.
+    const tree = sim.world.region.nodes.find((n) => n.instanceId === "tut.station.woodcutting")!;
+    expect(tree).toBeTruthy();
+    expect(activeQuestTarget(sim)?.cell).toEqual(tree.cell);
+    // A second tree stands beside it so you can alternate.
+    expect(sim.world.region.nodes.some((n) => n.instanceId === "tut.station.woodcutting.b")).toBe(true);
+    // Once the logs are in the pack, guidance swaps to the master to hand in.
+    sim.inventory.add("item.log.basic", 2);
+    const master = sim.world.region.npcs.find((n) => n.instanceId === masterNpcId("skill.woodcutting"))!;
+    expect(activeQuestTarget(sim)?.cell).toEqual(master.cell);
   });
 
   it("does not set the graduation flag until the chain is done", () => {

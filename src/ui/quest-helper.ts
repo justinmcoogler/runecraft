@@ -26,6 +26,36 @@ export function giverCell(sim: GameSimulation, questId: string): Cell | null {
   return def ? npcCell(sim, def.giverNpcId) : null;
 }
 
+/** Cell of any world instance in the current region (node, station object,
+ *  penned enemy or NPC) by its instanceId — used to lead a lesson to its
+ *  resource / station rather than back to the tutor. */
+function instanceCell(sim: GameSimulation, id: string): Cell | null {
+  const region = sim.world.region;
+  const node = region.nodes.find((n) => n.instanceId === id);
+  if (node) return node.cell;
+  const obj = region.objects.find((o) => o.instanceId === id);
+  if (obj) return obj.cell;
+  const enemy = (region.enemies ?? []).find((e) => e.instanceId === id);
+  if (enemy) return enemy.cell;
+  const npc = region.npcs.find((n) => n.instanceId === id);
+  if (npc) return npc.cell;
+  return null;
+}
+
+/** Nearest node in the current region that drops the wanted item. */
+function nearestNodeDropping(sim: GameSimulation, itemId: string): Cell | null {
+  const p = sim.movement.pos;
+  let best: Cell | null = null;
+  let bestD = Infinity;
+  for (const node of sim.world.region.nodes) {
+    const nodeDef = NODES[node.defId];
+    if (!nodeDef?.drops?.some((drop) => drop.itemId === itemId)) continue;
+    const d = Math.hypot(node.cell.x - p.x, node.cell.z - p.z);
+    if (d < bestD) { bestD = d; best = node.cell; }
+  }
+  return best;
+}
+
 export interface QuestTarget {
   cell: Cell;
   questName: string;
@@ -77,8 +107,20 @@ export function activeQuestTarget(sim: GameSimulation): QuestTarget | null {
     // resolves to a cell in the region the player is actually in.
     let cell: Cell | null = null;
     let overworld = inOverworld;
-    if (objective.type === "talk" || objective.type === "deliver") {
+    if (objective.type === "talk") {
       cell = objective.npcId ? npcCell(sim, objective.npcId) : giverCell(sim, questId);
+    } else if (objective.type === "deliver") {
+      // Still gathering? Lead to the resource (explicit station, else nearest
+      // node dropping it). Once you're carrying enough, lead to the giver to
+      // hand it in.
+      const have = objective.itemId ? sim.inventory.count(objective.itemId) : Infinity;
+      if (objective.itemId && have < (objective.qty ?? 1)) {
+        cell = (objective.atId ? instanceCell(sim, objective.atId) : null) ?? nearestNodeDropping(sim, objective.itemId);
+      }
+      cell = cell ?? (objective.npcId ? npcCell(sim, objective.npcId) : giverCell(sim, questId));
+    } else if (objective.type === "train") {
+      // Lead to the station where the craft is performed.
+      cell = objective.atId ? instanceCell(sim, objective.atId) : null;
     } else if (objective.type === "slay" && objective.enemyDefId) {
       // Nearest live enemy in the current region, else its overworld den.
       const p = sim.movement.pos;

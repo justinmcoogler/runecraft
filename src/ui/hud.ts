@@ -1036,9 +1036,16 @@ export class Hud {
         ${requirement}
         <span class="recipe-inputs">${inputs}</span>`;
       row.addEventListener("click", () => {
-        this.currentTargetName = def.name;
+        if (!craftable) return; // can't make it yet — leave the sheet open
+        // Name the plate after what you're making, not the station, so the bar
+        // reads "Cooking Roast Chicken".
+        const outId = recipe.outputs[0]?.itemId;
+        this.currentTargetName = outId ? ITEMS[outId]?.name ?? recipe.name : recipe.name;
         this.currentVerb = SKILL_VERBS[recipe.skillId] ?? "Working at";
         this.sim.enqueue({ type: "craft", stationId, recipeId });
+        // Collapse the recipe sheet so the progress bar underneath is visible —
+        // you watch it cook, not a wall of recipes hiding the bar.
+        this.q(".recipe-panel").classList.add("hidden");
       });
       list.appendChild(row);
     }
@@ -1067,8 +1074,19 @@ export class Hud {
     this.targetPlateEl.classList.toggle("hidden", !pipelineLive);
     if (pipelineLive) {
       const phase = this.sim.actions.phase;
-      const verb = phase === "movingToTarget" ? "Walking to" : this.currentVerb;
-      this.targetNameEl.textContent = `${verb} ${this.currentTargetName}`;
+      let verb = phase === "movingToTarget" ? "Walking to" : this.currentVerb;
+      let name = this.currentTargetName;
+      // While crafting, label the bar with what's being made (its output), not
+      // the station — and derive it live so targetSelected can't overwrite it.
+      const recipeId = phase !== "movingToTarget" ? this.sim.actions.currentRecipeId() : null;
+      if (recipeId) {
+        const recipe = RECIPES[recipeId];
+        const outId = recipe?.outputs[0]?.itemId;
+        name = outId ? ITEMS[outId]?.name ?? recipe.name : recipe?.name ?? name;
+        // "Cooking at" reads wrong before a dish name — trim it to "Cooking".
+        verb = (SKILL_VERBS[recipe.skillId] ?? verb).replace(/ at$/, "");
+      }
+      this.targetNameEl.textContent = `${verb} ${name}`;
       this.progressFillEl.style.width = `${Math.round(this.sim.actions.cycleProgress() * 100)}%`;
     }
   }
