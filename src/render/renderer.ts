@@ -9,6 +9,8 @@ import type { StructureAsset, StructureBlock } from "../structures/types";
 import { effectiveSink, groundFloorTop } from "../structures/types";
 import type { GameSimulation } from "../sim/simulation";
 import type { SimEvent, Cell } from "../sim/types";
+import { findPath } from "../sim/pathfinding";
+import { activeQuestTarget } from "../ui/quest-helper";
 import type { BlockType, ObjectPlacement as ObjectPlacementView } from "../sim/world";
 import { CameraRig } from "./camera";
 import { CharacterView, type CharacterPose } from "./character";
@@ -355,13 +357,20 @@ export class GameRenderer {
   /** A glowing pillar over the current tutorial objective so the newcomer can
    *  find the next (spread-out) station. */
   private tutorialBeacon: THREE.Mesh | null = null;
+  private questDots: THREE.Mesh[] = [];
+  private questDotGeo: THREE.CircleGeometry | null = null;
 
-  private updateTutorialBeacon(): void {
-    const cell = this.sim.tutorial && !this.sim.tutorial.complete ? this.sim.tutorial.markerCell() : null;
-    if (!cell) {
+  /** A glowing pillar over the active quest objective, plus a trail of dots
+   *  marking the walkable path to it — quest help that shows where to go. */
+  private updateQuestGuidance(): void {
+    const target = activeQuestTarget(this.sim);
+    if (!target) {
       if (this.tutorialBeacon) this.tutorialBeacon.visible = false;
+      for (const d of this.questDots) d.visible = false;
       return;
     }
+    const goal = target.cell;
+    // Objective beacon.
     if (!this.tutorialBeacon) {
       const geo = new THREE.BoxGeometry(0.5, 10, 0.5);
       geo.translate(0, 5, 0);
@@ -370,10 +379,50 @@ export class GameRenderer {
       this.tutorialBeacon.renderOrder = 3;
       this.scene.add(this.tutorialBeacon);
     }
-    const mat = this.tutorialBeacon.material as THREE.MeshBasicMaterial;
-    mat.opacity = 0.32 + 0.22 * (0.5 + 0.5 * Math.sin(this.elapsed * 3));
-    this.tutorialBeacon.position.set(cell.x + 0.5, this.sim.world.surfaceY(cell), cell.z + 0.5);
+    (this.tutorialBeacon.material as THREE.MeshBasicMaterial).opacity = 0.32 + 0.22 * (0.5 + 0.5 * Math.sin(this.elapsed * 3));
+    this.tutorialBeacon.position.set(goal.x + 0.5, this.sim.world.surfaceY(goal), goal.z + 0.5);
     this.tutorialBeacon.visible = true;
+
+    // Dotted trail from the player to a walkable cell beside the objective.
+    const player = this.sim.movement.currentCell();
+    const approach = this.walkableNear(goal);
+    const path = approach ? findPath(this.sim.world, player, approach) : null;
+    if (!path || path.length === 0) {
+      for (const d of this.questDots) d.visible = false;
+      return;
+    }
+    if (!this.questDotGeo) {
+      this.questDotGeo = new THREE.CircleGeometry(0.26, 16);
+      this.questDotGeo.rotateX(-Math.PI / 2);
+    }
+    // One dot every other path cell (capped), pulsing as it "marches" toward
+    // the goal so the trail reads as a direction, not a static dotted line.
+    let di = 0;
+    for (let i = 0; i < path.length && di < 48; i += 2) {
+      const c = path[i];
+      if (di >= this.questDots.length) {
+        const mat = new THREE.MeshBasicMaterial({ color: "#ffdc55", transparent: true, opacity: 0.6, depthWrite: false });
+        const mesh = new THREE.Mesh(this.questDotGeo, mat);
+        mesh.renderOrder = 3;
+        this.scene.add(mesh);
+        this.questDots.push(mesh);
+      }
+      const dot = this.questDots[di++];
+      dot.position.set(c.x + 0.5, this.sim.world.surfaceY(c) + 0.16, c.z + 0.5);
+      (dot.material as THREE.MeshBasicMaterial).opacity = 0.3 + 0.4 * (0.5 + 0.5 * Math.sin(this.elapsed * 4 - i * 0.6));
+      dot.visible = true;
+    }
+    for (; di < this.questDots.length; di++) this.questDots[di].visible = false;
+  }
+
+  /** The cell itself if walkable, else a walkable neighbour, else null. */
+  private walkableNear(cell: { x: number; z: number }): { x: number; z: number } | null {
+    if (this.sim.world.walkable(cell)) return cell;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const) {
+      const c = { x: cell.x + dx, z: cell.z + dz };
+      if (this.sim.world.walkable(c)) return c;
+    }
+    return null;
   }
   /** Shared canopy-sway clock + amplitude (weather-driven), referenced by every
    *  leaf material so the whole forest breathes off one uniform. */
@@ -4942,7 +4991,7 @@ export class GameRenderer {
       for (const g of this.portalGlows) g.mat.opacity = g.base + g.amp * pulse;
     }
 
-    this.updateTutorialBeacon();
+    this.updateQuestGuidance();
 
     // Doors ease toward their open/closed angle.
     for (const [id, leaf] of this.doorLeaves) {
