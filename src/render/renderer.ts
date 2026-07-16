@@ -2538,24 +2538,20 @@ export class GameRenderer {
           break;
         }
         case "object.gate.oak": {
-          // A Minecraft oak fence gate: two thick posts flanking a swinging
-          // gate of two rails and vertical slats, all in the same plank wood as
-          // the oak fences it sits between, so the line reads continuous. The
-          // swinging half is a doorLeaf so click-to-open/close rotates it.
+          // A Minecraft oak fence gate: just the swinging gate — two rails and
+          // vertical slats spanning the full cell — hung between the posts of
+          // the oak fences on either side (which supply the posts, so we add
+          // none of our own). Same plank wood as the fences, so the line reads
+          // continuous. The leaf is a doorLeaf so click-to-open/close rotates it.
           const wood = this.lambert("terrain.plank");
-          for (const fx of [-0.5, 0.5]) {
-            const post = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.5, 0.24), wood);
-            post.position.set(fx, 0.75, 0);
-            group.add(post);
-          }
           const leaf = new THREE.Group();
-          leaf.position.set(-0.5, 0, 0); // hinge at the left post
+          leaf.position.set(-0.5, 0, 0); // hinge at the left fence post
           for (const py of [0.6, 1.15]) {
-            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.16, 0.16), wood);
-            rail.position.set(0.5, py, 0); // centred between the posts
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(1, 0.16, 0.16), wood);
+            rail.position.set(0.5, py, 0); // spans post to post
             leaf.add(rail);
           }
-          for (const sx of [0.2, 0.5, 0.8]) {
+          for (const sx of [0.15, 0.5, 0.85]) {
             const slat = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.62, 0.13), wood);
             slat.position.set(sx, 0.875, 0);
             leaf.add(slat);
