@@ -426,6 +426,10 @@ interface EndlessSaveData {
   timeS: number;
   shared: SharedState;
   containers: Record<string, Slots>;
+  /** Region the save was made in. Absent/endless = the boundless overworld;
+   *  "region.tutorial" = mid-tutorial (Continue re-enters the island with all
+   *  quest/skill/pack progress intact instead of losing the run). */
+  region?: string;
 }
 
 /** A lightweight summary of a saved world, for the "continue" list. */
@@ -488,38 +492,59 @@ export function deleteEndlessWorld(seed: number): void {
   }
 }
 
-export function saveEndlessToStorage(sim: GameSimulation): boolean {
+export function saveEndlessToStorage(sim: GameSimulation, slotSeed?: number, regionId?: string): boolean {
   try {
     const containers: Record<string, Slots> = {};
     for (const [id, inv] of sim.containers) containers[id] = inv.slots;
+    // Mid-tutorial the sim's own seed is the fixed tutorial seed; the slot is
+    // keyed by the WORLD's seed (the one the player will graduate into), so
+    // the save lands in — and resumes from — their world's slot.
+    const worldSeed = slotSeed ?? sim.seed;
     const data: EndlessSaveData = {
       save_format_version: SAVE_FORMAT_VERSION,
       endless: true,
-      seed: sim.seed,
+      seed: worldSeed,
       updated_utc: new Date().toISOString(),
       player: { cell: sim.movement.currentCell(), facing: sim.movement.facing },
       timeS: sim.timeS,
       shared: captureSharedState(sim),
       containers,
+      region: regionId ?? "region.endless",
     };
     const json = JSON.stringify(data);
-    localStorage.setItem(endlessWorldKey(sim.seed), json); // this world's own slot
-    localStorage.setItem(ENDLESS_KEY, json);               // last-played pointer
+    localStorage.setItem(endlessWorldKey(worldSeed), json); // this world's own slot
+    localStorage.setItem(ENDLESS_KEY, json);                // last-played pointer
     return true;
   } catch {
     return false;
   }
 }
 
-/** Restore player state onto a freshly created endless sim of the same seed. */
-export function loadEndlessFromStorage(sim: GameSimulation): boolean {
+/** Region a saved world was last played in ("region.tutorial" mid-tutorial). */
+export function peekEndlessRegion(seed: number): string | null {
   try {
+    const json = localStorage.getItem(endlessWorldKey(seed)) ?? localStorage.getItem(ENDLESS_KEY);
+    if (!json) return null;
+    const data = JSON.parse(json) as EndlessSaveData;
+    if (!data.endless || data.seed !== seed) return null;
+    return data.region ?? "region.endless";
+  } catch {
+    return null;
+  }
+}
+
+/** Restore player state onto a freshly created endless (or tutorial) sim.
+ *  `slotSeed` overrides which world slot to read — required when resuming the
+ *  tutorial, whose sim seed is the fixed tutorial seed, not the world's. */
+export function loadEndlessFromStorage(sim: GameSimulation, slotSeed?: number): boolean {
+  try {
+    const worldSeed = slotSeed ?? sim.seed;
     const json =
-      localStorage.getItem(endlessWorldKey(sim.seed)) ??
+      localStorage.getItem(endlessWorldKey(worldSeed)) ??
       localStorage.getItem(ENDLESS_KEY); // fall back to the legacy single slot
     if (!json) return false;
     const data = JSON.parse(json) as EndlessSaveData;
-    if (!data.endless || data.seed !== sim.seed) return false;
+    if (!data.endless || data.seed !== worldSeed) return false;
     applySharedState(sim, data.shared);
     for (const [id, slots] of Object.entries(data.containers ?? {})) {
       const inv = sim.containers.get(id);

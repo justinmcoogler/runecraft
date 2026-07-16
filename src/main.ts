@@ -24,6 +24,7 @@ import {
   deleteEndlessWorld,
   listEndlessWorlds,
   loadEndlessFromStorage,
+  peekEndlessRegion,
   loadFromStorage,
   peekEndlessSeed,
   peekRegionId,
@@ -130,12 +131,16 @@ async function boot(): Promise<void> {
     const chosen = chosenSeed ?? savedEndlessSeed ?? seed();
     // New World now asks: the tutorial island, or straight to the wild. The
     // tutorial's gateway later graduates the player into `chosen` (their world).
-    if (freshWorld && wantTutorial && params.get("seed") === null) {
+    // Continuing a world whose save was made mid-tutorial re-enters the island
+    // with quests/skills/pack intact (the save is region-tagged).
+    const resumeTutorial =
+      !freshWorld && params.get("seed") === null && peekEndlessRegion(chosen) === "region.tutorial";
+    if ((freshWorld && wantTutorial && params.get("seed") === null) || resumeTutorial) {
       currentRegionId = "region.tutorial";
       endlessSeed = chosen; // the world they'll graduate into
       sim = GameSimulation.createTutorial(TUTORIAL_SEED);
       editorLayerKey = `${EDITOR_LAYER_KEY}.tutorial`;
-      restored = false;
+      restored = resumeTutorial ? loadEndlessFromStorage(sim, chosen) : false;
     } else {
       currentRegionId = "region.endless";
       sim = GameSimulation.createEndless(chosen);
@@ -150,7 +155,8 @@ async function boot(): Promise<void> {
         markTutorialDone();
         for (const [itemId, qty] of [
           ["tool.axe.copper", 1], ["tool.pickaxe.copper", 1], ["tool.fishingrod.basic", 1],
-          ["tool.hammer.basic", 1], ["tool.sword.bronze", 1], ["item.pork.cooked", 5], ["item.coin", 50],
+          ["tool.hammer.basic", 1], ["tool.hoe.basic", 1], ["tool.sword.bronze", 1],
+          ["item.seed.wheat", 3], ["item.pork.cooked", 5], ["item.coin", 50],
         ] as const) {
           sim.inventory.add(itemId, qty);
         }
@@ -295,9 +301,12 @@ async function boot(): Promise<void> {
   // reload until per-chunk diffs land); the province stores everything.
   const doSave = () => {
     if (endlessMode) {
-      // Only the boundless overworld persists; dungeon floors are transient
-      // (their loot lands in the shared inventory, saved on the way out).
-      if (currentRegionId === "region.endless") hud.markSaved(saveEndlessToStorage(sim));
+      // The boundless overworld AND the tutorial persist (quitting mid-tutorial
+      // must not lose the run); dungeon floors are transient (their loot lands
+      // in the shared inventory, saved on the way out).
+      if (currentRegionId === "region.endless" || currentRegionId === "region.tutorial") {
+        hud.markSaved(saveEndlessToStorage(sim, endlessSeed, currentRegionId));
+      }
     } else {
       hud.markSaved(saveToStorage(sim, regionStore));
     }
