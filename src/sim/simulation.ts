@@ -16,7 +16,7 @@ import { NpcSystem } from "./npc";
 import { QuestService } from "./quests";
 import { SkillService } from "./skills";
 import { ChunkManager } from "./chunk-manager";
-import { DANGER_MOBS, dangerTier, EndlessTerrain, remoteness01, setValeActive, starterTownRegion, terrainAt, tutorialRegion } from "./worldgen/endless";
+import { DANGER_MOBS, dangerTier, EndlessTerrain, inStarterTown, remoteness01, setValeActive, starterTownRegion, terrainAt, tutorialRegion } from "./worldgen/endless";
 import { biomeName } from "./worldgen/biomes";
 import { DUNGEON_ID_RE, type DungeonStyle, dungeonSpecFor } from "./worldgen/dungeons";
 import { CuratorService, SlayerService } from "./taskmasters";
@@ -1000,6 +1000,8 @@ export class GameSimulation {
   /** Announce the named biome at a cell; the first visit adds it to the codex
    *  and pays a small bounty. Cheap: only called when the player changes cell. */
   private noteBiome(cell: Cell): void {
+    // The walled tutorial vale is one place — no biome-discovery chatter there.
+    if (inStarterTown(this.seed, cell.x, cell.z)) return;
     const base = terrainAt(this.seed, cell.x, cell.z).biome;
     const name = biomeName(this.seed, cell.x, cell.z, base);
     if (name === this.currentBiomeName) return;

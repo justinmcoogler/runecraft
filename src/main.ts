@@ -11,6 +11,7 @@ import { MapPanel } from "./ui/map-panel";
 import { DebugMap } from "./ui/debug-map";
 import { WaypointsPanel } from "./ui/waypoints-panel";
 import { FactionsPanel } from "./ui/factions-panel";
+import { MiniMap } from "./ui/minimap";
 import { Sfx, type SfxName } from "./render/audio";
 import { GameRenderer } from "./render/renderer";
 import { isModelEnabled, loadModelPrefs } from "./render/model-prefs";
@@ -183,6 +184,9 @@ async function boot(): Promise<void> {
   if (!endlessMode) new MapPanel(hudRoot, () => sim);
   // Endless-world debug overlay (biome/height/danger/features) — toggle with `~`.
   new DebugMap(hudRoot, () => sim);
+  // Always-on minimap (tutorial vale + endless): click to enlarge, click the
+  // big map to walk there, with the active quest marked. Toggle full map with N.
+  new MiniMap(hudRoot, () => sim);
   // Fast-travel between discovered landmarks — toggle with `T` (endless world).
   if (endlessMode) new WaypointsPanel(hudRoot, () => sim);
   // Faction standing — toggle with `G`.
