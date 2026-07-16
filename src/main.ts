@@ -110,6 +110,7 @@ async function boot(): Promise<void> {
   let chosenSeed: number | null =
     params.get("seed") !== null ? Math.abs(Number(params.get("seed"))) % 2147483647 || 1 : null;
   let freshWorld = false;
+  let wantTutorial = false;
   if (endlessMode && chosenSeed === null) {
     const choice = await showStartScreen({
       worlds: listEndlessWorlds(),
@@ -117,6 +118,7 @@ async function boot(): Promise<void> {
     });
     chosenSeed = choice.seed;
     freshWorld = choice.fresh;
+    wantTutorial = choice.tutorial === true;
   }
 
   let sim: GameSimulation;
@@ -126,9 +128,9 @@ async function boot(): Promise<void> {
   let editorLayerKey = EDITOR_LAYER_KEY;
   if (endlessMode) {
     const chosen = chosenSeed ?? savedEndlessSeed ?? seed();
-    // First-ever New World starts in the TUTORIAL vale; stepping through its
-    // gateway later graduates the player into `chosen` (their own random world).
-    if (freshWorld && !tutorialDone() && params.get("seed") === null) {
+    // New World now asks: the tutorial island, or straight to the wild. The
+    // tutorial's gateway later graduates the player into `chosen` (their world).
+    if (freshWorld && wantTutorial && params.get("seed") === null) {
       currentRegionId = "region.tutorial";
       endlessSeed = chosen; // the world they'll graduate into
       sim = GameSimulation.createTutorial(TUTORIAL_SEED);
@@ -142,6 +144,17 @@ async function boot(): Promise<void> {
       // Editor edits apply before the save restores player state and the scene builds.
       applyLayerToSim(sim, loadEditorLayer(editorLayerKey));
       restored = freshWorld ? false : loadEndlessFromStorage(sim);
+      // Skipping the tutorial: hand the newcomer a starter kit of tools so they
+      // can gather and fight straight away.
+      if (freshWorld && !wantTutorial) {
+        markTutorialDone();
+        for (const [itemId, qty] of [
+          ["tool.axe.copper", 1], ["tool.pickaxe.copper", 1], ["tool.fishingrod.basic", 1],
+          ["tool.hammer.basic", 1], ["tool.sword.bronze", 1], ["item.pork.cooked", 5], ["item.coin", 50],
+        ] as const) {
+          sim.inventory.add(itemId, qty);
+        }
+      }
     }
   } else {
     sim = new GameSimulation(buildRegion(currentRegionId), seed());

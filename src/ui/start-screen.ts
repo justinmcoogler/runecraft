@@ -8,6 +8,9 @@ import type { EndlessWorldInfo } from "../save/save";
 export interface StartChoice {
   seed: number;
   fresh: boolean;
+  /** Fresh worlds only: start on the tutorial island, or drop straight into the
+   *  wild with a starter kit. Ignored when continuing a saved world. */
+  tutorial?: boolean;
 }
 
 export interface StartScreenOptions {
@@ -116,17 +119,22 @@ export function showStartScreen(opts: StartScreenOptions): Promise<StartChoice> 
         hint.textContent = "The same seed always grows the same world. Words work too.";
         form.append(label, input, hint);
 
+        // Two ways in: learn the ropes on the tutorial island, or skip straight
+        // to the wild with a starter kit of tools.
+        const tutBtn = bigButton("Play the Tutorial", "Learn every skill on the walled island first");
+        tutBtn.onclick = () => finish({ seed: seedFromText(input.value), fresh: true, tutorial: true });
+        const wildBtn = bigButton("Straight to the Wild", "Skip the tutorial — you'll start with a set of tools");
+        wildBtn.onclick = () => finish({ seed: seedFromText(input.value), fresh: true, tutorial: false });
+        form.append(tutBtn, wildBtn);
+
         const row = document.createElement("div");
         row.className = "start-row";
         const back = smallButton("Back");
         back.onclick = () => render("menu");
-        const create = smallButton("Create World");
-        create.classList.add("primary");
-        create.onclick = () => finish({ seed: seedFromText(input.value), fresh: true });
         input.onkeydown = (e) => {
-          if (e.key === "Enter") create.click();
+          if (e.key === "Enter") tutBtn.click();
         };
-        row.append(back, create);
+        row.append(back);
         form.appendChild(row);
         panel.appendChild(form);
         input.focus();
