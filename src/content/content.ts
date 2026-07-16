@@ -5002,24 +5002,29 @@ export function masterNpcId(skill: string): string {
 // be finished. `note` is folded into the master's greeting.
 const train = (skill: string, label: string): QuestObjectiveDef => ({ id: "do", label, type: "train", skillId: skill });
 interface Lesson {
-  action: QuestObjectiveDef[];
+  /** Slay/train doing-objectives performed before reporting back. */
+  action?: QuestObjectiveDef[];
+  /** Gatherer lessons: gather this and hand it in. The hand-in checks the pack
+   *  directly (no fragile intermediate gather step that can desync from what the
+   *  player actually did), so it completes the moment you return with the goods. */
+  deliver?: { itemId: string; qty: number };
   gift?: Array<{ itemId: string; qty: number }>;
   note?: string;
 }
 const LESSONS: Record<string, Lesson> = {
-  "skill.woodcutting": { action: [{ id: "do", label: "Chop 2 logs", type: "gather", itemId: "item.log.basic", qty: 2 }], gift: [{ itemId: "tool.axe.copper", qty: 1 }], note: "Here's a copper axe — sharper than your starter." },
-  "skill.mining": { action: [{ id: "eq", label: "Equip your pickaxe", type: "equipTag", toolTag: "pickaxe" }, { id: "do", label: "Mine 2 copper ore", type: "gather", itemId: "item.ore.copper", qty: 2 }], gift: [{ itemId: "tool.pickaxe.copper", qty: 1 }], note: "Take this pickaxe and equip it." },
-  "skill.foraging": { action: [{ id: "do", label: "Gather 2 berries", type: "gather", itemId: "item.berry.basic", qty: 2 }] },
-  "skill.fishing": { action: [{ id: "eq", label: "Equip your fishing rod", type: "equipTag", toolTag: "fishing_tool" }, { id: "do", label: "Catch 2 fish", type: "gather", itemId: "item.fish.raw", qty: 2 }], gift: [{ itemId: "tool.fishingrod.basic", qty: 1 }], note: "Here's a rod — equip it and cast off." },
+  "skill.woodcutting": { deliver: { itemId: "item.log.basic", qty: 2 }, gift: [{ itemId: "tool.axe.copper", qty: 1 }], note: "Here's a copper axe — fell a couple of logs and bring them back to me." },
+  "skill.mining": { deliver: { itemId: "item.ore.copper", qty: 2 }, gift: [{ itemId: "tool.pickaxe.copper", qty: 1 }], note: "Take this pickaxe — mine a couple of copper ore and bring them to me." },
+  "skill.foraging": { deliver: { itemId: "item.berry.basic", qty: 2 }, note: "Pick a couple of berries from the bush and bring them to me." },
+  "skill.fishing": { deliver: { itemId: "item.fish.raw", qty: 2 }, gift: [{ itemId: "tool.fishingrod.basic", qty: 1 }], note: "Here's a rod — catch a couple of fish and bring them back." },
   "skill.cooking": { action: [train("skill.cooking", "Cook a fish on the campfire")], gift: [{ itemId: "item.fish.raw", qty: 2 }], note: "Here's a raw fish — cook it on the campfire." },
   "skill.smelting": { action: [train("skill.smelting", "Smelt a copper bar at the furnace")], gift: [{ itemId: "item.ore.copper", qty: 2 }], note: "Take this copper ore — smelt it in the furnace." },
   "skill.smithing": { action: [train("skill.smithing", "Hammer something on the anvil")], gift: [{ itemId: "item.bar.copper", qty: 2 }], note: "Two copper bars — hammer them into a blade on the anvil." },
-  "skill.attack": { action: [{ id: "eq", label: "Equip your sword", type: "equipTag", toolTag: "weapon" }, { id: "do", label: "Cull 3 pigs, switching attack styles", type: "slay", enemyDefId: "enemy.pig", qty: 3 }], gift: [{ itemId: "tool.sword.bronze", qty: 1 }] },
-  "skill.farming": { action: [{ id: "do", label: "Harvest 2 wheat", type: "gather", itemId: "item.wheat", qty: 2 }] },
-  "skill.herblore": { action: [{ id: "do", label: "Pick 2 sage", type: "gather", itemId: "item.herb.sage", qty: 2 }] },
+  "skill.attack": { action: [{ id: "do", label: "Cull 3 pigs, switching attack styles", type: "slay", enemyDefId: "enemy.pig", qty: 3 }], gift: [{ itemId: "tool.sword.bronze", qty: 1 }] },
+  "skill.farming": { deliver: { itemId: "item.wheat", qty: 2 }, note: "Harvest a couple of wheat from the plot and bring them to me." },
+  "skill.herblore": { deliver: { itemId: "item.herb.sage", qty: 2 }, note: "Pick a couple of sage and bring them to me." },
   "skill.crafting": { action: [train("skill.crafting", "Cut planks at the workbench")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "Here's some timber — cut it into planks at the workbench." },
   "skill.archaeology": { action: [train("skill.archaeology", "Dig at the excavation")], note: "Take a trowel to the dig site and see what you turn up." },
-  "skill.archery": { action: [{ id: "eq", label: "Equip your bow", type: "equipTag", toolTag: "bow" }, { id: "do", label: "Fell a target dummy", type: "slay", enemyDefId: "enemy.target_dummy", qty: 1 }], gift: [{ itemId: "tool.bow.oak", qty: 1 }, { itemId: "item.arrow.bronze", qty: 30 }], note: "Here's a bow and arrows — equip the bow." },
+  "skill.archery": { action: [{ id: "do", label: "Fell a target dummy", type: "slay", enemyDefId: "enemy.target_dummy", qty: 1 }], gift: [{ itemId: "tool.bow.oak", qty: 1 }, { itemId: "item.arrow.bronze", qty: 30 }], note: "Here's a bow and arrows — equip the bow and loose at the dummy." },
   "skill.construction": { action: [train("skill.construction", "Raise the ramp at the build site")], gift: [{ itemId: "item.brick.stone", qty: 6 }, { itemId: "item.plank.cut", qty: 4 }], note: "Bricks and planks — raise the ramp at the build site." },
   "skill.brewing": { action: [train("skill.brewing", "Brew a draught in the cauldron")], gift: [{ itemId: "item.herb.sage", qty: 1 }, { itemId: "item.feather", qty: 1 }], note: "Sage and a feather — brew a draught in the cauldron." },
   "skill.enchanting": { action: [train("skill.enchanting", "Rune the axe at the table")], gift: [{ itemId: "tool.axe.iron", qty: 1 }, { itemId: "item.relic.idol", qty: 1 }], note: "An iron axe and a relic idol — rune the axe at the table." },
@@ -5056,20 +5061,20 @@ TUTORIAL_ORDER.forEach((skill, i) => {
   const short = skill.slice("skill.".length);
   const npc = masterNpcId(skill);
   const skillName = SKILLS[skill]?.name ?? short;
-  const lesson = LESSONS[skill] ?? { action: [] };
-  const action = lesson.action;
+  const lesson = LESSONS[skill] ?? {};
+  const action = lesson.action ?? [];
   const gift = lesson.gift ? { items: lesson.gift, note: lesson.note ?? "" } : undefined;
   const combat = skill === "skill.attack";
   // Sequential unlock: the first lesson follows the welcome; the rest each
   // follow the previous master down the trail.
   const prereq = i === 0 ? "quest.tut_welcome" : `quest.tut_${TUTORIAL_ORDER[i - 1].slice("skill.".length)}`;
   const giverName = combat ? "Sergeant Gareth" : m.name;
-  // Every lesson ends back at the master: gatherers hand the goods over, the
-  // rest report in — so the quest completes with the NPC who set it, not on the
-  // action itself.
-  const gathered = action.find((o) => o.type === "gather");
-  const closer: QuestObjectiveDef = gathered
-    ? { id: "hand", label: `Bring the ${ITEMS[gathered.itemId!]?.name ?? "goods"} back to ${giverName}`, type: "deliver", npcId: npc, itemId: gathered.itemId, qty: gathered.qty }
+  // Every lesson ends back at the master. Gatherers just hand the goods in — the
+  // deliver checks the pack directly, so it completes the moment you return with
+  // what you gathered (no fragile intermediate step to desync). The rest do
+  // their action, then report in.
+  const closer: QuestObjectiveDef = lesson.deliver
+    ? { id: "hand", label: `Bring the ${ITEMS[lesson.deliver.itemId]?.name ?? "goods"} to ${giverName}`, type: "deliver", npcId: npc, itemId: lesson.deliver.itemId, qty: lesson.deliver.qty }
     : { id: "report", label: `Report back to ${giverName}`, type: "talk", npcId: npc };
   QUESTS[`quest.tut_${short}`] = {
     id: `quest.tut_${short}`,
@@ -5084,8 +5089,8 @@ TUTORIAL_ORDER.forEach((skill, i) => {
         : `${m.name}: "Well met. Words won't teach you ${skillName} — give it a try right here, then come back to me."`,
     reminder: combat
       ? `Cull 3 pigs (switch attack styles), then report back to Sergeant Gareth.`
-      : gathered
-        ? `Train ${skillName}, then bring the ${ITEMS[gathered.itemId!]?.name ?? "goods"} back to ${m.name}.`
+      : lesson.deliver
+        ? `Gather ${lesson.deliver.qty} ${ITEMS[lesson.deliver.itemId]?.name ?? "goods"} and bring them to ${m.name}.`
         : action.length
           ? `Train ${skillName} at the station, then report back to ${m.name}.`
           : `Speak with ${m.name} the ${m.title} to learn ${skillName}.`,

@@ -37,20 +37,20 @@ function runUntil(sim: GameSimulation, predicate: (e: SimEvent) => boolean, maxT
 }
 
 describe("Woodcutter lesson quest", () => {
-  it("plays start to finish: talk -> gather 2 logs -> hand them back -> rewards", () => {
+  it("plays start to finish: talk -> gather 2 logs -> hand them in -> rewards", () => {
     const sim = questSim();
 
-    // Talk to the NPC: quest starts, talk objective completes, the gather begins.
+    // Talk to the NPC: quest starts; the hand-back is the only step left.
     sim.enqueue({ type: "interact", targetId: NPC });
     runUntil(sim, (e) => e.type === "questStarted");
     expect(sim.quests.states[QUEST].status).toBe("active");
-    expect(sim.quests.activeObjective(QUEST)?.id).toBe("do");
+    expect(sim.quests.activeObjective(QUEST)?.id).toBe("hand");
 
-    // Chop until the gather is done; the lesson now ends by handing the logs back.
+    // Chop until two logs sit in the pack — the hand-in reads the pack directly,
+    // so it doesn't matter how or when they were gathered.
     const xpBefore = sim.skills.xp["skill.woodcutting"];
     sim.enqueue({ type: "interact", targetId: TREE });
-    runUntil(sim, (e) => e.type === "questAdvanced" && e.label.includes("Bring"), 6000);
-    expect(sim.quests.activeObjective(QUEST)?.id).toBe("hand");
+    for (let i = 0; i < 6000 && sim.inventory.count("item.log.basic") < 2; i++) sim.tick();
     expect(sim.inventory.count("item.log.basic")).toBeGreaterThanOrEqual(2);
 
     // Return to the master: the logs leave the pack and the reward lands.
@@ -61,13 +61,14 @@ describe("Woodcutter lesson quest", () => {
     expect(sim.quests.markFor(NPC)).toBeNull();
   });
 
-  it("gather counts only freshly gathered items, not existing stock", () => {
+  it("the hand-in won't complete until the goods are actually in the pack", () => {
     const sim = questSim();
-    sim.inventory.add("item.log.basic", 20); // pre-owned logs don't count
     sim.enqueue({ type: "interact", targetId: NPC });
     runUntil(sim, (e) => e.type === "questStarted");
-    expect(sim.quests.activeObjective(QUEST)?.id).toBe("do");
-    expect(sim.quests.states[QUEST].progress).toBe(0);
+    // Talk again with an empty pack: the deliver can't be satisfied yet.
+    sim.quests.process([{ type: "npcChat", instanceId: NPC, name: "Alda" } as SimEvent]);
+    expect(sim.quests.states[QUEST].status).toBe("active");
+    expect(sim.quests.activeObjective(QUEST)?.id).toBe("hand");
   });
 
   it("marks the giver with ! while the lesson is available to start", () => {

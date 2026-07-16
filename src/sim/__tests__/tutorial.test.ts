@@ -41,13 +41,13 @@ describe("Tutor's Trail", () => {
   });
 
   it("makes gatherer/fighter lessons require doing the craft, not just talking", () => {
-    // The gatherers gather and the fighters fight: each carries a real action
+    // The gatherers hand goods in and the fighters fight: each carries a real
     // objective beyond the opening talk, so a chat alone can't tick it complete.
     for (const skill of ["woodcutting", "mining", "fishing", "attack", "archery"]) {
       const q = QUESTS[`quest.tut_${skill}`];
       expect(q, skill).toBeTruthy();
       expect(q.objectives.length, skill).toBeGreaterThan(1);
-      expect(q.objectives.some((o) => o.type === "gather" || o.type === "slay"), skill).toBe(true);
+      expect(q.objectives.some((o) => o.type === "slay" || o.type === "deliver" || o.type === "train"), skill).toBe(true);
     }
     // A weak practice mob is penned for the combat lessons.
     const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
@@ -96,9 +96,12 @@ describe("Tutor's Trail", () => {
           feed({ type: "enemyDied", instanceId: enemyId(obj.enemyDefId!) } as SimEvent);
         } else if (obj.type === "train") {
           feed({ type: "xpGained", skillId: obj.skillId!, amount: 1 } as SimEvent);
-        } else if (obj.type === "talk" || obj.type === "deliver") {
-          // Both the report-in and hand-back closers complete by talking to the
-          // master (deliver also spends the items already in the pack).
+        } else if (obj.type === "deliver") {
+          // Hand-back: the player returns with what they gathered, so the goods
+          // are in the pack, then talks to the master.
+          sim.inventory.add(obj.itemId!, obj.qty ?? 1);
+          feed({ type: "npcChat", instanceId: npc, name: "" } as SimEvent);
+        } else if (obj.type === "talk") {
           feed({ type: "npcChat", instanceId: npc, name: "" } as SimEvent);
         }
       }

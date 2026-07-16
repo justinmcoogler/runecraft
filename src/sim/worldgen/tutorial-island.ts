@@ -14,20 +14,44 @@ import { SKILL_MASTERS, masterNpcId, SKILLS } from "../../content/content";
 import type { Cell } from "../types";
 import type { EnemyPlacement, NodePlacement, NpcPlacement, ObjectPlacement, RegionSpec } from "../world";
 
-const W = 150;
-const D = 350;
+const W = 200;
+const D = 214;
 const BASE = 6; // walk-surface of the sunken path
 const BANK = BASE + 2; // the field on either side — two blocks up, so unwalkable
-const HALF = 3; // path half-width (7-wide connecting path)
+const HALF = 3; // path half-width (7-wide path)
 const CLEAR_R = 6; // clearing radius at each master (a roomy 13-cell area)
 const STOPS = 32; // camp + 30 tutors + gate
-const Z_TOP = 20;
-const Z_STEP = 10; // generous spacing so each area is distinct, joined by a path
+const LEGS = 5; // sweeping passes down the island
+const LEG_GAP = 36; // vertical spacing between passes — wide switchbacks, lots of grass between
+const Z_TOP = 24;
+const X_A = 36;
+const X_B = 164;
+const TURN_R = LEG_GAP / 2; // radius of the smooth U-turn between passes
 
-/** The path centreline: a smooth left-right meander down the island (two gentle
- *  sine waves, no switchbacks). x stays well inside the banks. */
-const centerX = (z: number): number =>
-  75 + 42 * Math.sin((z - Z_TOP) * 0.028) + 12 * Math.sin((z - Z_TOP) * 0.013 + 1.7);
+/** The trail centreline: long sweeping passes across the island joined by wide,
+ *  rounded U-turns — a natural switchback trail, not a tight zigzag. Returned as
+ *  a dense polyline so the carved path curves smoothly. */
+function buildCenterline(): Cell[] {
+  const P: Cell[] = [];
+  for (let r = 0; r < LEGS; r++) {
+    const z = Z_TOP + r * LEG_GAP;
+    const ltr = r % 2 === 0;
+    const from = ltr ? X_A : X_B;
+    const to = ltr ? X_B : X_A;
+    const dir = ltr ? 1 : -1;
+    for (let x = from; x !== to + dir; x += dir) P.push({ x, z });
+    if (r < LEGS - 1) {
+      // A half-circle U-turn at the leg's end, bulging outward to the next pass.
+      const cz = z + TURN_R;
+      const steps = 26;
+      for (let s = 1; s <= steps; s++) {
+        const th = -Math.PI / 2 + (Math.PI * s) / steps;
+        P.push({ x: Math.round(to + dir * TURN_R * Math.cos(th)), z: Math.round(cz + TURN_R * Math.sin(th)) });
+      }
+    }
+  }
+  return P;
+}
 
 interface Tutor {
   skill: string;
@@ -73,9 +97,6 @@ const TUTORS: Tutor[] = [
   { skill: "skill.invention", skin: "inventor", ground: "stonebrick", station: "object.workbench.basic" },
 ];
 
-const stopZ = (i: number): number => Z_TOP + i * Z_STEP;
-const stopCell = (i: number): Cell => ({ x: Math.round(centerX(stopZ(i))), z: stopZ(i) });
-
 export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
   const heights = new Array<number>(W * D).fill(BANK);
   const blocks = new Array<BlockType>(W * D).fill("grass");
@@ -99,10 +120,12 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
     }
   };
 
-  // 1) The connecting path — a wide dirt ribbon along the meandering centreline.
-  for (let z = Z_TOP - 2; z <= stopZ(STOPS - 1) + 2; z++) disc(Math.round(centerX(z)), z, HALF, "dirt");
-  // 2) A roomy clearing at every stop, floored in the master's own ground.
-  const stops = Array.from({ length: STOPS }, (_, i) => stopCell(i));
+  // 1) The trail — a wide dirt ribbon carved along the switchback centreline.
+  const line = buildCenterline();
+  for (const p of line) disc(p.x, p.z, HALF, "dirt");
+  // 2) Masters spread evenly along the trail by arc length, each in a roomy
+  //    clearing floored in its own ground.
+  const stops = Array.from({ length: STOPS }, (_, i) => line[Math.round((i * (line.length - 1)) / (STOPS - 1))]);
   stops.forEach((s, i) => {
     const ground = i === 0 || i === STOPS - 1 ? "coarsedirt" : TUTORS[i - 1].ground;
     disc(s.x, s.z, CLEAR_R, ground);
