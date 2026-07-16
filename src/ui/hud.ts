@@ -1,7 +1,7 @@
 // HUD: DOM overlay. Subscribes to SimEvents and reads sim state; every button
 // emits a Command. The UI never mutates simulation state directly.
 
-import { ALCHEMY, ALCH_VALUES, CURVES, ENEMIES, ITEMS, NODES, OBJECTS, QUESTS, RECIPES, SHOPS, SKILLS, xpToReachLevel } from "../content/content";
+import { ALCHEMY, ALCHEMY_TIERS, ALCH_VALUES, CURVES, ENEMIES, ITEMS, NODES, OBJECTS, QUESTS, RECIPES, SHOPS, SKILLS, SUPERHEAT, xpToReachLevel, type AlchemyTier } from "../content/content";
 import { skillActivities, skillCeiling } from "../content/skill-guide";
 import { BLOCKS } from "../content/blocks";
 import type { GameRenderer } from "../render/renderer";
@@ -622,7 +622,8 @@ export class Hud {
           this.floatText(`${ITEMS[ev.itemId].name} laid to rest ${itemIconHtml(ev.itemId, ITEMS[ev.itemId].icon, 18)}`, 16);
           break;
         case "spellCast":
-          this.floatText(`Alchemy → +${ev.coins} ${itemIconHtml("item.coin", "\u{1FA99}", 18)}`, 18);
+          if (ev.spell === "superheat") this.floatText("Superheat → a bar forged", 18);
+          else this.floatText(`Alchemy → +${ev.coins} ${itemIconHtml("item.coin", "\u{1FA99}", 18)}`, 18);
           break;
         case "xpGained":
           this.floatText(`+${ev.amount} XP`, 18);
@@ -1291,18 +1292,30 @@ export class Hud {
           else this.sim.enqueue({ type: "burySlot", slot: this.selectedSlot! });
         },
       };
+    } else if (SUPERHEAT.bars[slot.itemId] !== undefined) {
+      // Superheat: an ore in the pack can be smelted to a bar by Magic.
+      const magic = this.sim.skills.levelOf("skill.magic");
+      const canCast = magic >= SUPERHEAT.level && this.sim.inventory.count(SUPERHEAT.rune) > 0;
+      action = {
+        label: canCast ? "Superheat" : `Superheat (Magic ${SUPERHEAT.level})`,
+        run: () => {
+          if (!canCast) {
+            this.toast(magic < SUPERHEAT.level ? `Magic ${SUPERHEAT.level} needed to Superheat.` : "You need a Blaze Rune to Superheat.", "info");
+          } else this.sim.enqueue({ type: "superheatSlot", slot: this.selectedSlot! });
+        },
+      };
     } else if (ALCH_VALUES[slot.itemId] !== undefined) {
       const magic = this.sim.skills.levelOf("skill.magic");
-      const high = magic >= ALCHEMY.high.level && this.sim.inventory.count(ALCHEMY.high.rune) > 0;
-      const low = magic >= ALCHEMY.low.level && this.sim.inventory.count(ALCHEMY.low.rune) > 0;
-      const factor = high ? ALCHEMY.high.factor : ALCHEMY.low.factor;
-      const coins = Math.max(1, Math.round(ALCH_VALUES[slot.itemId] * factor));
+      // Pick the strongest alchemy tier the caster can actually afford.
+      const tier = ALCHEMY_TIERS.find((t) => magic >= ALCHEMY[t].level && this.sim.inventory.count(ALCHEMY[t].rune) > 0);
+      const label: Record<AlchemyTier, string> = { low: "Low Alch", high: "High Alch", grand: "Grand Alch" };
+      const coins = tier ? Math.max(1, Math.round(ALCH_VALUES[slot.itemId] * ALCHEMY[tier].factor)) : 0;
       action = {
-        label: high ? `High Alch (+${coins})` : low ? `Low Alch (+${coins})` : "Alchemise",
+        label: tier ? `${label[tier]} (+${coins})` : "Alchemise",
         run: () => {
-          if (!high && !low) {
-            this.toast(magic < ALCHEMY.low.level ? "You need Magic to alchemise." : "You need a Blaze Rune or Wart Rune to cast that.", "info");
-          } else this.sim.enqueue({ type: "alchSlot", slot: this.selectedSlot!, high });
+          if (!tier) {
+            this.toast(magic < ALCHEMY.low.level ? "You need Magic to alchemise." : "You need the right rune to cast that.", "info");
+          } else this.sim.enqueue({ type: "alchSlot", slot: this.selectedSlot!, tier });
         },
       };
     }

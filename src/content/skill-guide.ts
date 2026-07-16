@@ -5,7 +5,7 @@
 // is clicked.
 
 import { ASSIGNMENTS } from "../sim/taskmasters";
-import { ALCHEMY, ENEMIES, ITEMS, NODES, OBJECTS, RECIPES, SKILLS } from "./content";
+import { ALCHEMY, ENEMIES, ITEMS, NODES, OBJECTS, RECIPES, SKILLS, SUPERHEAT } from "./content";
 
 export interface SkillActivity {
   /** What you do it to (tree name, recipe name, obstacle, monster tier). */
@@ -148,6 +148,14 @@ export function skillActivities(skillId: string): SkillActivity[] {
     acts.push({
       name: "High Alchemy", level: ALCHEMY.high.level, xp: ALCHEMY.high.xp,
       verb: "Cast", where: "On a pack item — burns a Wart Rune, more coin",
+    });
+    acts.push({
+      name: "Superheat", level: SUPERHEAT.level, xp: SUPERHEAT.magicXp,
+      verb: "Cast", where: "On an ore — smelts it to a bar, burns a Blaze Rune",
+    });
+    acts.push({
+      name: "Grand Alchemy", level: ALCHEMY.grand.level, xp: ALCHEMY.grand.xp,
+      verb: "Cast", where: "On a pack item — burns an Ender Rune, richest coin",
     });
   }
 

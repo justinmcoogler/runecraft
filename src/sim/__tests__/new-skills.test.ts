@@ -2,7 +2,7 @@
 // (workstation recipes), and Magic (alchemy) — the RuneScape skills we added.
 
 import { describe, expect, it } from "vitest";
-import { ENEMIES, SKILLS } from "../../content/content";
+import { CURVES, ENEMIES, SKILLS, xpToReachLevel } from "../../content/content";
 import { GameSimulation } from "../simulation";
 import type { SimEvent } from "../types";
 import type { BlockType, RegionSpec } from "../world";
@@ -208,7 +208,7 @@ describe("Magic — alchemy", () => {
     sim.inventory.add("item.rune.fire", 1);
     const before = sim.inventory.count("item.coin");
     const slot = sim.inventory.slots.findIndex((s) => s?.itemId === "item.bar.gold");
-    sim.enqueue({ type: "alchSlot", slot, high: false });
+    sim.enqueue({ type: "alchSlot", slot, tier: "low" });
     sim.tick();
     expect(sim.inventory.count("item.coin")).toBeGreaterThan(before);
     expect(sim.inventory.count("item.rune.fire")).toBe(0);
@@ -220,9 +220,37 @@ describe("Magic — alchemy", () => {
     const sim = new GameSimulation(makeStationRegion(), 1);
     sim.inventory.add("item.bar.gold", 1);
     const slot = sim.inventory.slots.findIndex((s) => s?.itemId === "item.bar.gold");
-    sim.enqueue({ type: "alchSlot", slot, high: false });
+    sim.enqueue({ type: "alchSlot", slot, tier: "low" });
     sim.tick();
     expect(sim.skills.xp["skill.magic"] ?? 0).toBe(0);
     expect(sim.inventory.count("item.bar.gold")).toBe(1);
+  });
+
+  it("grand alchemy pays the richest return, burning a law rune", () => {
+    const sim = new GameSimulation(makeStationRegion(), 1);
+    sim.skills.grantXp("skill.magic", xpToReachLevel(CURVES["curve.standard"], 44));
+    sim.inventory.add("item.bar.gold", 1);
+    sim.inventory.add("item.rune.law", 1);
+    const slot = sim.inventory.slots.findIndex((s) => s?.itemId === "item.bar.gold");
+    sim.enqueue({ type: "alchSlot", slot, tier: "grand" });
+    sim.tick();
+    // Grand factor is 1.5 vs gold's ALCH value 60 -> 90 coins.
+    expect(sim.inventory.count("item.coin")).toBe(90);
+    expect(sim.inventory.count("item.rune.law")).toBe(0);
+  });
+
+  it("superheat smelts an ore to a bar, training Magic and Smelting", () => {
+    const sim = new GameSimulation(makeStationRegion(), 1);
+    sim.skills.grantXp("skill.magic", xpToReachLevel(CURVES["curve.standard"], 35));
+    sim.inventory.add("item.ore.iron", 1);
+    sim.inventory.add("item.rune.fire", 1);
+    const slot = sim.inventory.slots.findIndex((s) => s?.itemId === "item.ore.iron");
+    sim.enqueue({ type: "superheatSlot", slot });
+    sim.tick();
+    expect(sim.inventory.count("item.bar.iron")).toBe(1);
+    expect(sim.inventory.count("item.ore.iron")).toBe(0);
+    expect(sim.inventory.count("item.rune.fire")).toBe(0);
+    expect(sim.skills.xp["skill.magic"]).toBeGreaterThan(0);
+    expect(sim.skills.xp["skill.smelting"]).toBeGreaterThan(0);
   });
 });

@@ -25,7 +25,8 @@ export type Command =
   | { type: "burnSlot"; slot: number }
   | { type: "burySlot"; slot: number }
   | { type: "tillSlot"; slot: number }
-  | { type: "alchSlot"; slot: number; high: boolean }
+  | { type: "alchSlot"; slot: number; tier: "low" | "high" | "grand" }
+  | { type: "superheatSlot"; slot: number }
   | { type: "unequipArmor"; slot: ArmorSlot }
   | { type: "shopBuy"; itemId: string }
   | { type: "shopSell"; slot: number };

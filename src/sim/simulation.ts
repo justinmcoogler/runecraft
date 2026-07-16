@@ -1,7 +1,7 @@
 // GameSimulation: owns all authoritative state, consumes Commands once per fixed
 // tick, emits SimEvents. No engine or DOM imports — fully testable headless.
 
-import { ALCHEMY, ALCH_VALUES, ITEMS, OBJECTS, PLAYER_COMBAT, QUESTS, SHOPS, TUTORIAL_ORDER, ZONES, type ShopDef } from "../content/content";
+import { ALCHEMY, ALCH_VALUES, ITEMS, OBJECTS, PLAYER_COMBAT, QUESTS, SHOPS, SUPERHEAT, TUTORIAL_ORDER, ZONES, type ShopDef } from "../content/content";
 import { getStructure } from "../content/structures";
 import { effectiveSink, walkableSurfaces, solidColumns } from "../structures/types";
 import { lobbyWalk, LOBBY_W, LOBBY_D, LOBBY_SINK, LOBBY_TILE } from "../content/structures/lobby";
@@ -1530,7 +1530,7 @@ export class GameSimulation {
         if (!s) break;
         const value = ALCH_VALUES[s.itemId];
         if (value === undefined) break; // nothing worth transmuting
-        const spell = c.high ? ALCHEMY.high : ALCHEMY.low;
+        const spell = ALCHEMY[c.tier];
         if (this.skills.levelOf("skill.magic") < spell.level) break;
         if (this.inventory.count(spell.rune) < 1) break; // no rune to cast it
         // Burn one rune and the target item; coins in, Magic XP earned.
@@ -1539,7 +1539,24 @@ export class GameSimulation {
         const coins = Math.max(1, Math.round(value * spell.factor));
         this.inventory.add("item.coin", coins);
         this.skills.grantXp("skill.magic", spell.xp);
-        this.events.emit({ type: "spellCast", spell: c.high ? "high_alch" : "low_alch", coins });
+        this.events.emit({ type: "spellCast", spell: `${c.tier}_alch`, coins });
+        this.events.emit({ type: "inventoryChanged" });
+        break;
+      }
+      case "superheatSlot": {
+        const s = this.inventory.slots[c.slot];
+        if (!s) break;
+        const recipe = SUPERHEAT.bars[s.itemId];
+        if (!recipe) break; // not a smeltable ore
+        if (this.skills.levelOf("skill.magic") < SUPERHEAT.level) break;
+        if (this.inventory.count(SUPERHEAT.rune) < 1) break; // no Blaze Rune
+        // Burn one Blaze Rune and one ore; a bar out, Magic + Smithing XP.
+        this.inventory.removeItemById(SUPERHEAT.rune, 1);
+        this.inventory.removeFromSlot(c.slot, 1);
+        this.inventory.add(recipe.bar, 1);
+        this.skills.grantXp("skill.magic", SUPERHEAT.magicXp);
+        this.skills.grantXp("skill.smelting", recipe.xp);
+        this.events.emit({ type: "spellCast", spell: "superheat", coins: 0 });
         this.events.emit({ type: "inventoryChanged" });
         break;
       }

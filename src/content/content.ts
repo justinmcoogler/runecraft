@@ -1891,10 +1891,35 @@ export const ALCH_VALUES: Record<string, number> = {
   "tool.bow.oak": 40, "tool.bow.spruce": 70, "tool.bow.jungle": 110, "tool.bow.dark": 200,
   "tool.sword.diamond": 260, "tool.pickaxe.diamond": 220, "tool.axe.diamond": 220,
 };
-/** Magic level to cast each alchemy spell, XP earned, and the rune it burns. */
+/** Magic level to cast each alchemy spell, XP earned, and the rune it burns.
+ *  Coin-alchemy tiers: the higher the tier, the richer the return and the rarer
+ *  the rune it demands. */
 export const ALCHEMY = {
   low: { level: 1, xp: 31, rune: "item.rune.fire", factor: 0.55 },
   high: { level: 21, xp: 65, rune: "item.rune.nature", factor: 1.0 },
+  grand: { level: 44, xp: 90, rune: "item.rune.law", factor: 1.5 },
+};
+/** Ordered best-first, so the HUD/handler can pick the strongest tier the
+ *  caster can afford. */
+export const ALCHEMY_TIERS = ["grand", "high", "low"] as const;
+export type AlchemyTier = (typeof ALCHEMY_TIERS)[number];
+
+/** Superheat (Magic L35): smelt an ore straight to its bar without a furnace,
+ *  burning one Blaze (Fire) Rune. A Magic productivity spell that fills the old
+ *  L21->44 dead zone; awards both Magic and Smithing XP. */
+export const SUPERHEAT = {
+  level: 35,
+  magicXp: 55,
+  rune: "item.rune.fire",
+  bars: {
+    "item.ore.copper": { bar: "item.bar.copper", xp: 30 },
+    "item.ore.tin": { bar: "item.bar.tin", xp: 30 },
+    "item.ore.iron": { bar: "item.bar.iron", xp: 40 },
+    "item.ore.gold": { bar: "item.bar.gold", xp: 60 },
+    "item.ore.mithril": { bar: "item.bar.mithril", xp: 80 },
+    "item.ore.adamant": { bar: "item.bar.adamant", xp: 120 },
+    "item.ore.runite": { bar: "item.bar.runite", xp: 160 },
+  } as Record<string, { bar: string; xp: number }>,
 };
 
 /** Runecrafting: essence bound into runes at an altar. RS-authentic levels. */
