@@ -180,6 +180,7 @@ export class GameSimulation {
       if (def.containerSlots) {
         const container = new Inventory(def.containerSlots);
         for (const seed of obj.initialItems ?? []) container.add(seed.itemId, seed.qty);
+        this.seedRandomLoot(container, def);
         this.containers.set(obj.instanceId, container);
       }
       if (def.blocksNav) {
@@ -599,7 +600,18 @@ export class GameSimulation {
     const def = OBJECTS[placement.defId];
     if (def?.blocksNav) this.world.registerBlocker(placement.instanceId, placement.cell);
     if (def?.containerSlots && !this.containers.has(placement.instanceId)) {
-      this.containers.set(placement.instanceId, new Inventory(def.containerSlots));
+      const inv = new Inventory(def.containerSlots);
+      this.seedRandomLoot(inv, def);
+      this.containers.set(placement.instanceId, inv);
+    }
+  }
+
+  /** Roll a container's random-loot table (barrels/crates) into it, once. */
+  seedRandomLoot(container: Inventory, def: { randomLoot?: Array<{ itemId: string; min: number; max: number; chance: number }> }): void {
+    if (!def.randomLoot) return;
+    for (const entry of def.randomLoot) {
+      if (this.rng.next() >= entry.chance) continue;
+      container.add(entry.itemId, this.rng.intBetween(entry.min, entry.max));
     }
   }
 

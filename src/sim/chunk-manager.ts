@@ -5,6 +5,7 @@
 // WorldState's TerrainSource — this manager only handles entities.
 
 import { OBJECTS } from "../content/content";
+import { Inventory } from "./inventory";
 import type { GameSimulation } from "./simulation";
 import type { Cell } from "./types";
 import { ECHUNK, type EndlessTerrain } from "./worldgen/endless";
@@ -44,9 +45,16 @@ export class ChunkManager {
     }
     for (const obj of chunk.objects) {
       region.objects.push(obj);
-      if (OBJECTS[obj.defId].blocksNav) {
+      const odef = OBJECTS[obj.defId];
+      if (odef.blocksNav) {
         this.sim.world.registerBlocker(obj.instanceId, obj.cell);
         for (const cell of obj.footprint ?? []) this.sim.world.registerBlocker(obj.instanceId, cell);
+      }
+      // Lootable props (barrels/crates) need their container spun up + stocked.
+      if (odef.containerSlots && !this.sim.containers.has(obj.instanceId)) {
+        const inv = new Inventory(odef.containerSlots);
+        this.sim.seedRandomLoot(inv, odef);
+        this.sim.containers.set(obj.instanceId, inv);
       }
     }
     const foes = (region.enemies ??= []);
@@ -86,6 +94,7 @@ export class ChunkManager {
           if (this.sim.world.blockerAt(cell) === obj.instanceId) this.sim.world.unregisterBlocker(cell);
         }
       }
+      this.sim.containers.delete(obj.instanceId);
       region.objects.splice(i, 1);
     }
     const foes = region.enemies ?? [];

@@ -2832,6 +2832,10 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
     { instanceId: "tutorial.anvil", defId: "object.anvil.basic", cell: { x: spawn.x + 24, z: spawn.z - 3 } },
     { instanceId: "tutorial.workbench", defId: "object.workbench.basic", cell: { x: spawn.x + 28, z: spawn.z + 5 } },
     { instanceId: "tutorial.buildsite", defId: "object.buildsite.ramp", cell: { x: spawn.x + 18, z: spawn.z + 12 } },
+    // A few lootable barrels near the square, to teach that barrels open like chests.
+    { instanceId: "tutorial.barrel1", defId: "object.barrel.wood", cell: { x: spawn.x + 5, z: spawn.z + 3 } },
+    { instanceId: "tutorial.barrel2", defId: "object.barrel.wood", cell: { x: spawn.x + 7, z: spawn.z - 2 } },
+    { instanceId: "tutorial.barrel3", defId: "object.barrel.wood", cell: { x: spawn.x - 3, z: spawn.z + 6 } },
     // Altar court — north.
     { instanceId: "tutorial.altar", defId: "object.altar.rune", cell: { x: spawn.x - 4, z: spawn.z - 16 } },
     { instanceId: "tutorial.cauldron", defId: "object.cauldron.basic", cell: { x: spawn.x + 5, z: spawn.z - 21 } },

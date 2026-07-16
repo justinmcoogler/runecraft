@@ -120,6 +120,9 @@ export interface WorldObjectDef {
   name: string;
   interaction: InteractionSpec;
   containerSlots?: number;
+  /** Roll these into this container the first time it's created, instead of a
+   *  fixed initialItems list — a lootable barrel/crate. */
+  randomLoot?: Array<{ itemId: string; min: number; max: number; chance: number }>;
   /** Recipes offered when the player interacts with this object. */
   workstationRecipeIds?: string[];
   /** Interacting opens this shop's buy/sell sheet. */
@@ -4635,7 +4638,15 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     id: "object.barrel.wood",
     name: "Barrel",
     interaction: { mode: "adjacent_4", rangeCells: 1 },
-    scenery: true,
+    containerSlots: 6,
+    // Opens like a chest; stocked with a little random common loot on first open.
+    randomLoot: [
+      { itemId: "item.coin", min: 3, max: 18, chance: 0.7 },
+      { itemId: "item.log.basic", min: 1, max: 4, chance: 0.4 },
+      { itemId: "item.ore.copper", min: 1, max: 3, chance: 0.35 },
+      { itemId: "item.stone.rough", min: 1, max: 4, chance: 0.35 },
+      { itemId: "item.pork.cooked", min: 1, max: 2, chance: 0.3 },
+    ],
     blocksNav: true,
   },
   "object.flowers.wild": {
