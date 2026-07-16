@@ -843,6 +843,19 @@ const UI_DRAWS: Record<string, Draw> = {
     ctx.fillRect(6, 2, 4, 8);
     ctx.fillRect(6, 12, 4, 3);
   },
+  skills: (ctx) => {
+    // three ascending stat bars — the "levels/stats" glyph
+    ctx.fillStyle = OUTLINE;
+    ctx.fillRect(2, 10, 4, 5);
+    ctx.fillRect(6, 6, 4, 9);
+    ctx.fillRect(10, 2, 4, 13);
+    ctx.fillStyle = "#7cc243";
+    ctx.fillRect(3, 11, 2, 3);
+    ctx.fillStyle = "#ffd54a";
+    ctx.fillRect(7, 7, 2, 7);
+    ctx.fillStyle = "#5ac2e0";
+    ctx.fillRect(11, 3, 2, 11);
+  },
 };
 
 function rotateArrow(ctx: CanvasRenderingContext2D, left: boolean): void {

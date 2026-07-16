@@ -31,6 +31,9 @@ export type Command =
 
 export type ArmorSlot = "head" | "body" | "legs" | "feet";
 
+/** RuneScape-style melee attack style — decides which combat skill the XP feeds. */
+export type AttackStyle = "accurate" | "aggressive" | "defensive" | "controlled";
+
 export type RejectReason =
   | "no_target"
   | "node_unavailable"

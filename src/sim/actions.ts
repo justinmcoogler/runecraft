@@ -61,6 +61,8 @@ export interface ActionDeps {
   weaponRange(): number;
   /** Which combat skill the equipped weapon trains (attack vs archery). */
   combatSkillId(): string;
+  /** Hand out a lump of combat XP, routed by the current attack style. */
+  awardCombatXp(amount: number): void;
   /** Complete a construction: sets the persistent world flag. */
   setWorldFlag(flag: string): void;
   /** Active-buff bonus for a mechanic ("gathering" success, "focus" accuracy). */
@@ -742,11 +744,9 @@ export class ActionController {
         d.rng.intBetween(attack.dmgMin, attack.dmgMax + levelDamageBonus) + d.weaponBonus() + strengthBonus;
       const killed = d.enemies.damage(pipeline.targetId, damage);
       d.events.emit({ type: "playerAttack", instanceId: pipeline.targetId, damage, killed });
-      d.skills.grantXp(d.combatSkillId(), damage * attack.xpPerDamage);
-      // Melee also trains Strength off the damage dealt.
-      if (melee) d.skills.grantXp("skill.strength", damage * attack.xpPerDamage);
-      // Every point of damage dealt tempers Constitution (raising max HP).
-      d.skills.grantXp("skill.constitution", Math.max(1, Math.round(damage * attack.xpPerDamage * 0.5)));
+      // Combat XP is routed by attack style (Attack / Strength / Defense, or
+      // Archery for bows) with Constitution always taking a share.
+      d.awardCombatXp(damage * attack.xpPerDamage);
       if (killed) {
         const def = ENEMIES[enemy.defId];
         // Felling a dungeon boss or its elite guard trains Dungeoneering.
@@ -766,7 +766,7 @@ export class ActionController {
             d.events.emit({ type: "inventoryChanged" });
           }
         }
-        d.skills.grantXp(d.combatSkillId(), def.xpOnDefeat);
+        d.awardCombatXp(def.xpOnDefeat);
         return this.end("completed", "target_slain");
       }
     } else {

@@ -120,14 +120,30 @@ describe("Invention", () => {
 });
 
 describe("Strength", () => {
-  it("melee fighting trains both Attack and Strength", () => {
-    const region = makeStationRegion();
-    region.enemies = [{ instanceId: "foe", defId: "enemy.target_dummy", cell: { x: 3, z: 2 } }];
-    const sim = new GameSimulation(region, 3);
+  const fightUntilHit = (sim: GameSimulation) => {
     sim.enqueue({ type: "interact", targetId: "foe" });
     runUntil(sim, (e) => e.type === "playerAttack" && "damage" in e && (e as { damage: number | null }).damage != null);
+  };
+  const dummyRegion = () => {
+    const region = makeStationRegion();
+    region.enemies = [{ instanceId: "foe", defId: "enemy.target_dummy", cell: { x: 3, z: 2 } }];
+    return region;
+  };
+
+  it("the Accurate style trains Attack, not Strength (RuneScape-style)", () => {
+    const sim = new GameSimulation(dummyRegion(), 3);
+    sim.attackStyle = "accurate";
+    fightUntilHit(sim);
     expect(sim.skills.xp["skill.attack"]).toBeGreaterThan(0);
+    expect(sim.skills.xp["skill.strength"] ?? 0).toBe(0);
+  });
+
+  it("switching to the Aggressive style trains Strength instead", () => {
+    const sim = new GameSimulation(dummyRegion(), 3);
+    sim.attackStyle = "aggressive";
+    fightUntilHit(sim);
     expect(sim.skills.xp["skill.strength"]).toBeGreaterThan(0);
+    expect(sim.skills.xp["skill.attack"] ?? 0).toBe(0);
   });
 });
 

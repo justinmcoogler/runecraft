@@ -34,19 +34,47 @@ export interface QuestTarget {
   overworld: boolean;
 }
 
-/** The first active quest's current objective, resolved to a world cell. */
+/** Display name of a quest's giver, current region first. */
+function giverName(sim: GameSimulation, questId: string): string {
+  const def = QUESTS[questId];
+  if (!def) return "the quest giver";
+  const here = sim.world.region.npcs.find((n) => n.instanceId === def.giverNpcId);
+  const over = buildOverworld().region.npcs.find((n) => n.instanceId === def.giverNpcId);
+  return here?.name ?? over?.name ?? "the quest giver";
+}
+
+/** Quest ids ordered so the player's pinned (tracked) quest is considered first. */
+function trackedFirst(sim: GameSimulation): string[] {
+  const ids = Object.keys(QUESTS);
+  const tracked = sim.trackedQuestId;
+  if (tracked && ids.includes(tracked)) return [tracked, ...ids.filter((id) => id !== tracked)];
+  return ids;
+}
+
+/**
+ * The tracked quest's objective (or, with nothing pinned, the first active
+ * quest's), resolved to a world cell. A pinned-but-unstarted quest points at
+ * its giver so the guidance line leads you there to begin it.
+ */
 export function activeQuestTarget(sim: GameSimulation): QuestTarget | null {
-  for (const [questId, def] of Object.entries(QUESTS) as Array<[string, QuestDef]>) {
+  const region = sim.world.region.id;
+  const inOverworld = region === "region.vale_clearing" || region === "region.tutorial" || region === "region.endless";
+  for (const questId of trackedFirst(sim)) {
+    const def = QUESTS[questId] as QuestDef;
     const state = sim.quests.states[questId];
-    if (state?.status !== "active") continue;
+    // A pinned quest you haven't started yet: lead to the giver to begin it.
+    if (state?.status !== "active") {
+      if (questId === sim.trackedQuestId && sim.quests.isAvailable(questId)) {
+        const cell = giverCell(sim, questId);
+        if (cell) return { cell, questName: def.name, label: `Talk to ${giverName(sim, questId)} to begin`, overworld: inOverworld };
+      }
+      continue;
+    }
     const objective = def.objectives[state.objectiveIndex];
     if (!objective) continue;
     const fallback = giverCell(sim, questId);
     // A target is "showable" (map marker + on-screen pointer) whenever it
     // resolves to a cell in the region the player is actually in.
-    const region = sim.world.region.id;
-    const inOverworld = region === "region.vale_clearing" || region === "region.tutorial" || region === "region.endless";
-
     let cell: Cell | null = null;
     let overworld = inOverworld;
     if (objective.type === "talk" || objective.type === "deliver") {

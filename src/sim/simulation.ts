@@ -20,7 +20,7 @@ import { DANGER_MOBS, dangerTier, EndlessTerrain, inStarterTown, remoteness01, s
 import { biomeName } from "./worldgen/biomes";
 import { DUNGEON_ID_RE, type DungeonStyle, dungeonSpecFor } from "./worldgen/dungeons";
 import { CuratorService, SlayerService } from "./taskmasters";
-import type { ArmorSlot, Cell, Command, SimEvent } from "./types";
+import type { ArmorSlot, AttackStyle, Cell, Command, SimEvent } from "./types";
 import { chebyshev, SimEventBus, SimRng, TICK_DT } from "./types";
 import { applyWorldFlags, WorldState, type RegionSpec } from "./world";
 
@@ -111,6 +111,12 @@ export class GameSimulation {
   readonly discoveredBiomes = new Set<string>();
   /** The named biome the player currently stands in (transient). */
   private currentBiomeName = "";
+  /** Which quest the player has pinned to track (guidance line + map marker).
+   *  Null falls back to the first active quest. Persisted. */
+  trackedQuestId: string | null = null;
+  /** RuneScape-style melee attack style: routes combat XP to Attack / Strength
+   *  / Defense (Controlled splits three ways). Persisted. */
+  attackStyle: AttackStyle = "accurate";
   /** Tutorial lesson driver (present only in the tutorial region). */
   tutorial: TutorialDriver | null = null;
   /** Timed potion effects: kind -> seconds remaining. */
@@ -202,6 +208,7 @@ export class GameSimulation {
         (this.buffs["strength"] > 0 ? 2 : 0),
       weaponRange: () => (this.hasBowEquipped() ? 5 : 1),
       combatSkillId: () => this.combatSkillId(),
+      awardCombatXp: (amount) => this.awardCombatXp(amount),
       setWorldFlag: (flag) => this.setWorldFlag(flag),
       buffBonus: (kind) => (this.buffs[kind] > 0 ? 0.08 : 0),
       damagePlayer: (amount) => this.damagePlayer(amount),
@@ -240,6 +247,38 @@ export class GameSimulation {
   /** Bow work trains Archery; everything else trains Attack. */
   combatSkillId(): string {
     return this.hasBowEquipped() ? "skill.archery" : "skill.attack";
+  }
+
+  /** Route a lump of combat XP by the current attack style (RuneScape-style).
+   *  A bow always trains Archery; melee feeds Attack / Strength / Defense per
+   *  the chosen style (Controlled splits three ways). Constitution always takes
+   *  a share, as Hitpoints does in RuneScape. This is the ONLY place combat XP
+   *  is handed out — melee no longer double-dips Attack + Strength. */
+  awardCombatXp(amount: number): void {
+    if (amount <= 0) return;
+    if (this.hasBowEquipped()) {
+      this.skills.grantXp("skill.archery", amount);
+    } else {
+      switch (this.attackStyle) {
+        case "aggressive": this.skills.grantXp("skill.strength", amount); break;
+        case "defensive": this.skills.grantXp("skill.defense", amount); break;
+        case "controlled":
+          this.skills.grantXp("skill.attack", amount / 3);
+          this.skills.grantXp("skill.strength", amount / 3);
+          this.skills.grantXp("skill.defense", amount / 3);
+          break;
+        default: this.skills.grantXp("skill.attack", amount); break;
+      }
+    }
+    // Hitpoints (Constitution) always trains from damage dealt.
+    this.skills.grantXp("skill.constitution", Math.max(1, Math.round(amount * 0.5)));
+  }
+
+  /** Cycle to the next attack style and return the new one. */
+  cycleAttackStyle(): AttackStyle {
+    const order: AttackStyle[] = ["accurate", "aggressive", "defensive", "controlled"];
+    this.attackStyle = order[(order.indexOf(this.attackStyle) + 1) % order.length];
+    return this.attackStyle;
   }
 
   /** The best boat the player can currently handle (carried or equipped),

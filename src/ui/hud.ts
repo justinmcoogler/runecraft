@@ -9,7 +9,7 @@ import type { GameSimulation } from "../sim/simulation";
 import { DAY_LENGTH_S } from "../sim/simulation";
 import { activeQuestTarget, questLog } from "./quest-helper";
 import { treeTapLabel } from "../render/tree-models";
-import type { SimEvent } from "../sim/types";
+import type { AttackStyle, SimEvent } from "../sim/types";
 import type { ImportedPack } from "../texturepacks/importer";
 import { itemIconHtml, skillIconHtml, uiIconHtml } from "./icons";
 
@@ -36,6 +36,14 @@ const NPC_LINES = [
   "Seen the castle east along the road? Walls, moat, banners and all. That's your keep now.",
   "I once chopped a hundred logs before breakfast. Long ago, mind.",
 ];
+
+// Melee attack styles (RuneScape-style): which combat skill the blows train.
+const ATTACK_STYLES: Record<AttackStyle, { label: string; trains: string }> = {
+  accurate: { label: "Accurate", trains: "Attack" },
+  aggressive: { label: "Aggressive", trains: "Strength" },
+  defensive: { label: "Defensive", trains: "Defence" },
+  controlled: { label: "Controlled", trains: "Attack · Str · Def" },
+};
 
 const SKILL_VERBS: Record<string, string> = {
   "skill.woodcutting": "Chopping",
@@ -171,11 +179,6 @@ export class Hud {
           <div class="xp-bar"><div class="xp-fill"></div></div>
           <span class="xp-text"></span>
         </div>
-        <div class="health-chip" data-testid="health-chip">
-          <span class="hp-heart">${uiIconHtml("heart", 18)}</span>
-          <div class="hp-bar"><div class="hp-fill"></div></div>
-          <span class="hp-text">20/20</span>
-        </div>
         <div class="skills-panel hidden" data-testid="skills-panel">
           <div class="panel-header">Skills <button class="btn small" data-cmd="skills">✕</button></div>
           <div class="skills-hint">Tap a skill to see what it trains and the level each unlocks at.</div>
@@ -191,6 +194,15 @@ export class Hud {
       <div class="hud-top-left">
         <div><span class="save-dot" title="Saved">●</span> <span class="game-title">Runecraft</span></div>
         <div class="clock-chip" data-testid="clock"><span class="clock-text"></span></div>
+        <div class="health-chip" data-testid="health-chip">
+          <span class="hp-heart">${uiIconHtml("heart", 18)}</span>
+          <div class="hp-bar"><div class="hp-fill"></div></div>
+          <span class="hp-text">20/20</span>
+        </div>
+        <div class="combat-style-chip hidden" data-cmd="cycleStyle" data-testid="attack-style"
+             title="Attack style — tap to choose which combat skill your blows train">
+          <span class="cs-icon">⚔</span><span class="cs-text"></span><span class="cs-trains"></span>
+        </div>
         <div class="quest-tracker hidden" data-cmd="questlog" data-testid="quest-tracker" title="Quest log (J)">
           <span class="quest-mark">${uiIconHtml("quest", 14)}</span>
           <span class="quest-name"></span>
@@ -210,6 +222,7 @@ export class Hud {
         <button class="btn" data-cmd="center" title="Center camera (Space)">${uiIconHtml("center")}</button>
         <button class="btn" data-cmd="settings" title="Settings" data-testid="settings-toggle">⚙</button>
         <button class="btn" data-cmd="questlog" title="Quest log (J)" data-testid="questlog-toggle">${uiIconHtml("quest")}</button>
+        <button class="btn" data-cmd="skills" title="Skills (K)" data-testid="skills-toggle">${uiIconHtml("skills")}</button>
         <button class="btn" data-cmd="inv" title="Inventory (I)" data-testid="inv-toggle">${uiIconHtml("inv")}</button>
       </div>
       <div class="questlog-panel hidden" data-testid="questlog-panel">
@@ -392,6 +405,23 @@ export class Hud {
           if (!panel.classList.contains("hidden")) this.refreshSkillsPanel();
           break;
         }
+        case "cycleStyle": {
+          const style = this.sim.cycleAttackStyle();
+          this.refreshCombatStyle();
+          const info = ATTACK_STYLES[style];
+          this.toast(`Attack style: ${info.label} — trains ${info.trains}`, "info");
+          break;
+        }
+        case "trackQuest": {
+          const qid = btn.dataset.qid;
+          if (qid) {
+            // Tap the tracked quest again to un-pin it (back to auto-tracking).
+            this.sim.trackedQuestId = this.sim.trackedQuestId === qid ? null : qid;
+            this.refreshQuestLog();
+            this.updateQuestTracker();
+          }
+          break;
+        }
         case "closeStation": this.sim.enqueue({ type: "closeContainer" }); break;
         case "closeShop": this.sim.enqueue({ type: "closeContainer" }); break;
         case "skinUpload": (this.q(".skin-file") as HTMLInputElement).click(); break;
@@ -427,6 +457,10 @@ export class Hud {
         const panel = this.q(".questlog-panel");
         panel.classList.toggle("hidden");
         if (!panel.classList.contains("hidden")) this.refreshQuestLog();
+      } else if (e.key === "k" || e.key === "K") {
+        const panel = this.q(".skills-panel");
+        panel.classList.toggle("hidden");
+        if (!panel.classList.contains("hidden")) this.refreshSkillsPanel();
       }
     });
   }
@@ -757,7 +791,15 @@ export class Hud {
     for (const entry of questLog(this.sim)) {
       const [mark, color] = MARKS[entry.status];
       const row = document.createElement("div");
-      row.className = `questlog-row questlog-${entry.status}`;
+      // Active/ready/available quests can be pinned as the tracked quest.
+      const trackable = entry.status === "active" || entry.status === "ready" || entry.status === "available";
+      const tracked = this.sim.trackedQuestId === entry.questId;
+      row.className = `questlog-row questlog-${entry.status}${trackable ? " questlog-trackable" : ""}${tracked ? " questlog-tracked" : ""}`;
+      if (trackable) {
+        row.dataset.cmd = "trackQuest";
+        row.dataset.qid = entry.questId;
+        row.title = tracked ? "Tracked — tap to stop tracking" : "Tap to track this quest";
+      }
       const sub =
         entry.status === "active" || entry.status === "ready"
           ? `${entry.objective ?? ""}${entry.progress ? ` (${entry.progress})` : ""}`
@@ -767,7 +809,7 @@ export class Hud {
               ? "Locked — finish earlier work first"
               : entry.where;
       row.innerHTML = `
-        <span class="questlog-mark" style="color:${color}">${mark}</span>
+        <span class="questlog-mark" style="color:${color}">${tracked ? "📍" : mark}</span>
         <span class="questlog-name">${entry.name}</span>
         <span class="questlog-sub">${sub}</span>`;
       list.append(row);
@@ -803,7 +845,14 @@ export class Hud {
 
   private updateQuestTracker(): void {
     const tracker = this.q(".quest-tracker");
-    for (const [questId, quest] of Object.entries(QUESTS)) {
+    // The pinned quest, if any and active, is shown first; otherwise the first
+    // active quest (matching the guidance line's own priority).
+    const tracked = this.sim.trackedQuestId;
+    const ids = tracked && QUESTS[tracked]
+      ? [tracked, ...Object.keys(QUESTS).filter((id) => id !== tracked)]
+      : Object.keys(QUESTS);
+    for (const questId of ids) {
+      const quest = QUESTS[questId];
       const state = this.sim.quests.states[questId];
       if (state?.status !== "active") continue;
       const objective = quest.objectives[state.objectiveIndex];
@@ -942,6 +991,7 @@ export class Hud {
     this.refreshInventory();
     this.refreshSkill();
     this.refreshHealth(sim.hp, sim.maxHp());
+    this.refreshCombatStyle();
   }
 
   /** Called every render frame for continuously-changing widgets. */
@@ -949,6 +999,7 @@ export class Hud {
     this.updateQuestPointer();
     this.updateQuestTracker();
     this.updateClock();
+    this.refreshCombatStyle();
     const pipelineLive = this.sim.actions.phase !== "idle";
     this.targetPlateEl.classList.toggle("hidden", !pipelineLive);
     if (pipelineLive) {
@@ -1297,5 +1348,20 @@ export class Hud {
     fill.style.width = `${Math.round((hp / maxHp) * 100)}%`;
     fill.classList.toggle("low", hp / maxHp <= 0.3);
     this.q(".hp-text").textContent = `${hp}/${maxHp}`;
+  }
+
+  /** The attack-style chip: current style + what it trains. Hidden when a bow
+   *  is equipped (ranged always trains Archery, so the style doesn't apply). */
+  private refreshCombatStyle(): void {
+    const chip = this.q(".combat-style-chip");
+    if (this.sim.hasBowEquipped()) {
+      chip.classList.add("hidden");
+      return;
+    }
+    chip.classList.remove("hidden");
+    const info = ATTACK_STYLES[this.sim.attackStyle];
+    this.q(".cs-text").textContent = info.label;
+    this.q(".cs-trains").textContent = ` · ${info.trains}`;
+    chip.title = `Attack style: ${info.label} — trains ${info.trains}. Tap to change.`;
   }
 }

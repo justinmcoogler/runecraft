@@ -43,6 +43,10 @@ interface SaveDataV1 {
   reputation?: Record<string, number>;
   /** Named biomes the player has ever entered. */
   discoveredBiomes?: string[];
+  /** Quest the player has pinned to track (guidance line + map marker). */
+  trackedQuestId?: string | null;
+  /** Chosen melee attack style (accurate/aggressive/defensive/controlled). */
+  attackStyle?: string;
 }
 
 /** A discovered endless-world landmark, saved so it can be revisited. */
@@ -81,6 +85,10 @@ export interface SharedState {
   reputation?: Record<string, number>;
   /** Named biomes the player has ever entered. */
   discoveredBiomes?: string[];
+  /** Quest the player has pinned to track. */
+  trackedQuestId?: string | null;
+  /** Chosen melee attack style. */
+  attackStyle?: string;
 }
 
 // Items renamed by content updates: keep old saves' stacks meaningful.
@@ -152,6 +160,8 @@ export function captureSharedState(sim: GameSimulation): SharedState {
     treasureHunt: sim.treasureHunt ? { ...sim.treasureHunt } : null,
     reputation: { ...sim.reputation },
     discoveredBiomes: [...sim.discoveredBiomes],
+    trackedQuestId: sim.trackedQuestId,
+    attackStyle: sim.attackStyle,
   };
 }
 
@@ -173,6 +183,8 @@ export function applySharedState(sim: GameSimulation, shared: SharedState): void
   if (shared.treasureHunt !== undefined) sim.treasureHunt = shared.treasureHunt ? { ...shared.treasureHunt } : null;
   if (shared.reputation) for (const [k, v] of Object.entries(shared.reputation)) if (k in sim.reputation) sim.reputation[k] = v;
   if (shared.discoveredBiomes) for (const b of shared.discoveredBiomes) sim.discoveredBiomes.add(b);
+  if (shared.trackedQuestId !== undefined) sim.trackedQuestId = shared.trackedQuestId;
+  if (isAttackStyle(shared.attackStyle)) sim.attackStyle = shared.attackStyle;
   if (shared.homePoint !== undefined) {
     sim.homePoint = shared.homePoint
       ? { regionId: shared.homePoint.regionId, cell: { ...shared.homePoint.cell } }
@@ -235,7 +247,14 @@ export function serialize(
     treasureHunt: sim.treasureHunt ? { ...sim.treasureHunt } : null,
     reputation: { ...sim.reputation },
     discoveredBiomes: [...sim.discoveredBiomes],
+    trackedQuestId: sim.trackedQuestId,
+    attackStyle: sim.attackStyle,
   };
+}
+
+/** Narrow an untrusted saved string to a valid AttackStyle. */
+function isAttackStyle(v: unknown): v is import("../sim/types").AttackStyle {
+  return v === "accurate" || v === "aggressive" || v === "defensive" || v === "controlled";
 }
 
 /**
@@ -258,6 +277,8 @@ export function applySave(sim: GameSimulation, data: SaveDataV1): void {
   if (data.treasureHunt !== undefined) sim.treasureHunt = data.treasureHunt ? { ...data.treasureHunt } : null;
   if (data.reputation) for (const [k, v] of Object.entries(data.reputation)) if (k in sim.reputation) sim.reputation[k] = v;
   if (data.discoveredBiomes) for (const b of data.discoveredBiomes) sim.discoveredBiomes.add(b);
+  if (data.trackedQuestId !== undefined) sim.trackedQuestId = data.trackedQuestId;
+  if (isAttackStyle(data.attackStyle)) sim.attackStyle = data.attackStyle;
   for (const [skillId, xp] of Object.entries(data.skills)) {
     if (skillId in sim.skills.xp) sim.skills.xp[skillId] = xp;
   }
