@@ -358,7 +358,34 @@ export class GameRenderer {
    *  find the next (spread-out) station. */
   private tutorialBeacon: THREE.Mesh | null = null;
   private questDots: THREE.Mesh[] = [];
-  private questDotGeo: THREE.CircleGeometry | null = null;
+  private questDotGeo: THREE.PlaneGeometry | null = null;
+  private questDotTex: THREE.CanvasTexture | null = null;
+
+  /** A small hard-edged pixel disc (drawn per-pixel, nearest-filtered) so the
+   *  quest-trail dots read as chunky pixel circles, not smooth vectors. */
+  private pixelDiscTexture(): THREE.CanvasTexture {
+    if (this.questDotTex) return this.questDotTex;
+    const N = 12, r = N / 2 - 0.5, cc = (N - 1) / 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = N;
+    const ctx = canvas.getContext("2d")!;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const d = Math.hypot(x - cc, y - cc);
+        if (d <= r) {
+          // A darker 1px rim, bright core — a little pixel coin.
+          ctx.fillStyle = d > r - 1.2 ? "#b98a1a" : "#ffdc55";
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.questDotTex = tex;
+    return tex;
+  }
 
   /** A glowing pillar over the active quest objective, plus a trail of dots
    *  marking the walkable path to it — quest help that shows where to go. */
@@ -392,7 +419,7 @@ export class GameRenderer {
       return;
     }
     if (!this.questDotGeo) {
-      this.questDotGeo = new THREE.CircleGeometry(0.26, 16);
+      this.questDotGeo = new THREE.PlaneGeometry(0.5, 0.5);
       this.questDotGeo.rotateX(-Math.PI / 2);
     }
     // One dot every other path cell (capped), pulsing as it "marches" toward
@@ -401,7 +428,7 @@ export class GameRenderer {
     for (let i = 0; i < path.length && di < 48; i += 2) {
       const c = path[i];
       if (di >= this.questDots.length) {
-        const mat = new THREE.MeshBasicMaterial({ color: "#ffdc55", transparent: true, opacity: 0.6, depthWrite: false });
+        const mat = new THREE.MeshBasicMaterial({ map: this.pixelDiscTexture(), transparent: true, opacity: 0.6, alphaTest: 0.35, depthWrite: false });
         const mesh = new THREE.Mesh(this.questDotGeo, mat);
         mesh.renderOrder = 3;
         this.scene.add(mesh);

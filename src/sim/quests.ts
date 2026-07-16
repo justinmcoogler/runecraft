@@ -111,6 +111,12 @@ export class QuestService {
       if (def.giverNpcId === npcId && this.isAvailable(id)) {
         state.status = "active";
         this.deps.events.emit({ type: "questStarted", questId: id, name: def.name });
+        // A tutor hands over the tool the lesson needs the moment you accept.
+        for (const grant of def.startItems ?? []) {
+          this.deps.inventory.add(grant.itemId, grant.qty);
+          this.deps.events.emit({ type: "itemGained", itemId: grant.itemId, qty: grant.qty });
+        }
+        if (def.startItems?.length) this.deps.events.emit({ type: "inventoryChanged" });
         // A leading talk-objective is satisfied by this very conversation.
         const first = def.objectives[0];
         if (first.type === "talk" && first.npcId === npcId) this.advance(id);

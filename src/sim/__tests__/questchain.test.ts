@@ -1,14 +1,17 @@
-// Tutor's Trail quests: the lessons and the graduation are gated behind the
-// welcome quest, the combat lesson counts pig kills across attack styles, and
-// finishing graduation sets the tutorial.graduated world flag.
+// Tutor's Trail unlocks one lesson at a time: each lesson is gated behind the
+// previous master's, graduation behind the last, the Combat Instructor grants a
+// sword on accept and counts pig kills, and finishing graduation sets the
+// tutorial.graduated world flag.
 
 import { describe, expect, it } from "vitest";
 import { GameSimulation } from "../simulation";
 import type { SimEvent } from "../types";
 import type { RegionSpec, BlockType } from "../world";
+import { TUTORIAL_ORDER } from "../../content/content";
 
 const NPC = "t.giver";
 const PIG = "t.pig";
+const lessonId = (skill: string) => `quest.tut_${skill.slice("skill.".length)}`;
 
 function makeChainRegion(): RegionSpec {
   const width = 12, depth = 12;
@@ -42,32 +45,46 @@ function chainSim(seed = 42): GameSimulation {
 const talk = (sim: GameSimulation): void =>
   sim.quests.process([{ type: "npcChat", instanceId: NPC, name: "Guide" } as SimEvent]);
 
-describe("Tutor's Trail gating", () => {
-  it("gates the lessons and graduation behind the welcome quest", () => {
+describe("Tutor's Trail sequential unlock", () => {
+  it("offers each lesson only once the previous is complete", () => {
     const sim = chainSim();
     expect(sim.quests.isAvailable("quest.tut_welcome")).toBe(true);
-    for (const q of ["quest.tut_attack", "quest.tut_mining", "quest.tut_graduation"]) {
-      expect(sim.quests.isAvailable(q), q).toBe(false);
-    }
+    // No lesson and not graduation is available before its predecessor is done.
+    expect(sim.quests.isAvailable(lessonId(TUTORIAL_ORDER[0]))).toBe(false);
+    expect(sim.quests.isAvailable("quest.tut_graduation")).toBe(false);
+
     sim.quests.states["quest.tut_welcome"].status = "completed";
-    for (const q of ["quest.tut_attack", "quest.tut_mining", "quest.tut_graduation"]) {
-      expect(sim.quests.isAvailable(q), q).toBe(true);
+    expect(sim.quests.isAvailable(lessonId(TUTORIAL_ORDER[0]))).toBe(true);
+    expect(sim.quests.isAvailable(lessonId(TUTORIAL_ORDER[1]))).toBe(false);
+
+    // Walk the whole chain: each completion opens exactly the next.
+    for (let i = 0; i < TUTORIAL_ORDER.length; i++) {
+      expect(sim.quests.isAvailable(lessonId(TUTORIAL_ORDER[i])), TUTORIAL_ORDER[i]).toBe(true);
+      sim.quests.states[lessonId(TUTORIAL_ORDER[i])].status = "completed";
     }
+    // Only after the last lesson does graduation open.
+    expect(sim.quests.isAvailable("quest.tut_graduation")).toBe(true);
   });
 });
 
 describe("the Combat Instructor lesson", () => {
-  it("auto-clears the equip step, then counts three pig kills", () => {
+  it("grants a sword on accept, then counts three pig kills", () => {
     const sim = chainSim();
+    // Complete every lesson up to (not including) Attack so it's available.
     sim.quests.states["quest.tut_welcome"].status = "completed";
-    sim.equippedTool = "tool.sword.bronze"; // a weapon already in hand
-    talk(sim); // start: leading talk + equip-weapon auto-advance -> slay
+    for (const skill of TUTORIAL_ORDER) {
+      if (skill === "skill.attack") break;
+      sim.quests.states[lessonId(skill)].status = "completed";
+    }
+    const swordsBefore = sim.inventory.count("tool.sword.bronze");
+    sim.equippedTool = "tool.sword.bronze"; // a weapon in hand: the equip step auto-clears
+    talk(sim); // accept: startItems hands over a sword, then talk + equip auto-advance -> slay
+    expect(sim.inventory.count("tool.sword.bronze")).toBe(swordsBefore + 1);
     expect(sim.quests.activeObjective("quest.tut_attack")?.id).toBe("do");
 
     sim.quests.process([{ type: "enemyDied", instanceId: PIG }, { type: "enemyDied", instanceId: PIG }] as SimEvent[]);
     expect(sim.quests.states["quest.tut_attack"].progress).toBe(2);
     sim.quests.process([{ type: "enemyDied", instanceId: PIG }] as SimEvent[]);
-    // The third kill clears the final objective, completing the lesson.
     expect(sim.quests.states["quest.tut_attack"].status).toBe("completed");
   });
 });
@@ -75,9 +92,9 @@ describe("the Combat Instructor lesson", () => {
 describe("graduation", () => {
   it("completing graduation sets the tutorial.graduated flag", () => {
     const sim = chainSim();
+    // Force the whole chain complete so graduation is available.
     sim.quests.states["quest.tut_welcome"].status = "completed";
-    // Walk over and talk: the single talk objective completes on accept, and
-    // the sim applies the quest's completionFlag on questCompleted.
+    for (const skill of TUTORIAL_ORDER) sim.quests.states[lessonId(skill)].status = "completed";
     sim.enqueue({ type: "interact", targetId: NPC });
     let done = false;
     for (let i = 0; i < 4000 && !done; i++) {

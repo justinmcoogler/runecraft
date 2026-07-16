@@ -4887,6 +4887,9 @@ export interface QuestDef {
   reminder: string;
   outro: string;
   objectives: QuestObjectiveDef[]; // ordered
+  /** Items handed over the moment the quest is accepted — a tutor giving you the
+   *  tool the lesson needs, so an equip-then-use objective is actually doable. */
+  startItems?: Array<{ itemId: string; qty: number }>;
   rewards: {
     xp: Array<{ skillId: string; amount: number }>;
     items: Array<{ itemId: string; qty: number }>;
@@ -4991,16 +4994,22 @@ export function masterNpcId(skill: string): string {
 // chain teach by demonstration (talk) with the station right there to try.
 const LESSON_ACTION: Record<string, QuestObjectiveDef[]> = {
   "skill.woodcutting": [{ id: "do", label: "Chop 2 logs", type: "gather", itemId: "item.log.basic", qty: 2 }],
-  "skill.mining": [{ id: "do", label: "Mine 2 copper ore", type: "gather", itemId: "item.ore.copper", qty: 2 }],
+  "skill.mining": [
+    { id: "eq", label: "Equip your pickaxe", type: "equipTag", toolTag: "pickaxe" },
+    { id: "do", label: "Mine 2 copper ore", type: "gather", itemId: "item.ore.copper", qty: 2 },
+  ],
   "skill.foraging": [{ id: "do", label: "Gather 2 berries", type: "gather", itemId: "item.berry.basic", qty: 2 }],
-  "skill.fishing": [{ id: "do", label: "Catch 2 fish", type: "gather", itemId: "item.fish.raw", qty: 2 }],
+  "skill.fishing": [
+    { id: "eq", label: "Equip your fishing rod", type: "equipTag", toolTag: "fishing_tool" },
+    { id: "do", label: "Catch 2 fish", type: "gather", itemId: "item.fish.raw", qty: 2 },
+  ],
   "skill.herblore": [{ id: "do", label: "Pick 2 sage", type: "gather", itemId: "item.herb.sage", qty: 2 }],
   "skill.attack": [
-    { id: "eq", label: "Equip a weapon", type: "equipTag", toolTag: "weapon" },
+    { id: "eq", label: "Equip your sword", type: "equipTag", toolTag: "weapon" },
     { id: "do", label: "Cull 3 pigs, switching attack styles", type: "slay", enemyDefId: "enemy.pig", qty: 3 },
   ],
   "skill.archery": [
-    { id: "eq", label: "Equip a bow", type: "equipTag", toolTag: "bow" },
+    { id: "eq", label: "Equip your bow", type: "equipTag", toolTag: "bow" },
     { id: "do", label: "Fell a target dummy", type: "slay", enemyDefId: "enemy.target_dummy", qty: 1 },
   ],
   "skill.hunting": [{ id: "do", label: "Catch a chicken", type: "slay", enemyDefId: "enemy.chicken", qty: 1 }],
@@ -5008,46 +5017,73 @@ const LESSON_ACTION: Record<string, QuestObjectiveDef[]> = {
   "skill.necromancy": [{ id: "do", label: "Fell a skeleton", type: "slay", enemyDefId: "enemy.skeleton", qty: 1 }],
 };
 
-// The Combat Instructor teaches all of melee at once (Attack, Strength,
-// Defence, Constitution via the attack-style toggle), so those three fold into
-// the Attack lesson rather than getting their own tutors + quests.
-const MERGED_INTO_COMBAT = new Set(["skill.strength", "skill.defense", "skill.constitution"]);
+// The tool each master hands over as the lesson begins, so an equip-then-use
+// objective is always doable. `note` is folded into the master's greeting.
+const LESSON_GIFT: Record<string, { items: Array<{ itemId: string; qty: number }>; note: string }> = {
+  "skill.woodcutting": { items: [{ itemId: "tool.axe.copper", qty: 1 }], note: "Here's a copper axe — sharper than your starter." },
+  "skill.mining": { items: [{ itemId: "tool.pickaxe.copper", qty: 1 }], note: "Take this pickaxe and equip it." },
+  "skill.fishing": { items: [{ itemId: "tool.fishingrod.basic", qty: 1 }], note: "Here's a rod — equip it and cast off." },
+  "skill.attack": { items: [{ itemId: "tool.sword.bronze", qty: 1 }], note: "Take this bronze sword and equip it." },
+  "skill.archery": { items: [{ itemId: "tool.bow.oak", qty: 1 }, { itemId: "item.arrow.bronze", qty: 30 }], note: "Here's a bow and arrows — equip the bow." },
+};
 
-// Generate the lesson-quests from the table and fold them into QUESTS. Each is
-// gated behind the welcome quest and grants a little starting XP; where an
-// action is defined above, the master won't sign it off until you've done it.
-for (const m of SKILL_MASTERS) {
-  if (MERGED_INTO_COMBAT.has(m.skill)) continue;
-  const short = m.skill.slice("skill.".length);
-  const npc = masterNpcId(m.skill);
-  const skillName = SKILLS[m.skill]?.name ?? short;
-  const action = LESSON_ACTION[m.skill] ?? [];
-  const combat = m.skill === "skill.attack";
+// The teaching order down the trail (Attack folds in Strength/Defence/
+// Constitution as the Combat Instructor). Lessons unlock one at a time: each is
+// gated behind the previous, so only the next master up the trail offers a quest.
+export const TUTORIAL_ORDER = [
+  "skill.woodcutting", "skill.mining", "skill.foraging", "skill.fishing", "skill.cooking",
+  "skill.smelting", "skill.smithing", "skill.attack", "skill.farming", "skill.herblore",
+  "skill.crafting", "skill.archaeology", "skill.archery", "skill.construction", "skill.brewing",
+  "skill.enchanting", "skill.hunting", "skill.thieving", "skill.agility", "skill.slaying",
+  "skill.boating", "skill.firemaking", "skill.prayer", "skill.runecrafting", "skill.fletching",
+  "skill.magic", "skill.dungeoneering", "skill.summoning", "skill.necromancy", "skill.invention",
+] as const;
+
+TUTORIAL_ORDER.forEach((skill, i) => {
+  const m = SKILL_MASTERS.find((s) => s.skill === skill)!;
+  const short = skill.slice("skill.".length);
+  const npc = masterNpcId(skill);
+  const skillName = SKILLS[skill]?.name ?? short;
+  const action = LESSON_ACTION[skill] ?? [];
+  const gift = LESSON_GIFT[skill];
+  const combat = skill === "skill.attack";
+  // Sequential unlock: the first lesson follows the welcome; the rest each
+  // follow the previous master down the trail.
+  const prereq = i === 0 ? "quest.tut_welcome" : `quest.tut_${TUTORIAL_ORDER[i - 1].slice("skill.".length)}`;
   QUESTS[`quest.tut_${short}`] = {
     id: `quest.tut_${short}`,
     name: combat ? "The Combat Instructor" : `The ${m.title}`,
     giverNpcId: npc,
-    prereqQuestIds: ["quest.tut_welcome"],
+    prereqQuestIds: [prereq],
+    startItems: gift?.items,
     intro: combat
-      ? `Sergeant Gareth: "One instructor, all of melee. Attack, Strength, Defence — the attack-style toggle picks which one grows, and Constitution grows no matter what. Equip a weapon and cull the three pigs, switching styles as you go."`
-      : action.length
-        ? `${m.name}: "Well met. Words won't teach you ${skillName} — give it a try right here, then I'll sign your lesson off."`
-        : `${m.name}: "Well met. I keep the ${skillName} craft here on the trail. Have a word and I'll set you on the path."`,
+      ? `Sergeant Gareth: "One instructor, all of melee. Here's a bronze sword — equip it. The attack-style toggle picks which skill grows: Accurate for Attack, Aggressive for Strength, Defensive for Defence, and Constitution grows no matter what. Cull the three pigs, switching styles as you go."`
+      : gift
+        ? `${m.name}: "Well met. ${gift.note} Then ${action.length ? "give " + skillName + " a try right here" : "have a word"} and I'll sign your lesson off."`
+        : action.length
+          ? `${m.name}: "Well met. Words won't teach you ${skillName} — give it a try right here, then I'll sign your lesson off."`
+          : `${m.name}: "Well met. I keep the ${skillName} craft here on the trail. Have a word and I'll set you on the path."`,
     reminder: combat
       ? `Speak with Sergeant Gareth, then cull 3 pigs — switch attack styles to feel each combat skill grow.`
       : action.length
         ? `Train ${skillName} at ${m.name}'s station on the trail.`
         : `Speak with ${m.name} the ${m.title} to learn ${skillName}.`,
     outro: combat
-      ? `"Good. Accurate for Attack, Aggressive for Strength, Defensive for Defence, Controlled to split them — and every blow feeds Constitution. Now off with you."`
-      : `"There — that's the first of it. The rest you'll learn by doing. The station's right here whenever you like."`,
+      ? `"Good. Accurate for Attack, Aggressive for Strength, Defensive for Defence, Controlled to split them — and every blow feeds Constitution. Now on down the trail."`
+      : `"There — that's the first of it. The next master's waiting further down the trail."`,
     objectives: [
       { id: "talk", label: combat ? "Meet the Combat Instructor" : `Learn ${skillName} from ${m.name}`, type: "talk", npcId: npc },
       ...action,
     ],
-    rewards: { xp: [{ skillId: m.skill, amount: 40 }], items: [] },
+    rewards: { xp: [{ skillId: skill, amount: 40 }], items: [] },
   };
-}
+});
+
+// Graduation opens only once the last master's lesson is done — the whole trail
+// must be walked before the gateway will open.
+QUESTS["quest.tut_graduation"].prereqQuestIds = [
+  `quest.tut_${TUTORIAL_ORDER[TUTORIAL_ORDER.length - 1].slice("skill.".length)}`,
+];
 
 // ---------- combat ----------
 
