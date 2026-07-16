@@ -1456,6 +1456,23 @@ export class GameRenderer {
     }
   }
 
+  /** A small stepped pyramid of full-size Minecraft blocks — a 2×2 base capped
+   *  by one — used for ore veins. Full 1×1 blocks so the ore textures map one
+   *  tile per face, undistorted. The same shape (in stone) serves the mined-out
+   *  state, so mining just swaps the ore block for plain stone. */
+  private orePyramid(mat: THREE.MeshLambertMaterial): THREE.Group {
+    const g = new THREE.Group();
+    for (const [dx, dz] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]] as const) {
+      const block = this.tiledBox(1, 1, 1, mat);
+      block.position.set(dx, 0.5, dz);
+      g.add(block);
+    }
+    const cap = this.tiledBox(1, 1, 1, mat);
+    cap.position.set(0, 1.5, 0);
+    g.add(cap);
+    return g;
+  }
+
   private buildNodeVisual(
     kind: NodeViewKind,
     variety: number,
@@ -1646,30 +1663,19 @@ export class GameRenderer {
         };
       }
       case "rock": {
-        // A mineable ore outcrop: a voxel rock from the sliced pack, surfaced in
-        // the ore's material so it reads as an ore vein. Mined out, it becomes a
-        // plain stone block. Falls back to a 1×1 ore block if no model is enabled.
+        // A mineable ore: a small stepped pyramid of cubes surfaced in the ore's
+        // colour, so a vein reads at a glance. Mined out, the very same pyramid
+        // turns plain stone — the ore colour vanishes until the vein regrows and
+        // it can be mined again.
         const oreMat = this.lambert(viewMaterial ?? "resource.rock.copper");
-        const model = pickMiningRock(variety);
-        if (model) {
-          for (const geo of rockGeometry(model)) {
-            const mesh = new THREE.Mesh(geo, oreMat);
-            mesh.position.y = -0.12; // settle into the ground
-            activeGroup.add(mesh);
-          }
-          activeGroup.add(makeBlobShadow(0.55 + model.r * 0.3));
-        } else {
-          const block = this.tiledBox(1, 1, 1, oreMat);
-          block.position.y = 0.5;
-          activeGroup.add(block);
-        }
-        const spent = this.tiledBox(1, 1, 1, this.lambert("resource.rock.stone"));
+        activeGroup.add(this.orePyramid(oreMat), makeBlobShadow(1.1));
+        const spent = this.orePyramid(this.lambert("resource.rock.stone"));
         return {
           activeGroup,
           depletedMesh: spent,
           fadeMaterials: [oreMat],
           baseScale: 1,
-          depletedYOffset: 0.5,
+          depletedYOffset: 0,
         };
       }
       case "bush": {

@@ -81,6 +81,24 @@ const DANGER_ORES: string[][] = [
   ["resource.rock.emerald", "resource.rock.diamond", "resource.rock.netherite"],
 ];
 
+// Only the common ores surface in the open world. The precious and exotic ores
+// (gold, redstone, lapis, diamond, emerald, quartz, netherite, essence) are
+// found underground only — in caves, mineshafts and the deep dungeons — so any
+// rare vein a surface scatter rolls is downgraded to a common one here.
+const SURFACE_ORES = new Set([
+  "resource.rock.copper", "resource.rock.tin", "resource.rock.coal", "resource.rock.iron",
+]);
+const SURFACE_ORE_DOWNGRADE: Record<string, string> = {
+  "resource.rock.gold": "resource.rock.iron",
+  "resource.rock.redstone": "resource.rock.copper",
+  "resource.rock.lapis": "resource.rock.tin",
+  "resource.rock.diamond": "resource.rock.iron",
+  "resource.rock.emerald": "resource.rock.coal",
+  "resource.rock.quartz": "resource.rock.coal",
+  "resource.rock.netherite": "resource.rock.iron",
+  "resource.rock.essence": "resource.rock.coal",
+};
+
 // Compact block palette for chunk storage.
 const BLOCK_LIST: BlockType[] = [
   "grass", "dirt", "stone", "sand", "water", "plank", "snow", "ice",
@@ -2616,6 +2634,15 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
     }
   }
   } // end if (!CLEAR_ASSETS)
+
+  // Keep the rare ores out of the daylight: any precious/exotic vein a surface
+  // scatter placed is downgraded to a common ore. Rare ores live underground
+  // (dungeon rock pools), which are placed separately and untouched by this.
+  for (const n of nodes) {
+    if (!n.defId.startsWith("resource.rock.") || SURFACE_ORES.has(n.defId)) continue;
+    const down = SURFACE_ORE_DOWNGRADE[n.defId];
+    if (down) n.defId = down;
+  }
 
   return { cx, cz, heights, blocks, nodes, objects, enemies, structures, npcs };
 }
