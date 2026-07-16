@@ -5,6 +5,7 @@
 // WorldState's TerrainSource — this manager only handles entities.
 
 import { OBJECTS } from "../content/content";
+import { isModelEnabled } from "../render/model-prefs";
 import { Inventory } from "./inventory";
 import type { GameSimulation } from "./simulation";
 import type { Cell } from "./types";
@@ -40,10 +41,13 @@ export class ChunkManager {
     const chunk = this.terrain.chunk(cx, cz);
     const region = this.sim.world.region;
     for (const node of chunk.nodes) {
+      // A "deleted" asset (disabled in the editor) never streams into the wild.
+      if (!isModelEnabled(node.defId)) continue;
       region.nodes.push(node);
       this.sim.nodes.addInstance(node, this.sim.rng);
     }
     for (const obj of chunk.objects) {
+      if (!isModelEnabled(obj.defId)) continue;
       region.objects.push(obj);
       const odef = OBJECTS[obj.defId];
       if (odef.blocksNav) {
@@ -65,7 +69,10 @@ export class ChunkManager {
     }
     // Wild homesteads: region-level structures with nav blockers, streamed
     // into visuals by distance in the renderer (like the rest of the window).
-    for (const structure of chunk.structures) this.sim.addEditorStructure(structure);
+    for (const structure of chunk.structures) {
+      if (!isModelEnabled(structure.structureId)) continue;
+      this.sim.addEditorStructure(structure);
+    }
     // Village folk: streamed like beasts so hamlets in the wild are peopled.
     for (const npc of chunk.npcs) {
       region.npcs.push(npc);

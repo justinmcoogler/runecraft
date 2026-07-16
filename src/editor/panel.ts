@@ -184,6 +184,7 @@ export class WorldEditor implements EditorInputTarget {
       }
       .editor-spawn:hover { border-color: #5b6b7e; }
       .editor-spawn-off { background: #3a2626; border-color: #6b3a3a; opacity: 0.85; }
+      .editor-row-deleted .editor-entry { opacity: 0.4; text-decoration: line-through; }
       .editor-footer { display: flex; gap: 6px; }
       .editor-search {
         background: #1b222b; color: #d7e0ea; border: 1px solid #333d49;
@@ -613,26 +614,32 @@ export class WorldEditor implements EditorInputTarget {
         pick.addEventListener("click", () => this.select(entry));
         (pick as HTMLElement & { __entry?: PaletteEntry }).__entry = entry;
         row.append(pick);
-        // Wild-spawn toggle (the old Models menu, merged in): single-def
-        // creatures, props and resources can be switched off so they never
-        // stream into the random world — placing them by hand still works.
-        if (entry.pool.length === 1 && (entry.kind === "enemy" || entry.kind === "object" || entry.kind === "node")) {
-          const modelId = entry.pool[0];
-          const toggle = document.createElement("button");
-          toggle.className = "editor-spawn";
+        // Delete / restore: a dev tool to take an asset out of the game so it
+        // stops spawning anywhere in the wild (endless chunks skip any disabled
+        // node / prop / creature / building). Deletion is global and persists
+        // on-device; click ↩ to bring the asset back before release. Works on a
+        // single def or a whole pool (a tree species, the home library, …).
+        {
+          const del = document.createElement("button");
+          del.className = "editor-spawn";
+          const isDeleted = () => entry.pool.every((id) => !isModelEnabled(id));
           const refresh = () => {
-            const on = isModelEnabled(modelId);
-            toggle.textContent = on ? "\u{1F331}" : "\u{1F6AB}";
-            toggle.title = on ? "Spawns in the wild — click to stop" : "Won't spawn wild — click to allow";
-            toggle.classList.toggle("editor-spawn-off", !on);
+            const gone = isDeleted();
+            del.textContent = gone ? "↩" : "\u{1F5D1}";
+            del.title = gone
+              ? "Deleted — won't spawn in the game. Click to restore."
+              : "Delete from the game (stops it spawning). Placing by hand still works.";
+            del.classList.toggle("editor-spawn-off", gone);
+            row.classList.toggle("editor-row-deleted", gone);
           };
           refresh();
-          toggle.addEventListener("click", (e) => {
+          del.addEventListener("click", (e) => {
             e.stopPropagation();
-            setModelEnabled(modelId, !isModelEnabled(modelId));
+            const restore = isDeleted();
+            for (const id of entry.pool) setModelEnabled(id, restore);
             refresh();
           });
-          row.append(toggle);
+          row.append(del);
         }
         // Drill-down: a group of many variants (tree buckets, the interiored
         // home library) gets an expander to pick one exact model instead of a
