@@ -275,6 +275,24 @@ const ITEM_DRAWS: Record<string, Draw> = {
     berry(9, 6);
     berry(6, 11);
   },
+  "item.egg": (ctx) => {
+    // A little egg: dark silhouette, cream shell, soft highlight and shade.
+    ctx.fillStyle = OUTLINE;
+    ctx.fillRect(6, 2, 4, 1);
+    ctx.fillRect(5, 3, 6, 1);
+    ctx.fillRect(4, 4, 8, 8);
+    ctx.fillRect(5, 12, 6, 1);
+    ctx.fillRect(6, 13, 4, 1);
+    ctx.fillStyle = "#f4ecd4";
+    ctx.fillRect(6, 3, 4, 1);
+    ctx.fillRect(5, 4, 6, 8);
+    ctx.fillRect(6, 12, 4, 1);
+    ctx.fillStyle = "#fffdf5";
+    ctx.fillRect(6, 5, 2, 2);
+    ctx.fillStyle = "#dcd0ac";
+    ctx.fillRect(9, 9, 2, 2);
+    ctx.fillRect(7, 11, 3, 1);
+  },
   "item.fish.raw": fish("#7fa8c9", "#a8c8de", "#5d86a8"),
   "item.fish.cooked": fish("#d98a3f", "#f0b06a", "#a8622a"),
   "item.fish.burnt": fish("#4a4440", "#5f574f", "#332e2a"),

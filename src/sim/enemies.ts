@@ -23,6 +23,8 @@ export interface EnemyState {
   attackCooldownS: number;
   repathCooldownS: number;
   wanderCooldownS: number;
+  /** Chickens only: seconds until they lay the next egg on the ground. */
+  eggTimerS: number;
 }
 
 export interface EnemyDeps {
@@ -32,6 +34,8 @@ export interface EnemyDeps {
   isPlayerAlive(): boolean;
   getDefenseLevel(): number;
   damagePlayer(amount: number): void;
+  /** Drop a stack on the ground (chickens laying eggs). */
+  spawnGroundItem(cell: Cell, itemId: string, qty: number): void;
 }
 
 export class EnemySystem {
@@ -62,6 +66,7 @@ export class EnemySystem {
       attackCooldownS: def.attack.cadenceS,
       repathCooldownS: 0,
       wanderCooldownS: 2 + rng.next() * 4,
+      eggTimerS: 20 + rng.next() * 25,
     });
   }
 
@@ -133,6 +138,15 @@ export class EnemySystem {
       }
 
       enemy.movement.tick(dtSeconds);
+
+      // Chickens periodically lay an egg on the ground for the player to grab.
+      if (enemy.defId === "enemy.chicken") {
+        enemy.eggTimerS -= dtSeconds;
+        if (enemy.eggTimerS <= 0) {
+          enemy.eggTimerS = 25 + rng.next() * 30;
+          this.deps.spawnGroundItem(enemy.movement.currentCell(), "item.egg", 1);
+        }
+      }
 
       if (enemy.engaged && playerAlive) {
         const myCell = enemy.movement.currentCell();

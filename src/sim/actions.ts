@@ -4,6 +4,7 @@
 
 import { ENEMIES, ITEMS, MINING_GEM_CHANCE, MINING_GEMS, NODES, OBJECTS, PLAYER_COMBAT, RECIPES, type RecipeDef } from "../content/content";
 import type { EnemySystem } from "./enemies";
+import type { GroundItemSystem } from "./ground-items";
 import type { ActionAnim, Cell, RejectReason, SimEventBus, SimRng } from "./types";
 import { chebyshev, secondsToTicks } from "./types";
 import { findPath } from "./pathfinding";
@@ -82,6 +83,9 @@ export interface ActionDeps {
   /** Best success-chance bonus among carried/equipped tools matching the tags. */
   toolBonus(tags: string[]): number;
   enemies: EnemySystem;
+  groundItems: GroundItemSystem;
+  /** Drop a stack on the ground (loot that won't fit a full pack). */
+  spawnGroundItem(cell: Cell, itemId: string, qty: number): void;
   attackLevel(): number;
   /** Damage bonus of the equipped weapon (0 when unarmed). */
   weaponBonus(): number;
@@ -167,6 +171,10 @@ export class ActionController {
     this.closeContainer();
     this.closeWorkstation();
     const d = this.deps;
+
+    // A ground item: just walk onto it — the sim auto-picks it up on arrival.
+    const ground = d.groundItems.get(targetId);
+    if (ground) return this.moveTo(ground.cell);
 
     const node = d.nodes.get(targetId);
     const npc = d.npcs.get(targetId);
@@ -810,6 +818,9 @@ export class ActionController {
             d.inventory.add(loot.itemId, qty);
             d.events.emit({ type: "itemGained", itemId: loot.itemId, qty });
             d.events.emit({ type: "inventoryChanged" });
+          } else {
+            // Pack is full: the drop falls where the enemy stood so it isn't lost.
+            d.spawnGroundItem(enemy.movement.currentCell(), loot.itemId, qty);
           }
         }
         d.awardCombatXp(def.xpOnDefeat);

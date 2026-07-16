@@ -7,6 +7,7 @@ import { effectiveSink, walkableSurfaces, solidColumns } from "../structures/typ
 import { lobbyWalk, LOBBY_W, LOBBY_D, LOBBY_SINK, LOBBY_TILE } from "../content/structures/lobby";
 import { ActionController } from "./actions";
 import { EnemySystem } from "./enemies";
+import { GroundItemSystem } from "./ground-items";
 import { Inventory, transferSlot } from "./inventory";
 import { MovementController } from "./movement";
 import { findPath } from "./pathfinding";
@@ -103,6 +104,7 @@ export class GameSimulation {
   readonly npcs: NpcSystem;
   readonly quests: QuestService;
   readonly enemies: EnemySystem;
+  readonly groundItems: GroundItemSystem;
   readonly actions: ActionController;
   readonly slayer: SlayerService;
   readonly curator: CuratorService;
@@ -206,9 +208,15 @@ export class GameSimulation {
         isPlayerAlive: () => this.hp > 0,
         getDefenseLevel: () => this.skills.levelOf("skill.defense"),
         damagePlayer: (amount) => this.damagePlayer(amount),
+        spawnGroundItem: (cell, itemId, qty) => this.spawnGroundItem(cell, itemId, qty),
       },
       this.rng,
     );
+    this.groundItems = new GroundItemSystem({
+      getPlayerCell: () => this.movement.currentCell(),
+      isPlayerAlive: () => this.hp > 0,
+      tryPickup: (itemId, qty) => this.tryPickupGround(itemId, qty),
+    });
     this.actions = new ActionController({
       world: this.world,
       nodes: this.nodes,
@@ -221,6 +229,8 @@ export class GameSimulation {
       hasTool: (tags) => this.hasTool(tags),
       toolBonus: (tags) => this.toolBonus(tags),
       enemies: this.enemies,
+      groundItems: this.groundItems,
+      spawnGroundItem: (cell, itemId, qty) => this.spawnGroundItem(cell, itemId, qty),
       attackLevel: () => this.skills.levelOf(this.combatSkillId()),
       weaponBonus: () =>
         (this.equippedTool ? ITEMS[this.equippedTool].damageBonus ?? 0 : 0) +
@@ -257,6 +267,22 @@ export class GameSimulation {
         this.equippedTool !== null && (ITEMS[this.equippedTool].toolTags ?? []).includes(tag),
       enemyDefOf: (instanceId) => this.enemies.get(instanceId)?.defId,
     });
+  }
+
+  /** Drop a stack on the ground at a cell (overflow loot, laid eggs). */
+  spawnGroundItem(cell: Cell, itemId: string, qty: number): void {
+    if (qty <= 0 || !ITEMS[itemId]) return;
+    this.groundItems.spawn(itemId, qty, cell);
+  }
+
+  /** Auto-pickup callback for the ground-item system: takes the stack if it
+   *  fits, mirroring a normal itemGained so the HUD toast + sfx fire. */
+  private tryPickupGround(itemId: string, qty: number): boolean {
+    if (!this.inventory.canAdd(itemId, qty)) return false;
+    this.inventory.add(itemId, qty);
+    this.events.emit({ type: "itemGained", itemId, qty });
+    this.events.emit({ type: "inventoryChanged" });
+    return true;
   }
 
   hasBowEquipped(): boolean {
@@ -820,6 +846,7 @@ export class GameSimulation {
     this.nodes.tick(TICK_DT, this.rng);
     this.npcs.tick(TICK_DT, this.rng);
     this.enemies.tick(TICK_DT, this.rng);
+    this.groundItems.tick(TICK_DT, this.rng);
 
     // Stumbling onto a landmark or dungeon in the endless wild logs it as a
     // discovery (persisted via world flags) and pays a small explorer's bounty

@@ -23,6 +23,7 @@ import { ROCK_MATERIAL_TILES, ROCK_MATERIAL_TINTS, ROCK_MODELS_ALL, pickBoulderM
 import { buildBBModel } from "./bb-models";
 import { isModelEnabled } from "./model-prefs";
 import { PROPS_BY_CAT, pickProp, propGeometry, propMat, type PropModel } from "./voxel-props";
+import { itemIconUrl } from "../ui/icons";
 
 // Lower ambient relative to sun so faces facing away from the sun read as
 // shaded — that gap is what gives blocks their sense of depth. The colours
@@ -275,6 +276,7 @@ export class GameRenderer {
   private sim: GameSimulation;
   readonly materials: MaterialResolver;
   private nodeViews = new Map<string, NodeView>();
+  private groundItemViews = new Map<string, { group: THREE.Group; cell: Cell; baseY: number }>();
   private pickables: THREE.Object3D[] = [];
   private terrainChunks = new Map<string, {
     mesh: THREE.Mesh;
@@ -791,6 +793,21 @@ export class GameRenderer {
     }
     for (const view of [...this.nodeViews.values()]) {
       if (!near(view.cell, ENTITY_RADIUS + 60)) this.removeNodeVisual(view.instanceId);
+    }
+
+    // Ground items (dropped loot, laid eggs): stream in near the player, cull
+    // when they're picked up / despawned (gone from the sim) or drift far off.
+    for (const item of this.sim.groundItems.instances.values()) {
+      if (budget <= 0) break;
+      if (near(item.cell, ENTITY_RADIUS) && !this.groundItemViews.has(item.instanceId)) {
+        this.addGroundItemVisual(item);
+        budget--;
+      }
+    }
+    for (const [id, view] of [...this.groundItemViews]) {
+      if (!this.sim.groundItems.get(id) || !near(view.cell, ENTITY_RADIUS + 60)) {
+        this.removeGroundItemVisual(id);
+      }
     }
 
     for (const obj of this.sim.world.region.objects) {
@@ -1371,6 +1388,58 @@ export class GameRenderer {
     }
     this.pickables = this.pickables.filter((p) => p !== view.activeGroup && p !== view.depletedMesh);
     this.nodeViews.delete(instanceId);
+  }
+
+  /** A dropped stack lying in the world: the item's icon on a small billboard
+   *  that bobs above the ground (see the bob in update()). Clickable so you can
+   *  send the player to walk over and grab it. */
+  addGroundItemVisual(item: { instanceId: string; itemId: string; cell: Cell }): void {
+    const baseY = this.sim.world.heightAt(item.cell);
+    const cx = item.cell.x + 0.5;
+    const cz = item.cell.z + 0.5;
+    const group = new THREE.Group();
+
+    const url = itemIconUrl(item.itemId);
+    let visual: THREE.Object3D;
+    if (url) {
+      const tex = new THREE.TextureLoader().load(url);
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(0.72, 0.72, 0.72);
+      visual = sprite;
+    } else {
+      const mat = new THREE.MeshLambertMaterial({ color: 0xf1e6c8 });
+      visual = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), mat);
+    }
+    // A soft shadow-ish disc so it reads as sitting on the ground.
+    const disc = new THREE.Mesh(
+      new THREE.CircleGeometry(0.32, 16),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }),
+    );
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = 0.02;
+    group.add(disc, visual);
+    visual.position.y = 0.45;
+    group.position.set(cx, baseY, cz);
+    group.userData.instanceId = item.instanceId;
+    group.traverse((o) => { o.userData.instanceId = item.instanceId; });
+    this.scene.add(group);
+    this.pickables.push(group);
+    this.groundItemViews.set(item.instanceId, { group, cell: item.cell, baseY });
+  }
+
+  removeGroundItemVisual(instanceId: string): void {
+    const view = this.groundItemViews.get(instanceId);
+    if (!view) return;
+    this.scene.remove(view.group);
+    view.group.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.geometry.dispose();
+      if (o instanceof THREE.Sprite) (o.material as THREE.SpriteMaterial).map?.dispose();
+    });
+    this.pickables = this.pickables.filter((p) => p !== view.group);
+    this.groundItemViews.delete(instanceId);
   }
 
   /** Ghost overlays: entities glow through occluders when hidden. */
@@ -5017,6 +5086,11 @@ export class GameRenderer {
     const pp = this.sim.movement.pos;
     this.streamEntities(pp.x, pp.z);
     this.elapsed += dt;
+    // Dropped items bob gently and spin so they catch the eye.
+    for (const view of this.groundItemViews.values()) {
+      view.group.position.y = view.baseY + 0.08 + Math.sin(this.elapsed * 2.6 + view.cell.x) * 0.06;
+      view.group.rotation.y = this.elapsed * 1.2;
+    }
     // Canopy sway: gentle in calm weather, stronger (and faster) in wind/rain.
     const weather = this.sim.weather();
     const gust = weather === "storm" ? 3.0 : weather === "rain" ? 1.7 : weather === "overcast" ? 1.2 : 1.0;

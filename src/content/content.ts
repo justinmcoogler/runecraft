@@ -665,6 +665,14 @@ export const ITEMS: Record<string, ItemDef> = {
     maxStack: 50,
     healAmount: 1,
   },
+  "item.egg": {
+    id: "item.egg",
+    name: "Egg",
+    icon: "🥚",
+    stackable: true,
+    maxStack: 50,
+    healAmount: 1,
+  },
   "item.chicken.cooked": {
     id: "item.chicken.cooked",
     name: "Roast Chicken",
