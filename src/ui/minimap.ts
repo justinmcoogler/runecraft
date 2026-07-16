@@ -74,9 +74,11 @@ export class MiniMap {
     return !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
   }
 
-  /** Only meaningful in the open streamed world (tutorial vale + endless). */
+  /** Surface maps: the endless wild and the finite tutorial island. Caves and
+   *  dungeons have no surface, so the map shows an "underground" state instead. */
   private active(sim: GameSimulation): boolean {
-    return sim.world.region.id === "region.endless";
+    const id = sim.world.region.id;
+    return id === "region.endless" || id === "region.tutorial";
   }
 
   private setOpen(v: boolean): void {
@@ -139,15 +141,37 @@ export class MiniMap {
     const step = cellsPerSample;
     const p = sim.movement.currentCell();
     const seed = sim.seed;
+    // The tutorial island is a finite region: sample its own heightfield so the
+    // map shows ONLY the island (never the endless world beyond it). The wild
+    // samples the boundless generator.
+    const region = sim.world.region;
+    const finite = region.id === "region.tutorial";
     for (let sy = 0; sy < n; sy++) {
       for (let sx = 0; sx < n; sx++) {
         const wx = Math.round(p.x + (sx - half) * step);
         const wz = Math.round(p.z + (sy - half) * step);
-        const t = terrainAt(seed, wx, wz);
-        let col = t.water ? BLOCK_COLORS.water : (BLOCK_COLORS[t.block] ?? "#6a6f74");
+        let block: string;
+        let height: number;
+        let water: boolean;
+        if (finite) {
+          if (wx < 0 || wz < 0 || wx >= region.width || wz >= region.depth) {
+            ctx.fillStyle = "#12141a"; // off-island void
+            ctx.fillRect(sx * px, sy * px, px, px);
+            continue;
+          }
+          block = sim.world.blockAt({ x: wx, z: wz });
+          height = sim.world.heightAt({ x: wx, z: wz });
+          water = block === "water";
+        } else {
+          const t = terrainAt(seed, wx, wz);
+          block = t.block;
+          height = t.h;
+          water = t.water;
+        }
+        let col = water ? BLOCK_COLORS.water : (BLOCK_COLORS[block] ?? "#6a6f74");
         // Subtle height shading so relief reads.
-        if (!t.water) {
-          const shade = Math.max(-0.18, Math.min(0.18, (t.h - 6) * 0.012));
+        if (!water) {
+          const shade = Math.max(-0.18, Math.min(0.18, (height - 6) * 0.012));
           col = shadeHex(col, shade);
         }
         ctx.fillStyle = col;

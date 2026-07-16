@@ -135,7 +135,7 @@ describe("endless save/load", () => {
     sim.inventory.add("item.ore.iron", 7);
     sim.timeS = 999;
     sim.attackStyle = "aggressive";
-    sim.trackedQuestId = "quest.tut_timber";
+    sim.trackedQuestId = "quest.tut_woodcutting";
     sim.movement.setCellPosition(sim.world.region.spawn);
 
     expect(saveEndlessToStorage(sim)).toBe(true);
@@ -148,7 +148,7 @@ describe("endless save/load", () => {
     expect(restored.inventory.count("item.ore.iron")).toBe(7);
     expect(restored.timeS).toBe(999);
     expect(restored.attackStyle).toBe("aggressive");
-    expect(restored.trackedQuestId).toBe("quest.tut_timber");
+    expect(restored.trackedQuestId).toBe("quest.tut_woodcutting");
   });
 
   it("refuses to restore onto a different seed", () => {

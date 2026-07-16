@@ -213,3 +213,19 @@ pack's `torch.png` also overrides them):
 > baked art, a procedural tile, or is a colour/model mesh. The outstanding art
 > is what's listed above (emoji item icons, mob skins, the torch sprites, and
 > the optional structure-block tiles), not broken/missing textures.
+
+---
+
+### Tutorial art / polish backlog (Tutor's Trail rebuild)
+- **Pig snout ("missing nose")** — the baked `mob.pig` bbmodel's snout cube
+  (`504d7e89…` under the `head` root) renders with a box-UV at `[24,0]` that
+  overlaps the head's down-face region in the repacked BetaSharp atlas, so the
+  snout shows head-coloured pixels instead of a distinct nose. Fix by giving the
+  snout an explicit `fuv` pointing at the real snout texels (needs a visual look
+  at `mob-models-data.ts` pig `tex`), or nudge the box-UV origin. Best done in
+  the art pass with screenshot iteration.
+- **Tutor skins** are procedural placeholders (see `render/skin.ts`
+  `TUTOR_PALETTES`) — good enough to read as distinct trainers (smith, mage,
+  ranger, sailor…), but bespoke 64×64 skins would look sharper.
+- The trail zones reuse existing props; dedicated art for an **archery range**,
+  **spirit grove**, **graveyard** and **dig site** would sell those zones more.

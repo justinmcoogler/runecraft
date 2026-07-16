@@ -661,17 +661,18 @@ export class GameSimulation {
    *  the lessons and stepping through it carries the player into a fresh random
    *  world. */
   static createTutorial(seed: number): GameSimulation {
-    setValeActive(true);
-    const terrain = new EndlessTerrain(seed);
-    const spawn = terrain.findSpawn();
-    // A roomy pack: every skill lesson is required now, so the newcomer keeps a
-    // lot of gear + products across the full tour without the pack overflowing.
-    const sim = new GameSimulation(tutorialRegion(seed, spawn), seed, terrain, 40);
-    sim.chunks = new ChunkManager(sim, terrain);
-    sim.chunks.update(spawn);
-    // The tutorial is delivered as a quest chain given by the vale's NPCs (see
-    // QUESTS "quest.tut_*"); the gateway opens once "quest.tut_graduation" sets
-    // the tutorial.graduated world flag. No separate lesson driver.
+    // The tutorial is a hand-built FINITE region (Tutor's Trail island): its own
+    // heightfield with no endless terrain source and no chunk streaming, so no
+    // random POIs, villages, dungeons, mobs or minimap markers can leak in. A
+    // roomy pack (40 slots) carries the gear + products from the full tour.
+    setValeActive(false);
+    const region = tutorialRegion(seed, { x: 0, z: 0 });
+    const sim = new GameSimulation(region, seed, undefined, 40);
+    // A bright midday start so the newcomer's first impression is a sunlit trail.
+    sim.timeS = DAY_LENGTH_S * 0.5;
+    // The tutorial is delivered as quests given by the trail's masters (QUESTS
+    // "quest.tut_*"); the gateway opens once "quest.tut_graduation" sets the
+    // tutorial.graduated world flag. No separate lesson driver.
     return sim;
   }
 

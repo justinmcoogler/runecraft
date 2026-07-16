@@ -16,7 +16,7 @@ import { CameraRig } from "./camera";
 import { CharacterView, type CharacterPose } from "./character";
 import { ParticleBursts } from "./particles";
 import { addPeepHole, peepUniforms } from "./peephole";
-import { defaultHeroSkin, normalizeSkin, villagerSkin, wardenSkin, PX, type LoadedSkin } from "./skin";
+import { defaultHeroSkin, normalizeSkin, tutorSkin, villagerSkin, wardenSkin, PX, type LoadedSkin } from "./skin";
 import { MaterialResolver, type EntitySkin } from "./textures";
 import { TREES_BY_SPECIES, hash01, pickTreeModel, treeGeometry } from "./tree-models";
 import { ROCK_MATERIAL_TILES, ROCK_MATERIAL_TINTS, ROCK_MODELS_ALL, pickBoulderModel, pickMiningRock, rockGeometry } from "./rock-models";
@@ -516,7 +516,7 @@ export class GameRenderer {
     const theme = sim.world.region.theme ?? DEFAULT_THEME;
     this.scene.background = new THREE.Color(theme.sky);
     const region = sim.world.region;
-    const outdoor = region.id === "region.vale_clearing" || region.id === "region.endless";
+    const outdoor = region.id === "region.vale_clearing" || region.id === "region.endless" || region.id === "region.tutorial";
     // Outdoor light is warm+directional against a cool sky fill; dungeons keep
     // neutral white so their own themed tint reads correctly.
     const sun = new THREE.DirectionalLight(outdoor ? SUN_COLOR : 0xffffff, theme.sun);
@@ -3644,20 +3644,23 @@ export class GameRenderer {
   }
 
   /** Build one NPC's character view (region init and live chunk streaming). */
-  private addNpcVisual(npc: { instanceId: string; name: string; cell: Cell; model?: string }): void {
+  private addNpcVisual(npc: { instanceId: string; name: string; cell: Cell; model?: string; skin?: string }): void {
     if (this.npcViews.has(npc.instanceId)) return;
     // A model-backed NPC (villager, wandering trader, iron golem) renders its
-    // baked mob model; everyone else is a skinned humanoid whose skin index is
-    // derived from the id so it stays stable no matter the streaming order.
+    // baked mob model; a tutor carries a named themed skin; everyone else is a
+    // skinned humanoid whose skin index is derived from the id so it stays
+    // stable no matter the streaming order.
     let view: CharacterView | NpcModelView;
     const built = npc.model ? buildBBModel(npc.model) : null;
     if (built) {
       built.group.userData.instanceId = npc.instanceId;
       view = new NpcModelView(built.group, built.materials, built.bones);
     } else {
-      const skinCanvas = npc.instanceId === "vale.npc.alder"
-        ? wardenSkin()
-        : villagerSkin(Math.floor(hash01(npc.instanceId) * 8));
+      const skinCanvas = npc.skin
+        ? tutorSkin(npc.skin)
+        : npc.instanceId === "vale.npc.alder"
+          ? wardenSkin()
+          : villagerSkin(Math.floor(hash01(npc.instanceId) * 8));
       view = new CharacterView(normalizeSkin(skinCanvas), npc.instanceId);
     }
     view.group.add(makeBlobShadow(0.42));

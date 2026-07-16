@@ -4896,96 +4896,35 @@ export interface QuestDef {
 }
 
 export const QUESTS: Record<string, QuestDef> = {
-  // The tutorial quest chain, given by the vale's NPCs. It teaches the core
-  // loop — gather, craft, fight — and the final quest opens the gateway to the
-  // wild. These are the only quests: the world beyond is a sandbox.
+  // Tutor's Trail: the guide sends the newcomer down the trail, each master
+  // teaches their craft (the per-skill lesson quests generated below), and the
+  // gatekeeper at the far end opens the gateway to the wild. These plus the 33
+  // lesson quests are the only quests: the world beyond is a sandbox.
   "quest.tut_welcome": {
     id: "quest.tut_welcome",
-    name: "Welcome to the Vale",
+    name: "Tutor's Trail",
     giverNpcId: "tutorial.guide",
     intro:
-      "Welcome, traveller. This walled vale is where you'll find your feet. Go west and speak with Finn among the trees — he'll set you your first task.",
-    reminder: "Finn the woodcutter is west of here, among the broadleafs.",
-    outro: "There's Finn now. Off you go — and good luck.",
+      "Welcome to Runecraft, traveller. This is Tutor's Trail — one path, and a master of every craft along it. Follow it from here, learn what each will teach, and the gate at the end opens onto your own world. Start with Finn the Woodcutter, just up the trail.",
+    reminder: "Follow the trail and speak with Finn the Woodcutter to begin.",
+    outro: "That's the spirit. Take the trail and don't be shy — every master here is glad to teach.",
     objectives: [
       { id: "talk", label: "Speak with the Guide", type: "talk", npcId: "tutorial.guide" },
-      { id: "find_finn", label: "Find Finn the woodcutter (west)", type: "talk", npcId: "tutorial.woodsman" },
+      { id: "find_first", label: "Meet the Woodcutter up the trail", type: "talk", npcId: "tutorial.master.woodcutting" },
     ],
     rewards: { xp: [], items: [{ itemId: "item.coin", qty: 25 }] },
-  },
-  "quest.tut_timber": {
-    id: "quest.tut_timber",
-    name: "First Timber",
-    giverNpcId: "tutorial.woodsman",
-    prereqQuestIds: ["quest.tut_welcome"],
-    intro:
-      "New blood, eh? Then let's start with an axe in your hand. Equip one, fell five logs from these broadleafs, and bring them to me.",
-    reminder: "Equip an axe, chop five logs, and bring them back to me.",
-    outro:
-      "Clean work! Here — a copper axe and pick, both keener than a starter's kit. Now Dara the smith wants ore; find her east by the forge.",
-    objectives: [
-      { id: "talk", label: "Speak with Finn", type: "talk", npcId: "tutorial.woodsman" },
-      { id: "equip", label: "Equip an axe", type: "equipTag", toolTag: "axe" },
-      { id: "gather", label: "Chop 5 logs", type: "gather", itemId: "item.log.basic", qty: 5 },
-      { id: "deliver", label: "Bring 5 logs to Finn", type: "deliver", npcId: "tutorial.woodsman", itemId: "item.log.basic", qty: 5 },
-    ],
-    rewards: {
-      xp: [{ skillId: "skill.woodcutting", amount: 120 }],
-      items: [{ itemId: "tool.axe.copper", qty: 1 }, { itemId: "tool.pickaxe.copper", qty: 1 }],
-    },
-  },
-  "quest.tut_stone": {
-    id: "quest.tut_stone",
-    name: "Stone and Steel",
-    giverNpcId: "tutorial.smith",
-    prereqQuestIds: ["quest.tut_timber"],
-    intro:
-      "Finn sent you? Good. I need copper. Equip a pickaxe, mine five copper ore from the rocks yonder, and bring it here.",
-    reminder: "Equip a pickaxe and mine five copper ore, then bring it to me.",
-    outro:
-      "That'll do nicely. Take this bronze sword and some coin for your trouble. Warden Brusk drills the guard to the south — he'll want a word.",
-    objectives: [
-      { id: "talk", label: "Speak with Smith Dara", type: "talk", npcId: "tutorial.smith" },
-      { id: "equip", label: "Equip a pickaxe", type: "equipTag", toolTag: "pickaxe" },
-      { id: "gather", label: "Mine 5 copper ore", type: "gather", itemId: "item.ore.copper", qty: 5 },
-      { id: "deliver", label: "Bring 5 copper ore to Dara", type: "deliver", npcId: "tutorial.smith", itemId: "item.ore.copper", qty: 5 },
-    ],
-    rewards: {
-      xp: [{ skillId: "skill.mining", amount: 120 }],
-      items: [{ itemId: "tool.sword.bronze", qty: 1 }, { itemId: "item.coin", qty: 40 }],
-    },
-  },
-  "quest.tut_blooding": {
-    id: "quest.tut_blooding",
-    name: "A Warden's Blooding",
-    giverNpcId: "village.npc.brusk",
-    prereqQuestIds: ["quest.tut_stone"],
-    intro:
-      "So the smith armed you. Let's see you use it. Equip a weapon and cull three of the pigs in the pit south of here, then report back.",
-    reminder: "Equip a weapon and put down three pigs in the pit to the south.",
-    outro: "Not bad for a greenhorn. You're ready for the wilds. Rowan will send you on your way.",
-    objectives: [
-      { id: "talk", label: "Speak with Warden Brusk", type: "talk", npcId: "village.npc.brusk" },
-      { id: "equip", label: "Equip a weapon", type: "equipTag", toolTag: "weapon" },
-      { id: "slay", label: "Defeat 3 pigs", type: "slay", enemyDefId: "enemy.pig", qty: 3 },
-      { id: "report", label: "Report back to Brusk", type: "talk", npcId: "village.npc.brusk" },
-    ],
-    rewards: {
-      xp: [{ skillId: "skill.attack", amount: 90 }, { skillId: "skill.defense", amount: 60 }],
-      items: [{ itemId: "item.coin", qty: 50 }],
-    },
   },
   "quest.tut_graduation": {
     id: "quest.tut_graduation",
     name: "Into the Wild",
-    giverNpcId: "tutorial.guide",
-    prereqQuestIds: ["quest.tut_blooding"],
+    giverNpcId: "tutorial.gatekeeper",
+    prereqQuestIds: ["quest.tut_welcome"],
     intro:
-      "You've learned to gather, to craft, and to fight. The vale has no more to teach you. Step through the gateway when you're ready — the whole world waits beyond it.",
-    reminder: "Speak with me, then step through the gateway to leave the vale.",
+      "You've walked the whole trail and met every master — I've watched you come. There's nothing more the island can teach. Speak the word and I'll open the gate; the whole world waits beyond it.",
+    reminder: "Speak with the Gatekeeper, then step through the gateway to leave the island.",
     outro: "Go well, traveller. The wilds are yours.",
     objectives: [
-      { id: "talk", label: "Speak with the Guide", type: "talk", npcId: "tutorial.guide" },
+      { id: "talk", label: "Speak with the Gatekeeper", type: "talk", npcId: "tutorial.gatekeeper" },
     ],
     rewards: { xp: [], items: [{ itemId: "item.coin", qty: 60 }] },
     completionFlag: "tutorial.graduated",
@@ -5046,22 +4985,65 @@ export function masterNpcId(skill: string): string {
   return `tutorial.master.${skill.slice("skill.".length)}`;
 }
 
-// Generate the 33 lesson-quests from the table and fold them into QUESTS. Each
-// is a talk-to-the-master lesson granting a little starting XP in that skill;
-// the station beside them lets the newcomer try it straight away.
+// Each lesson makes the newcomer actually DO the craft at the master's station
+// or pen — not just chat — so a talk alone never ticks the quest complete. The
+// gatherers gather, the fighters fight; crafts whose product needs a multi-step
+// chain teach by demonstration (talk) with the station right there to try.
+const LESSON_ACTION: Record<string, QuestObjectiveDef[]> = {
+  "skill.woodcutting": [{ id: "do", label: "Chop 2 logs", type: "gather", itemId: "item.log.basic", qty: 2 }],
+  "skill.mining": [{ id: "do", label: "Mine 2 copper ore", type: "gather", itemId: "item.ore.copper", qty: 2 }],
+  "skill.foraging": [{ id: "do", label: "Gather 2 berries", type: "gather", itemId: "item.berry.basic", qty: 2 }],
+  "skill.fishing": [{ id: "do", label: "Catch 2 fish", type: "gather", itemId: "item.fish.raw", qty: 2 }],
+  "skill.herblore": [{ id: "do", label: "Pick 2 sage", type: "gather", itemId: "item.herb.sage", qty: 2 }],
+  "skill.attack": [
+    { id: "eq", label: "Equip a weapon", type: "equipTag", toolTag: "weapon" },
+    { id: "do", label: "Cull 3 pigs, switching attack styles", type: "slay", enemyDefId: "enemy.pig", qty: 3 },
+  ],
+  "skill.archery": [
+    { id: "eq", label: "Equip a bow", type: "equipTag", toolTag: "bow" },
+    { id: "do", label: "Fell a target dummy", type: "slay", enemyDefId: "enemy.target_dummy", qty: 1 },
+  ],
+  "skill.hunting": [{ id: "do", label: "Catch a chicken", type: "slay", enemyDefId: "enemy.chicken", qty: 1 }],
+  "skill.slaying": [{ id: "do", label: "Slay a penned beast", type: "slay", enemyDefId: "enemy.sheep", qty: 1 }],
+  "skill.necromancy": [{ id: "do", label: "Fell a skeleton", type: "slay", enemyDefId: "enemy.skeleton", qty: 1 }],
+};
+
+// The Combat Instructor teaches all of melee at once (Attack, Strength,
+// Defence, Constitution via the attack-style toggle), so those three fold into
+// the Attack lesson rather than getting their own tutors + quests.
+const MERGED_INTO_COMBAT = new Set(["skill.strength", "skill.defense", "skill.constitution"]);
+
+// Generate the lesson-quests from the table and fold them into QUESTS. Each is
+// gated behind the welcome quest and grants a little starting XP; where an
+// action is defined above, the master won't sign it off until you've done it.
 for (const m of SKILL_MASTERS) {
+  if (MERGED_INTO_COMBAT.has(m.skill)) continue;
   const short = m.skill.slice("skill.".length);
   const npc = masterNpcId(m.skill);
   const skillName = SKILLS[m.skill]?.name ?? short;
+  const action = LESSON_ACTION[m.skill] ?? [];
+  const combat = m.skill === "skill.attack";
   QUESTS[`quest.tut_${short}`] = {
     id: `quest.tut_${short}`,
-    name: `The ${m.title}`,
+    name: combat ? "The Combat Instructor" : `The ${m.title}`,
     giverNpcId: npc,
-    intro: `${m.name}: "Well met. I keep the ${skillName} craft here in the vale. Have a word and I'll set you on the path."`,
-    reminder: `Speak with ${m.name} the ${m.title} to learn ${skillName}.`,
-    outro: `"There — that's the first of it. The rest you'll learn by doing. The station's right here whenever you like."`,
+    prereqQuestIds: ["quest.tut_welcome"],
+    intro: combat
+      ? `Sergeant Gareth: "One instructor, all of melee. Attack, Strength, Defence — the attack-style toggle picks which one grows, and Constitution grows no matter what. Equip a weapon and cull the three pigs, switching styles as you go."`
+      : action.length
+        ? `${m.name}: "Well met. Words won't teach you ${skillName} — give it a try right here, then I'll sign your lesson off."`
+        : `${m.name}: "Well met. I keep the ${skillName} craft here on the trail. Have a word and I'll set you on the path."`,
+    reminder: combat
+      ? `Speak with Sergeant Gareth, then cull 3 pigs — switch attack styles to feel each combat skill grow.`
+      : action.length
+        ? `Train ${skillName} at ${m.name}'s station on the trail.`
+        : `Speak with ${m.name} the ${m.title} to learn ${skillName}.`,
+    outro: combat
+      ? `"Good. Accurate for Attack, Aggressive for Strength, Defensive for Defence, Controlled to split them — and every blow feeds Constitution. Now off with you."`
+      : `"There — that's the first of it. The rest you'll learn by doing. The station's right here whenever you like."`,
     objectives: [
-      { id: "talk", label: `Learn ${skillName} from ${m.name}`, type: "talk", npcId: npc },
+      { id: "talk", label: combat ? "Meet the Combat Instructor" : `Learn ${skillName} from ${m.name}`, type: "talk", npcId: npc },
+      ...action,
     ],
     rewards: { xp: [{ skillId: m.skill, amount: 40 }], items: [] },
   };

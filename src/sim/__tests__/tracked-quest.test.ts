@@ -29,7 +29,7 @@ function twoNpcRegion(): RegionSpec {
   };
 }
 
-/** Point quest.tut_welcome at NPC A and quest.tut_timber at NPC B. */
+/** Point quest.tut_welcome at NPC A and quest.tut_woodcutting at NPC B. */
 function twoQuestSim(): GameSimulation {
   const sim = new GameSimulation(twoNpcRegion(), 7);
   const defs = (sim.quests as unknown as {
@@ -41,7 +41,7 @@ function twoQuestSim(): GameSimulation {
     for (const o of def.objectives) if (o.npcId) o.npcId = npc;
   };
   retarget("quest.tut_welcome", A);
-  retarget("quest.tut_timber", B);
+  retarget("quest.tut_woodcutting", B);
   return sim;
 }
 
@@ -49,9 +49,9 @@ describe("tracked quest guidance", () => {
   it("follows the first active quest when nothing is pinned", () => {
     const sim = twoQuestSim();
     sim.quests.states["quest.tut_welcome"].status = "active";
-    sim.quests.states["quest.tut_timber"].status = "active";
+    sim.quests.states["quest.tut_woodcutting"].status = "active";
     const t = activeQuestTarget(sim);
-    // quest.tut_welcome precedes quest.tut_timber in the QUESTS registry.
+    // quest.tut_welcome precedes quest.tut_woodcutting in the QUESTS registry.
     expect(t?.questName).toBe(QUESTS["quest.tut_welcome"].name);
     expect(t?.cell).toEqual(CELL_A);
   });
@@ -59,10 +59,10 @@ describe("tracked quest guidance", () => {
   it("follows the pinned quest instead of the first active one", () => {
     const sim = twoQuestSim();
     sim.quests.states["quest.tut_welcome"].status = "active";
-    sim.quests.states["quest.tut_timber"].status = "active";
-    sim.trackedQuestId = "quest.tut_timber";
+    sim.quests.states["quest.tut_woodcutting"].status = "active";
+    sim.trackedQuestId = "quest.tut_woodcutting";
     const t = activeQuestTarget(sim);
-    expect(t?.questName).toBe(QUESTS["quest.tut_timber"].name);
+    expect(t?.questName).toBe(QUESTS["quest.tut_woodcutting"].name);
     expect(t?.cell).toEqual(CELL_B);
   });
 

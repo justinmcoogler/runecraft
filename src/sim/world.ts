@@ -128,6 +128,9 @@ export interface NpcPlacement {
   /** A baked mob-model id (e.g. "mob.villager") to render instead of the
    *  default humanoid character skin — for villagers, traders, the iron golem. */
   model?: string;
+  /** A named tutor skin (see render/skin.ts TUTOR_PALETTES) for a themed
+   *  humanoid — the tutorial island's skill tutors (smith, mage, ranger…). */
+  skin?: string;
 }
 
 export interface EnemyPlacement {

@@ -1,6 +1,6 @@
-// The tutorial quest chain: each quest is gated behind its predecessor, the
-// slay objective counts kills, and finishing the last quest sets the
-// tutorial.graduated world flag that opens the gateway.
+// Tutor's Trail quests: the lessons and the graduation are gated behind the
+// welcome quest, the combat lesson counts pig kills across attack styles, and
+// finishing graduation sets the tutorial.graduated world flag.
 
 import { describe, expect, it } from "vitest";
 import { GameSimulation } from "../simulation";
@@ -9,7 +9,6 @@ import type { RegionSpec, BlockType } from "../world";
 
 const NPC = "t.giver";
 const PIG = "t.pig";
-const CHAIN = ["quest.tut_welcome", "quest.tut_timber", "quest.tut_stone", "quest.tut_blooding", "quest.tut_graduation"];
 
 function makeChainRegion(): RegionSpec {
   const width = 12, depth = 12;
@@ -43,42 +42,40 @@ function chainSim(seed = 42): GameSimulation {
 const talk = (sim: GameSimulation): void =>
   sim.quests.process([{ type: "npcChat", instanceId: NPC, name: "Guide" } as SimEvent]);
 
-describe("tutorial quest chain gating", () => {
-  it("gates each quest behind its predecessor", () => {
+describe("Tutor's Trail gating", () => {
+  it("gates the lessons and graduation behind the welcome quest", () => {
     const sim = chainSim();
     expect(sim.quests.isAvailable("quest.tut_welcome")).toBe(true);
-    for (const q of CHAIN.slice(1)) expect(sim.quests.isAvailable(q), q).toBe(false);
-    for (let i = 0; i < CHAIN.length - 1; i++) {
-      sim.quests.states[CHAIN[i]].status = "completed";
-      expect(sim.quests.isAvailable(CHAIN[i + 1]), CHAIN[i + 1]).toBe(true);
+    for (const q of ["quest.tut_attack", "quest.tut_mining", "quest.tut_graduation"]) {
+      expect(sim.quests.isAvailable(q), q).toBe(false);
+    }
+    sim.quests.states["quest.tut_welcome"].status = "completed";
+    for (const q of ["quest.tut_attack", "quest.tut_mining", "quest.tut_graduation"]) {
+      expect(sim.quests.isAvailable(q), q).toBe(true);
     }
   });
 });
 
-describe("A Warden's Blooding", () => {
+describe("the Combat Instructor lesson", () => {
   it("auto-clears the equip step, then counts three pig kills", () => {
     const sim = chainSim();
-    for (const q of ["quest.tut_welcome", "quest.tut_timber", "quest.tut_stone"]) sim.quests.states[q].status = "completed";
+    sim.quests.states["quest.tut_welcome"].status = "completed";
     sim.equippedTool = "tool.sword.bronze"; // a weapon already in hand
-    talk(sim); // start blooding: leading talk + equip-weapon auto-advance -> slay
-    expect(sim.quests.activeObjective("quest.tut_blooding")?.id).toBe("slay");
+    talk(sim); // start: leading talk + equip-weapon auto-advance -> slay
+    expect(sim.quests.activeObjective("quest.tut_attack")?.id).toBe("do");
 
     sim.quests.process([{ type: "enemyDied", instanceId: PIG }, { type: "enemyDied", instanceId: PIG }] as SimEvent[]);
-    expect(sim.quests.states["quest.tut_blooding"].progress).toBe(2);
+    expect(sim.quests.states["quest.tut_attack"].progress).toBe(2);
     sim.quests.process([{ type: "enemyDied", instanceId: PIG }] as SimEvent[]);
-    expect(sim.quests.activeObjective("quest.tut_blooding")?.id).toBe("report");
-
-    const atk = sim.skills.xp["skill.attack"];
-    talk(sim); // report back -> completes
-    expect(sim.quests.states["quest.tut_blooding"].status).toBe("completed");
-    expect(sim.skills.xp["skill.attack"]).toBe(atk + 90);
+    // The third kill clears the final objective, completing the lesson.
+    expect(sim.quests.states["quest.tut_attack"].status).toBe("completed");
   });
 });
 
 describe("graduation", () => {
-  it("completing the final quest sets the tutorial.graduated flag", () => {
+  it("completing graduation sets the tutorial.graduated flag", () => {
     const sim = chainSim();
-    for (const q of CHAIN.slice(0, 4)) sim.quests.states[q].status = "completed";
+    sim.quests.states["quest.tut_welcome"].status = "completed";
     // Walk over and talk: the single talk objective completes on accept, and
     // the sim applies the quest's completionFlag on questCompleted.
     sim.enqueue({ type: "interact", targetId: NPC });
