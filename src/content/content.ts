@@ -4863,7 +4863,7 @@ export function levelForXp(curve: XpCurveDef, xp: number, maxLevel: number): num
 
 // ---------- quests ----------
 
-export type QuestObjectiveType = "talk" | "equipTag" | "gather" | "deliver" | "slay";
+export type QuestObjectiveType = "talk" | "equipTag" | "gather" | "deliver" | "slay" | "train";
 
 export interface QuestObjectiveDef {
   id: string;
@@ -4873,6 +4873,9 @@ export interface QuestObjectiveDef {
   toolTag?: string;
   itemId?: string;
   enemyDefId?: string;
+  /** For a "train" objective: the skill whose XP gain satisfies it (do the
+   *  craft once at the master's station and it ticks). */
+  skillId?: string;
   qty?: number;
 }
 
@@ -4992,39 +4995,48 @@ export function masterNpcId(skill: string): string {
 // or pen — not just chat — so a talk alone never ticks the quest complete. The
 // gatherers gather, the fighters fight; crafts whose product needs a multi-step
 // chain teach by demonstration (talk) with the station right there to try.
-const LESSON_ACTION: Record<string, QuestObjectiveDef[]> = {
-  "skill.woodcutting": [{ id: "do", label: "Chop 2 logs", type: "gather", itemId: "item.log.basic", qty: 2 }],
-  "skill.mining": [
-    { id: "eq", label: "Equip your pickaxe", type: "equipTag", toolTag: "pickaxe" },
-    { id: "do", label: "Mine 2 copper ore", type: "gather", itemId: "item.ore.copper", qty: 2 },
-  ],
-  "skill.foraging": [{ id: "do", label: "Gather 2 berries", type: "gather", itemId: "item.berry.basic", qty: 2 }],
-  "skill.fishing": [
-    { id: "eq", label: "Equip your fishing rod", type: "equipTag", toolTag: "fishing_tool" },
-    { id: "do", label: "Catch 2 fish", type: "gather", itemId: "item.fish.raw", qty: 2 },
-  ],
-  "skill.herblore": [{ id: "do", label: "Pick 2 sage", type: "gather", itemId: "item.herb.sage", qty: 2 }],
-  "skill.attack": [
-    { id: "eq", label: "Equip your sword", type: "equipTag", toolTag: "weapon" },
-    { id: "do", label: "Cull 3 pigs, switching attack styles", type: "slay", enemyDefId: "enemy.pig", qty: 3 },
-  ],
-  "skill.archery": [
-    { id: "eq", label: "Equip your bow", type: "equipTag", toolTag: "bow" },
-    { id: "do", label: "Fell a target dummy", type: "slay", enemyDefId: "enemy.target_dummy", qty: 1 },
-  ],
-  "skill.hunting": [{ id: "do", label: "Catch a chicken", type: "slay", enemyDefId: "enemy.chicken", qty: 1 }],
-  "skill.slaying": [{ id: "do", label: "Slay a penned beast", type: "slay", enemyDefId: "enemy.sheep", qty: 1 }],
-  "skill.necromancy": [{ id: "do", label: "Fell a skeleton", type: "slay", enemyDefId: "enemy.skeleton", qty: 1 }],
-};
-
-// The tool each master hands over as the lesson begins, so an equip-then-use
-// objective is always doable. `note` is folded into the master's greeting.
-const LESSON_GIFT: Record<string, { items: Array<{ itemId: string; qty: number }>; note: string }> = {
-  "skill.woodcutting": { items: [{ itemId: "tool.axe.copper", qty: 1 }], note: "Here's a copper axe — sharper than your starter." },
-  "skill.mining": { items: [{ itemId: "tool.pickaxe.copper", qty: 1 }], note: "Take this pickaxe and equip it." },
-  "skill.fishing": { items: [{ itemId: "tool.fishingrod.basic", qty: 1 }], note: "Here's a rod — equip it and cast off." },
-  "skill.attack": { items: [{ itemId: "tool.sword.bronze", qty: 1 }], note: "Take this bronze sword and equip it." },
-  "skill.archery": { items: [{ itemId: "tool.bow.oak", qty: 1 }, { itemId: "item.arrow.bronze", qty: 30 }], note: "Here's a bow and arrows — equip the bow." },
+// Every lesson makes the newcomer DO the craft, never just chat: gatherers
+// gather, fighters fight, and every workshop skill trains once at its station
+// (a "train" objective ticks the moment you earn that skill's first XP). The
+// master hands over whatever the action needs, so a chained lesson can always
+// be finished. `note` is folded into the master's greeting.
+const train = (skill: string, label: string): QuestObjectiveDef => ({ id: "do", label, type: "train", skillId: skill });
+interface Lesson {
+  action: QuestObjectiveDef[];
+  gift?: Array<{ itemId: string; qty: number }>;
+  note?: string;
+}
+const LESSONS: Record<string, Lesson> = {
+  "skill.woodcutting": { action: [{ id: "do", label: "Chop 2 logs", type: "gather", itemId: "item.log.basic", qty: 2 }], gift: [{ itemId: "tool.axe.copper", qty: 1 }], note: "Here's a copper axe — sharper than your starter." },
+  "skill.mining": { action: [{ id: "eq", label: "Equip your pickaxe", type: "equipTag", toolTag: "pickaxe" }, { id: "do", label: "Mine 2 copper ore", type: "gather", itemId: "item.ore.copper", qty: 2 }], gift: [{ itemId: "tool.pickaxe.copper", qty: 1 }], note: "Take this pickaxe and equip it." },
+  "skill.foraging": { action: [{ id: "do", label: "Gather 2 berries", type: "gather", itemId: "item.berry.basic", qty: 2 }] },
+  "skill.fishing": { action: [{ id: "eq", label: "Equip your fishing rod", type: "equipTag", toolTag: "fishing_tool" }, { id: "do", label: "Catch 2 fish", type: "gather", itemId: "item.fish.raw", qty: 2 }], gift: [{ itemId: "tool.fishingrod.basic", qty: 1 }], note: "Here's a rod — equip it and cast off." },
+  "skill.cooking": { action: [train("skill.cooking", "Cook a fish on the campfire")], gift: [{ itemId: "item.fish.raw", qty: 2 }], note: "Here's a raw fish — cook it on the campfire." },
+  "skill.smelting": { action: [train("skill.smelting", "Smelt a copper bar at the furnace")], gift: [{ itemId: "item.ore.copper", qty: 2 }], note: "Take this copper ore — smelt it in the furnace." },
+  "skill.smithing": { action: [train("skill.smithing", "Hammer something on the anvil")], gift: [{ itemId: "item.bar.copper", qty: 2 }], note: "Two copper bars — hammer them into a blade on the anvil." },
+  "skill.attack": { action: [{ id: "eq", label: "Equip your sword", type: "equipTag", toolTag: "weapon" }, { id: "do", label: "Cull 3 pigs, switching attack styles", type: "slay", enemyDefId: "enemy.pig", qty: 3 }], gift: [{ itemId: "tool.sword.bronze", qty: 1 }] },
+  "skill.farming": { action: [{ id: "do", label: "Harvest 2 wheat", type: "gather", itemId: "item.wheat", qty: 2 }] },
+  "skill.herblore": { action: [{ id: "do", label: "Pick 2 sage", type: "gather", itemId: "item.herb.sage", qty: 2 }] },
+  "skill.crafting": { action: [train("skill.crafting", "Cut planks at the workbench")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "Here's some timber — cut it into planks at the workbench." },
+  "skill.archaeology": { action: [train("skill.archaeology", "Dig at the excavation")], note: "Take a trowel to the dig site and see what you turn up." },
+  "skill.archery": { action: [{ id: "eq", label: "Equip your bow", type: "equipTag", toolTag: "bow" }, { id: "do", label: "Fell a target dummy", type: "slay", enemyDefId: "enemy.target_dummy", qty: 1 }], gift: [{ itemId: "tool.bow.oak", qty: 1 }, { itemId: "item.arrow.bronze", qty: 30 }], note: "Here's a bow and arrows — equip the bow." },
+  "skill.construction": { action: [train("skill.construction", "Raise the ramp at the build site")], gift: [{ itemId: "item.brick.stone", qty: 6 }, { itemId: "item.plank.cut", qty: 4 }], note: "Bricks and planks — raise the ramp at the build site." },
+  "skill.brewing": { action: [train("skill.brewing", "Brew a draught in the cauldron")], gift: [{ itemId: "item.herb.sage", qty: 1 }, { itemId: "item.feather", qty: 1 }], note: "Sage and a feather — brew a draught in the cauldron." },
+  "skill.enchanting": { action: [train("skill.enchanting", "Rune the axe at the table")], gift: [{ itemId: "tool.axe.iron", qty: 1 }, { itemId: "item.relic.idol", qty: 1 }], note: "An iron axe and a relic idol — rune the axe at the table." },
+  "skill.hunting": { action: [{ id: "do", label: "Catch a chicken", type: "slay", enemyDefId: "enemy.chicken", qty: 1 }] },
+  "skill.thieving": { action: [train("skill.thieving", "Filch from the market stall")], note: "See that stall? Lift something from it when the keeper looks away." },
+  "skill.agility": { action: [train("skill.agility", "Vault the log shortcut")], note: "Limber up — vault the fallen log to feel the Agility of it." },
+  "skill.slaying": { action: [{ id: "do", label: "Slay a penned beast", type: "slay", enemyDefId: "enemy.sheep", qty: 1 }] },
+  "skill.boating": { action: [train("skill.boating", "Lash a raft together at the bench")], gift: [{ itemId: "item.plank.cut", qty: 4 }], note: "Four planks — lash a raft together at the boatwright's bench." },
+  "skill.firemaking": { action: [train("skill.firemaking", "Light a log from your pack")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "Two logs — set light to one straight from your pack." },
+  "skill.prayer": { action: [train("skill.prayer", "Bury the old bones")], gift: [{ itemId: "item.bone.old", qty: 2 }], note: "Old bones — bury them from your pack to honour the fallen." },
+  "skill.runecrafting": { action: [train("skill.runecrafting", "Bind a rune at the altar")], gift: [{ itemId: "item.essence.rune", qty: 1 }], note: "Rune essence — bind it into a rune at the altar." },
+  "skill.fletching": { action: [train("skill.fletching", "Cut arrow shafts at the workbench")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "Timber — cut arrow shafts at the workbench." },
+  "skill.magic": { action: [train("skill.magic", "Cast Low Alchemy on the bar")], gift: [{ itemId: "item.bar.copper", qty: 1 }, { itemId: "item.rune.fire", qty: 1 }], note: "A copper bar and a fire rune — cast Low Alchemy on the bar from your pack." },
+  "skill.dungeoneering": { action: [train("skill.dungeoneering", "Fell the pit-beast")], note: "Every delver bloods themselves — put down the beast in the pit." },
+  "skill.summoning": { action: [train("skill.summoning", "Bind a spirit pouch at the obelisk")], gift: [{ itemId: "item.charm.bone", qty: 1 }, { itemId: "item.essence.rune", qty: 3 }], note: "A bone charm and rune essence — bind a spirit pouch at the obelisk." },
+  "skill.necromancy": { action: [{ id: "do", label: "Fell a skeleton", type: "slay", enemyDefId: "enemy.skeleton", qty: 1 }] },
+  "skill.invention": { action: [train("skill.invention", "Salvage parts at the workbench")], gift: [{ itemId: "item.bar.iron", qty: 1 }], note: "An iron bar — salvage it into components at the workbench." },
 };
 
 // The teaching order down the trail (Attack folds in Strength/Defence/
@@ -5044,8 +5056,9 @@ TUTORIAL_ORDER.forEach((skill, i) => {
   const short = skill.slice("skill.".length);
   const npc = masterNpcId(skill);
   const skillName = SKILLS[skill]?.name ?? short;
-  const action = LESSON_ACTION[skill] ?? [];
-  const gift = LESSON_GIFT[skill];
+  const lesson = LESSONS[skill] ?? { action: [] };
+  const action = lesson.action;
+  const gift = lesson.gift ? { items: lesson.gift, note: lesson.note ?? "" } : undefined;
   const combat = skill === "skill.attack";
   // Sequential unlock: the first lesson follows the welcome; the rest each
   // follow the previous master down the trail.
@@ -5058,11 +5071,9 @@ TUTORIAL_ORDER.forEach((skill, i) => {
     startItems: gift?.items,
     intro: combat
       ? `Sergeant Gareth: "One instructor, all of melee. Here's a bronze sword — equip it. The attack-style toggle picks which skill grows: Accurate for Attack, Aggressive for Strength, Defensive for Defence, and Constitution grows no matter what. Cull the three pigs, switching styles as you go."`
-      : gift
-        ? `${m.name}: "Well met. ${gift.note} Then ${action.length ? "give " + skillName + " a try right here" : "have a word"} and I'll sign your lesson off."`
-        : action.length
-          ? `${m.name}: "Well met. Words won't teach you ${skillName} — give it a try right here, then I'll sign your lesson off."`
-          : `${m.name}: "Well met. I keep the ${skillName} craft here on the trail. Have a word and I'll set you on the path."`,
+      : lesson.note
+        ? `${m.name}: "Well met. ${lesson.note} Then I'll sign your ${skillName} lesson off."`
+        : `${m.name}: "Well met. Words won't teach you ${skillName} — give it a try right here, then I'll sign your lesson off."`,
     reminder: combat
       ? `Speak with Sergeant Gareth, then cull 3 pigs — switch attack styles to feel each combat skill grow.`
       : action.length

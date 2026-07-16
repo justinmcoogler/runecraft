@@ -5,8 +5,9 @@
 
 import { describe, expect, it } from "vitest";
 import { GameSimulation } from "../simulation";
+import type { SimEvent } from "../types";
 import { TUTORIAL_SEED } from "../worldgen/endless";
-import { masterNpcId, QUESTS } from "../../content/content";
+import { masterNpcId, QUESTS, TUTORIAL_ORDER } from "../../content/content";
 
 describe("Tutor's Trail", () => {
   it("is a finite region — no endless terrain source or chunk streaming", () => {
@@ -56,5 +57,54 @@ describe("Tutor's Trail", () => {
   it("does not set the graduation flag until the chain is done", () => {
     const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
     expect(sim.worldFlags.has("tutorial.graduated")).toBe(false);
+  });
+
+  it("every lesson is completable in order, all the way to graduation", () => {
+    // Drive the whole chain by satisfying each objective the way the game would,
+    // proving no lesson (gather/slay/train/equip) can soft-lock the sequence.
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    const q = sim.quests;
+    const feed = (ev: SimEvent) => q.process([ev]);
+    const toolForTag: Record<string, string> = {
+      weapon: "tool.sword.bronze", bow: "tool.bow.oak", pickaxe: "tool.pickaxe.copper", fishing_tool: "tool.fishingrod.basic",
+    };
+    const enemyId = (defId: string) =>
+      (sim.world.region.enemies ?? []).find((e) => e.defId === defId)!.instanceId;
+
+    // Welcome: talk the guide, then the first master (that also opens lesson 1).
+    feed({ type: "npcChat", instanceId: "tutorial.guide", name: "" } as SimEvent);
+    feed({ type: "npcChat", instanceId: masterNpcId(TUTORIAL_ORDER[0]), name: "" } as SimEvent);
+    expect(q.states["quest.tut_welcome"].status).toBe("completed");
+
+    for (const skill of TUTORIAL_ORDER) {
+      const id = `quest.tut_${skill.slice("skill.".length)}`;
+      const npc = masterNpcId(skill);
+      expect(q.isAvailable(id) || q.states[id].status === "active", id).toBe(true);
+      feed({ type: "npcChat", instanceId: npc, name: "" } as SimEvent); // accept (+ startItems)
+      // Satisfy each remaining objective by its type.
+      for (let guard = 0; guard < 12 && q.states[id].status === "active"; guard++) {
+        const obj = q.activeObjective(id);
+        if (!obj) break;
+        if (obj.type === "equipTag") {
+          sim.equippedTool = toolForTag[obj.toolTag!] ?? "tool.sword.bronze";
+          feed({ type: "equipmentChanged" } as SimEvent);
+        } else if (obj.type === "gather") {
+          feed({ type: "itemGained", itemId: obj.itemId!, qty: obj.qty ?? 1 } as SimEvent);
+        } else if (obj.type === "slay") {
+          feed({ type: "enemyDied", instanceId: enemyId(obj.enemyDefId!) } as SimEvent);
+        } else if (obj.type === "train") {
+          feed({ type: "xpGained", skillId: obj.skillId!, amount: 1 } as SimEvent);
+        } else if (obj.type === "talk") {
+          feed({ type: "npcChat", instanceId: npc, name: "" } as SimEvent);
+        }
+      }
+      expect(q.states[id].status, id).toBe("completed");
+    }
+
+    // The whole trail done: graduation is offered and completes on the talk
+    // (the sim applies its completionFlag on tick — see questchain.test).
+    expect(q.isAvailable("quest.tut_graduation")).toBe(true);
+    feed({ type: "npcChat", instanceId: "tutorial.gatekeeper", name: "" } as SimEvent);
+    expect(q.states["quest.tut_graduation"].status).toBe("completed");
   });
 });

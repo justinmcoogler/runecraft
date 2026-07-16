@@ -99,6 +99,9 @@ export class QuestService {
           if (defId) this.onSlain(defId);
           break;
         }
+        case "xpGained":
+          this.onTrained(ev.skillId);
+          break;
         default:
           break;
       }
@@ -171,6 +174,17 @@ export class QuestService {
       } else {
         this.deps.events.emit({ type: "questAdvanced", questId: id, label: objective.label });
       }
+    }
+  }
+
+  /** A "train the skill" objective ticks the first time XP is earned in it —
+   *  i.e. the moment the newcomer actually performs the craft at the station. */
+  private onTrained(skillId: string): void {
+    for (const id of Object.keys(this.defs)) {
+      const objective = this.activeObjective(id);
+      if (objective?.type !== "train" || objective.skillId !== skillId) continue;
+      this.advance(id);
+      this.autoAdvance(id);
     }
   }
 

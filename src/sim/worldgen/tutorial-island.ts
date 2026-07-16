@@ -39,6 +39,8 @@ interface Tutor {
   /** One instructor teaches all of melee (Attack/Strength/Defence/Constitution)
    *  and the attack-style toggle. */
   combat?: boolean;
+  /** The pen's beast is a ".boss" (its kill grants Dungeoneering XP). */
+  boss?: boolean;
 }
 
 // The teaching order down the trail, each with its look and training ground.
@@ -64,13 +66,13 @@ const TUTORS: Tutor[] = [
   { skill: "skill.thieving", skin: "rogue", ground: "coarsedirt", station: "object.stall.market" },
   { skill: "skill.agility", skin: "freerunner", ground: "grass", station: "object.shortcut.log" },
   { skill: "skill.slaying", skin: "slayer", ground: "podzol", pen: "enemy.sheep" },
-  { skill: "skill.boating", skin: "sailor", ground: "sand", water: true },
+  { skill: "skill.boating", skin: "sailor", ground: "sand", station: "object.workbench.basic", water: true },
   { skill: "skill.firemaking", skin: "firewarden", ground: "coarsedirt", station: "object.campfire.basic" },
   { skill: "skill.prayer", skin: "priest", ground: "stonebrick", station: "object.obelisk.summon" },
   { skill: "skill.runecrafting", skin: "runemaster", ground: "calcite", station: "object.altar.rune" },
   { skill: "skill.fletching", skin: "fletcher", ground: "grass", station: "object.workbench.basic" },
   { skill: "skill.magic", skin: "mage", ground: "purpur", station: "object.enchanter.basic" },
-  { skill: "skill.dungeoneering", skin: "delver", ground: "stone", station: "object.portal.cave" },
+  { skill: "skill.dungeoneering", skin: "delver", ground: "stone", station: "object.portal.cave", pen: "enemy.pig", boss: true },
   { skill: "skill.summoning", skin: "summoner", ground: "moss", station: "object.obelisk.summon" },
   { skill: "skill.necromancy", skin: "necromancer", ground: "podzol", pen: "enemy.skeleton" },
   { skill: "skill.invention", skin: "inventor", ground: "stonebrick", station: "object.workbench.basic" },
@@ -277,13 +279,20 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
     // Station beside the tutor, inside the clearing.
     if (t.station) {
       const scell = { x: stop.x - 1, z: stop.z + side * (t.water ? 1 : 2) };
-      if (t.station.startsWith("resource.")) nodes.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell });
-      else objects.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell });
+      if (t.station.startsWith("resource.")) {
+        nodes.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell });
+      } else if (t.station === "object.shortcut.log") {
+        // The agility shortcut needs a real destination (a nearby clearing cell)
+        // so vaulting it fires and grants Agility XP.
+        objects.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell, portal: { targetRegionId: "region.tutorial", targetCell: { x: stop.x, z: stop.z } } });
+      } else {
+        objects.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell });
+      }
     }
 
     // Fenced practice pen inside the clearing.
     if (t.pen) {
-      buildPen(set, objects, enemies, stop.x, stop.z + side * 3, side, short, t.pen, !!t.combat);
+      buildPen(set, objects, enemies, stop.x, stop.z + side * 3, side, short, t.pen, !!t.combat, !!t.boss);
     }
   });
 
@@ -360,6 +369,7 @@ function buildPen(
   short: string,
   enemyDef: string,
   combat: boolean,
+  boss: boolean,
 ): void {
   const x0 = cx - 2, x1 = cx + 2;
   const zNear = cz - side; // the fence side toward the corridor (holds the gate)
@@ -372,8 +382,11 @@ function buildPen(
   }
   set(x0, cz, "oak_fence", BASE);
   set(x1, cz, "oak_fence", BASE);
+  // A ".boss" instance id makes a kill grant Dungeoneering XP (the driver keys
+  // off the suffix), so the delver's pit-beast trains Dungeoneering.
+  const primary = boss ? `tut.pen.${short}.boss` : `tut.pen.${short}.a`;
   enemies.push(
-    { instanceId: `tut.pen.${short}.a`, defId: enemyDef, cell: { x: cx - 1, z: cz } },
+    { instanceId: primary, defId: enemyDef, cell: { x: cx - 1, z: cz } },
     { instanceId: `tut.pen.${short}.b`, defId: enemyDef, cell: { x: cx + 1, z: cz } },
   );
   if (combat) enemies.push({ instanceId: `tut.pen.${short}.c`, defId: enemyDef, cell: { x: cx, z: cz } });
