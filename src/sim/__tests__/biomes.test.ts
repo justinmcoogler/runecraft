@@ -7,21 +7,21 @@ import { ENDLESS_CENTER, terrainAt } from "../worldgen/endless";
 
 describe("biome catalog", () => {
   it("names every base biome the classifier can assign", () => {
-    // The classifier assigns ids 0..25; each must have a registry entry.
-    for (let base = 0; base <= 25; base++) {
+    // The classifier assigns ids 0..35; each must have a registry entry.
+    for (let base = 0; base <= 35; base++) {
       expect(BIOME_DEFS[base], `base ${base} named`).toBeTruthy();
       expect(BIOME_DEFS[base].variants.length).toBeGreaterThan(0);
     }
   });
 
-  it("builds a broad named catalog with no duplicate names", () => {
-    expect(BIOME_CATALOG.length).toBeGreaterThanOrEqual(80);
+  it("builds a 100+ named catalog with no duplicate names", () => {
+    expect(BIOME_CATALOG.length).toBeGreaterThanOrEqual(100);
     expect(new Set(BIOME_CATALOG).size).toBe(BIOME_CATALOG.length); // all unique
   });
 
   it("picks a variant deterministically and within range", () => {
     for (const [x, z] of [[10, 20], [999, -400], [ENDLESS_CENTER + 3000, ENDLESS_CENTER - 1200]]) {
-      for (let base = 0; base <= 25; base++) {
+      for (let base = 0; base <= 35; base++) {
         const vi = biomeVariantIndex(7, x, z, base);
         expect(vi).toBeGreaterThanOrEqual(0);
         expect(vi).toBeLessThan(BIOME_DEFS[base].variants.length);

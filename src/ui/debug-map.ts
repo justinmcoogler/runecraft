@@ -10,12 +10,16 @@ import type { GameSimulation } from "../sim/simulation";
 type Mode = "biome" | "height" | "danger" | "features";
 const MODES: Mode[] = ["biome", "height", "danger", "features"];
 
-// A distinct-ish hue per biome id (0..25).
+// A distinct-ish hue per biome id (0..35).
 const BIOME_COLORS = [
   "#6db24a", "#3f7a34", "#2f5f3a", "#d9c063", "#4a6b4a", "#e8eef4", "#b3a55a", "#2f8a3a",
   "#8fbf5f", "#26401f", "#7fbf6a", "#9a7fb0", "#7a7f5a", "#3f6a44", "#5a7f8a", "#c98a4a",
   "#5a4658", "#4a5a30", "#8a6f9f", "#a0c8d8", "#4a5f4a", "#c86a4a", "#6a8a9a", "#c0a86a",
   "#7a9f6a", "#57e0a0",
+  // 26-35: bamboo, mangrove, ice spikes, salt flats, mesa, flower meadow,
+  // highland heath, ashland, crystal barrens, amber marsh.
+  "#5fa04a", "#3f6a55", "#cfe6f0", "#e6e0c8", "#b06a44", "#d98ac0",
+  "#8a9a6a", "#4a4038", "#bfe0e6", "#6a6040",
 ];
 
 export class DebugMap {

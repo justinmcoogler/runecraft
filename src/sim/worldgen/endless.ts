@@ -382,6 +382,18 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
     : temp > 0.5 && temp < 0.74 && moist > 0.33 && moist < 0.6 && f.h < 18 && vnoise(x, z, 560, salt(seed, 73)) > 0.87 ? 23 // sunflower prairie
     : temp > 0.4 && temp < 0.62 && moist > 0.4 && moist < 0.62 && vnoise(x, z, 540, salt(seed, 74)) > 0.86 ? 24 // autumn woods
     : temp > 0.32 && temp < 0.58 && moist > 0.6 && vnoise(x, z, 720, salt(seed, 75)) > 0.9 ? 25 // glowshroom hollow
+    // Second wave of rarer pockets — each a distinct named country carved from
+    // its climate window by its own low-frequency gate.
+    : temp > 0.6 && moist > 0.55 && f.h < 20 && vnoise(x, z, 480, salt(seed, 81)) > 0.86 ? 26 // bamboo forest
+    : temp > 0.55 && moist > 0.66 && f.h < 9 && vnoise(x, z, 430, salt(seed, 82)) > 0.85 ? 27 // mangrove coast
+    : temp < 0.18 && vnoise(x, z, 470, salt(seed, 83)) > 0.88 ? 28 // ice spikes
+    : temp > 0.75 && moist < 0.18 && vnoise(x, z, 440, salt(seed, 84)) > 0.85 ? 29 // salt flats
+    : temp > 0.6 && moist < 0.35 && f.h > 20 && vnoise(x, z, 510, salt(seed, 85)) > 0.86 ? 30 // mesa highlands
+    : temp > 0.4 && temp < 0.66 && moist > 0.4 && moist < 0.6 && f.h < 18 && vnoise(x, z, 500, salt(seed, 86)) > 0.9 ? 31 // flower meadow
+    : temp > 0.3 && temp < 0.55 && moist > 0.35 && moist < 0.6 && f.h > 18 && vnoise(x, z, 520, salt(seed, 87)) > 0.88 ? 32 // highland heath
+    : temp > 0.72 && moist < 0.3 && vnoise(x, z, 460, salt(seed, 88)) > 0.9 ? 33 // ashland
+    : temp < 0.3 && moist < 0.45 && f.h > 16 && vnoise(x, z, 540, salt(seed, 89)) > 0.9 ? 34 // crystal barrens
+    : temp > 0.4 && temp < 0.65 && moist > 0.62 && f.h < 12 && vnoise(x, z, 505, salt(seed, 90)) > 0.9 ? 35 // amber marsh
     : 0;
   if (f.island && vnoise(x, z, 500, salt(seed, 16)) > 0.78) biome = 11;
   else if (special) biome = special;
@@ -569,6 +581,41 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
   } else if (biome === 25) {
     // Glowshroom hollow: mycelium creep glowing over damp moss.
     block = vnoise(x, z, 44, salt(seed, 80)) > 0.5 + bjit ? "mycelium" : "moss";
+  } else if (biome === 26) {
+    // Bamboo forest: lush green over mossy shade.
+    block = vnoise(x, z, 50, salt(seed, 91)) > 0.6 ? "moss" : "grass";
+  } else if (biome === 27) {
+    // Mangrove coast: brackish mud and root-turf at the tide line.
+    const v = vnoise(x, z, 40, salt(seed, 92));
+    block = v > 0.62 ? "grass" : v > 0.3 ? "mud" : "podzol";
+  } else if (biome === 28) {
+    // Ice spikes: driven snow bristling with blue ice.
+    block = vnoise(x, z, 44, salt(seed, 93)) > 0.55 ? "ice" : "snow";
+  } else if (biome === 29) {
+    // Salt flats: pale crusted calcite over bleached sand.
+    block = vnoise(x, z, 70, salt(seed, 94)) > 0.6 ? "calcite" : "sand";
+  } else if (biome === 30) {
+    // Mesa highlands: red banding and bare andesite benches.
+    const v = vnoise(x, z, 58, salt(seed, 95));
+    block = v > 0.68 ? "andesite" : v > 0.35 ? "coarsedirt" : "redsand";
+  } else if (biome === 31) {
+    // Flower meadow: bright turf, sun-bleached at the dry edges.
+    block = vnoise(x, z, 80, salt(seed, 96)) > 0.8 ? "drygrass" : "grass";
+  } else if (biome === 32) {
+    // Highland heath: coarse moor grass over stony ground.
+    const v = vnoise(x, z, 64, salt(seed, 97));
+    block = v > 0.66 ? "coarsedirt" : v > 0.4 ? "drygrass" : "grass";
+  } else if (biome === 33) {
+    // Ashland: charred basalt and cinder over scorched gravel.
+    const v = vnoise(x, z, 52, salt(seed, 98));
+    block = v > 0.7 ? "basalt" : v > 0.4 ? "coarsedirt" : "gravel";
+  } else if (biome === 34) {
+    // Crystal barrens: frost-pale calcite fields under a cold sky.
+    block = vnoise(x, z, 48, salt(seed, 99)) > 0.55 ? "calcite" : "snow";
+  } else if (biome === 35) {
+    // Amber marsh: peaty podzol and moss over sucking mud.
+    const v = vnoise(x, z, 46, salt(seed, 100));
+    block = v > 0.6 ? "podzol" : v > 0.3 ? "moss" : "mud";
   }
   // Dry plains: drygrass fades in as it dries out — the moisture edge itself is
   // dithered (bjit) so the drygrass/grass boundary blends rather than snapping.
@@ -2219,6 +2266,74 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.5) enemies.push({ instanceId: id(), defId: "enemy.marsh_lurker", cell });
           else if (r < 0.508) enemies.push({ instanceId: id(), defId: "enemy.moss_golem", cell });
           else if (r < 0.52) nodes.push({ instanceId: id(), defId: "resource.strongbox.old", cell });
+          break;
+        case 26: // bamboo forest — lush warm-wet groves
+          if (r < 0.32) nodes.push({ instanceId: id(), defId: "resource.tree.jungle", cell });
+          else if (r < 0.44) nodes.push({ instanceId: id(), defId: "resource.tree.palm", cell });
+          else if (r < 0.49) nodes.push({ instanceId: id(), defId: "resource.bush.berry", cell });
+          else if (r < 0.51) nodes.push({ instanceId: id(), defId: "resource.herb.ember", cell });
+          else if (r < 0.515) enemies.push({ instanceId: id(), defId: "enemy.spider", cell });
+          else if (r < 0.53) objects.push({ instanceId: id(), defId: "object.flora.wild", cell });
+          break;
+        case 27: // mangrove coast — brackish root-tangles
+          if (r < 0.18) nodes.push({ instanceId: id(), defId: "resource.tree.willow", cell });
+          else if (r < 0.28) nodes.push({ instanceId: id(), defId: "resource.tree.jungle", cell });
+          else if (r < 0.33) objects.push({ instanceId: id(), defId: "object.reeds.water", cell });
+          else if (r < 0.35) nodes.push({ instanceId: id(), defId: "resource.herb.duskcap", cell });
+          else if (r < 0.356) enemies.push({ instanceId: id(), defId: "enemy.bog_slime", cell });
+          else if (r < 0.362) enemies.push({ instanceId: id(), defId: "enemy.marsh_lurker", cell });
+          break;
+        case 28: // ice spikes — frozen and glittering
+          if (r < 0.04) nodes.push({ instanceId: id(), defId: "resource.tree.spruce", cell });
+          else if (r < 0.06) nodes.push({ instanceId: id(), defId: "resource.rock.lapis", cell });
+          else if (r < 0.07) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
+          else if (r < 0.076) enemies.push({ instanceId: id(), defId: "enemy.glacial_wight", cell });
+          break;
+        case 29: // salt flats — bleached and bare
+          if (r < 0.02) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
+          else if (r < 0.03) nodes.push({ instanceId: id(), defId: "resource.rock.copper", cell });
+          else if (r < 0.038) nodes.push({ instanceId: id(), defId: "resource.digsite.basic", cell });
+          else if (r < 0.044) enemies.push({ instanceId: id(), defId: "enemy.dune_husk", cell });
+          break;
+        case 30: // mesa highlands — red benches and ore
+          if (r < 0.05) nodes.push({ instanceId: id(), defId: "resource.tree.acacia", cell });
+          else if (r < 0.08) objects.push({ instanceId: id(), defId: "object.rock.mesa", cell });
+          else if (r < 0.1) nodes.push({ instanceId: id(), defId: "resource.rock.gold", cell });
+          else if (r < 0.108) enemies.push({ instanceId: id(), defId: "enemy.canyon_construct", cell });
+          break;
+        case 31: // flower meadow — soft, bright, gentle
+          if (r < 0.22) objects.push({ instanceId: id(), defId: "object.flowers.showy", cell });
+          else if (r < 0.34) objects.push({ instanceId: id(), defId: "object.flowers.wild", cell });
+          else if (r < 0.4) nodes.push({ instanceId: id(), defId: "resource.bush.berry", cell });
+          else if (r < 0.44) nodes.push({ instanceId: id(), defId: "resource.herb.sage", cell });
+          else if (r < 0.446) enemies.push({ instanceId: id(), defId: "enemy.bee", cell });
+          break;
+        case 32: // highland heath — windswept moor
+          if (r < 0.1) objects.push({ instanceId: id(), defId: "object.grass.tuft", cell });
+          else if (r < 0.16) nodes.push({ instanceId: id(), defId: "resource.herb.sage", cell });
+          else if (r < 0.2) nodes.push({ instanceId: id(), defId: "resource.tree.pine", cell });
+          else if (r < 0.205) enemies.push({ instanceId: id(), defId: "enemy.timber_wolf", cell });
+          else if (r < 0.22) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
+          break;
+        case 33: // ashland — charred, mineral, dangerous
+          if (r < 0.04) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
+          else if (r < 0.06) nodes.push({ instanceId: id(), defId: "resource.rock.coal", cell });
+          else if (r < 0.07) nodes.push({ instanceId: id(), defId: "resource.tree.dead", cell });
+          else if (r < 0.078) enemies.push({ instanceId: id(), defId: "enemy.ember_crawler", cell });
+          else if (r < 0.086) objects.push({ instanceId: id(), defId: "object.log.fallen", cell });
+          break;
+        case 34: // crystal barrens — cold, sparse, rich in gems
+          if (r < 0.03) nodes.push({ instanceId: id(), defId: "resource.rock.lapis", cell });
+          else if (r < 0.05) nodes.push({ instanceId: id(), defId: "resource.rock.diamond", cell });
+          else if (r < 0.06) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
+          else if (r < 0.066) enemies.push({ instanceId: id(), defId: "enemy.glacial_wight", cell });
+          break;
+        case 35: // amber marsh — peaty, mushroomed wetland
+          if (r < 0.12) nodes.push({ instanceId: id(), defId: "resource.tree.willow", cell });
+          else if (r < 0.18) nodes.push({ instanceId: id(), defId: "resource.herb.duskcap", cell });
+          else if (r < 0.2) objects.push({ instanceId: id(), defId: "object.mushroom.giant", cell });
+          else if (r < 0.205) enemies.push({ instanceId: id(), defId: "enemy.marsh_lurker", cell });
+          else if (r < 0.22) nodes.push({ instanceId: id(), defId: "resource.tree.dead", cell });
           break;
         default: // plains
           if (r < 0.05) nodes.push({ instanceId: id(), defId: "resource.tree.basic", cell });
