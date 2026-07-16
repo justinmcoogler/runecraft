@@ -80,6 +80,8 @@ export class MiniMap {
   }
 
   private setOpen(v: boolean): void {
+    // No full map underground — there's no surface to enlarge.
+    if (v && !this.active(this.getSim())) return;
     this.open = v;
     this.expanded.style.display = v ? "flex" : "none";
     if (v) this.draw(this.big, 3.2, 3);
@@ -88,10 +90,41 @@ export class MiniMap {
   private tick(): void {
     const sim = this.getSim();
     const on = this.active(sim);
-    this.root.style.display = on ? "block" : "none";
-    if (!on) { if (this.open) this.setOpen(false); return; }
+    // Stay visible everywhere: on the surface it's the live map; underground
+    // (caves/dungeons) it shows a clear "no surface map" state instead of just
+    // vanishing, so it never reads as a frozen/broken minimap.
+    this.root.style.display = "block";
+    this.root.classList.toggle("mm-underground", !on);
+    if (!on) {
+      if (this.open) this.setOpen(false);
+      this.drawUnderground(this.mini);
+      return;
+    }
     this.draw(this.mini, 1.1, 4);
     if (this.open) this.draw(this.big, 3.2, 3);
+  }
+
+  /** A muted "you're underground" panel: dark stone with a downward chevron. */
+  private drawUnderground(canvas: HTMLCanvasElement): void {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const s = canvas.width;
+    ctx.fillStyle = "#26242c";
+    ctx.fillRect(0, 0, s, s);
+    // sparse deepslate speckle
+    ctx.fillStyle = "#33313b";
+    for (let i = 0; i < 60; i++) {
+      const x = (i * 53) % s, y = (i * 97) % s;
+      ctx.fillRect(x, y, 3, 3);
+    }
+    // a downward chevron — you've descended below the surface
+    ctx.strokeStyle = "#8a8f98";
+    ctx.lineWidth = Math.max(3, s * 0.03);
+    ctx.beginPath();
+    ctx.moveTo(s * 0.34, s * 0.4);
+    ctx.lineTo(s * 0.5, s * 0.58);
+    ctx.lineTo(s * 0.66, s * 0.4);
+    ctx.stroke();
   }
 
   /** cellsPerSample × px controls the covered radius; bigger cellsPerSample =
