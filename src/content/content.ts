@@ -4424,6 +4424,12 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     interaction: { mode: "adjacent_4", rangeCells: 1 },
     blocksNav: true,
   },
+  "object.gate.oak": {
+    id: "object.gate.oak",
+    name: "Gate",
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    blocksNav: true,
+  },
   "object.stairs.up": {
     id: "object.stairs.up",
     name: "Stairs Up",
@@ -5033,8 +5039,8 @@ const LESSONS: Record<string, Lesson> = {
   "skill.cooking": { action: [train("skill.cooking", "Cook a fish on the campfire")], gift: [{ itemId: "item.fish.raw", qty: 2 }], note: "Here's a raw fish — cook it on the campfire." },
   "skill.smelting": { action: [train("skill.smelting", "Smelt a copper bar at the furnace")], gift: [{ itemId: "item.ore.copper", qty: 2 }], note: "Take this copper ore — smelt it in the furnace." },
   "skill.smithing": { action: [train("skill.smithing", "Hammer something on the anvil")], gift: [{ itemId: "tool.hammer.basic", qty: 1 }, { itemId: "item.bar.copper", qty: 2 }], note: "Here's a hammer and two copper bars — hammer them into a blade on the anvil." },
-  "skill.attack": { action: [{ id: "do", label: "Cull 3 pigs, switching attack styles", type: "slay", enemyDefId: "enemy.pig", qty: 3 }], gift: [{ itemId: "tool.sword.bronze", qty: 1 }] },
-  "skill.farming": { deliver: { itemId: "item.wheat", qty: 2 }, note: "Harvest a couple of wheat from the plot and bring them to me." },
+  "skill.attack": { action: [train("skill.attack", "Strike a pig on Accurate style — trains Attack"), train("skill.strength", "Tap the attack-style button to Aggressive, then strike — trains Strength")], gift: [{ itemId: "tool.sword.bronze", qty: 1 }] },
+  "skill.farming": { deliver: { itemId: "item.wheat", qty: 2 }, gift: [{ itemId: "item.seed.wheat", qty: 3 }], note: "Here are wheat seeds — click the empty plot to sow one, wait a short while for it to grow, then harvest the wheat and bring me two." },
   "skill.herblore": { deliver: { itemId: "item.herb.sage", qty: 2 }, note: "Pick a couple of sage and bring them to me." },
   "skill.crafting": { action: [train("skill.crafting", "Cut planks at the workbench")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "Here's some timber — cut it into planks at the workbench." },
   "skill.archaeology": { action: [train("skill.archaeology", "Dig at the excavation")], note: "Take a trowel to the dig site and see what you turn up." },
@@ -5100,12 +5106,12 @@ TUTORIAL_ORDER.forEach((skill, i) => {
     prereqQuestIds: [prereq],
     startItems: gift?.items,
     intro: combat
-      ? `Sergeant Gareth: "One instructor, all of melee. Here's a bronze sword — equip it. The attack-style toggle picks which skill grows: Accurate for Attack, Aggressive for Strength, Defensive for Defence, and Constitution grows no matter what. Cull the three pigs, then report back to me."`
+      ? `Sergeant Gareth: "One instructor, all of melee. Here's a bronze sword — equip it. See the attack-style button on your bar? It picks which skill your blows train: Accurate for Attack, Aggressive for Strength, Defensive for Defence — and Constitution grows no matter what. Strike a pig on Accurate, then tap the button to Aggressive and strike again, so you feel the difference. Then report back to me."`
       : lesson.note
         ? `${m.name}: "Well met. ${lesson.note} Then come back to me and I'll sign your ${skillName} lesson off."`
         : `${m.name}: "Well met. Words won't teach you ${skillName} — give it a try right here, then come back to me."`,
     reminder: combat
-      ? `Cull 3 pigs (switch attack styles), then report back to Sergeant Gareth.`
+      ? `Strike a pig on Accurate (Attack), then switch to Aggressive (Strength) with the attack-style button, then report back to Sergeant Gareth.`
       : lesson.deliver
         ? `Gather ${lesson.deliver.qty} ${ITEMS[lesson.deliver.itemId]?.name ?? "goods"} and bring them to ${m.name}.`
         : action.length

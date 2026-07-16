@@ -389,12 +389,13 @@ function decorateField(
       if (d < 4) continue; // a clean grass verge frames the path
       const h = ((x * 73856093) ^ (z * 19349663)) >>> 0;
       const r = h % 100;
-      // A living countryside: trees and leafy berry bushes deeper in, low grass
-      // tufts near the verge. No boulders (the stray rocks read as odd) and no
-      // showy flowers (they tower into weird coloured voxel masses). Trees and
-      // bushes only where the ground is flat all around, so they never perch on
-      // an edge and float.
-      if (d >= 8 && r < 4 && flatHere(x, z)) put(x, z, "resource.tree.basic", true);
+      // A living countryside: tall trees kept well back (12+ cells from any
+      // path/clearing/pen so their canopy never hides a tutor or a gate), leafy
+      // berry bushes a little closer, and low grass tufts near the verge. No
+      // boulders (stray rocks read as odd) and no showy flowers (they tower into
+      // weird voxel masses). Trees and bushes only where the ground is flat all
+      // around, so they never perch on an edge and float.
+      if (d >= 12 && r < 5 && flatHere(x, z)) put(x, z, "resource.tree.basic", true);
       else if (d >= 6 && r < 8 && flatHere(x, z)) put(x, z, "resource.bush.berry", true);
       else if (r < 48) put(x, z, "object.grass.tuft");
     }
@@ -426,7 +427,7 @@ function buildPen(
   for (let x = x0; x <= x1; x++) { wall(x, z0); wall(x, z1); }
   // A real gate in the gap: a click-to-open door so the pen actually closes and
   // you open it to get at the animals (and it swings shut behind you).
-  objects.push({ instanceId: `tut.pen.${short}.gate`, defId: "object.door.wood", cell: { x: gx, z: gz } });
+  objects.push({ instanceId: `tut.pen.${short}.gate`, defId: "object.gate.oak", cell: { x: gx, z: gz } });
   const primary = boss ? `tut.pen.${short}.boss` : `tut.pen.${short}.a`;
   enemies.push(
     { instanceId: primary, defId: enemyDef, cell: { x: cx, z: cz - 1 } },

@@ -1555,10 +1555,13 @@ export class GameRenderer {
     }
   }
 
-  /** A small stepped pyramid of full-size Minecraft blocks — a 2×2 base capped
-   *  by one — used for ore veins. Full 1×1 blocks so the ore textures map one
-   *  tile per face, undistorted. The same shape (in stone) serves the mined-out
-   *  state, so mining just swaps the ore block for plain stone. */
+  /** A stepped pyramid of true Minecraft-sized blocks — a 2×2 base capped by
+   *  one — used for ore veins. Full 1×1×1 blocks at real block scale, so the
+   *  vein has the heft of actual Minecraft ore and its textures map one tile
+   *  per face, undistorted. The same shape (in stone) serves the mined-out
+   *  state, so mining just swaps the ore block for plain stone. The 2×2 base
+   *  overhangs into the neighbouring cells (which stay walkable — only the
+   *  vein's own cell blocks nav), the same way a tree's canopy does. */
   private orePyramid(mat: THREE.MeshLambertMaterial): THREE.Group {
     const g = new THREE.Group();
     for (const [dx, dz] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]] as const) {
@@ -1569,11 +1572,6 @@ export class GameRenderer {
     const cap = this.tiledBox(1, 1, 1, mat);
     cap.position.set(0, 1.5, 0);
     g.add(cap);
-    // The 2×2 base would otherwise overhang into the four neighbouring cells,
-    // which stay walkable (only the vein's own cell blocks nav) — so the player
-    // appears to walk through the ore. Shrink the whole vein to sit within its
-    // one tile; the 1×1 blocks keep their per-face texture mapping under scale.
-    g.scale.setScalar(0.5);
     return g;
   }
 
@@ -1772,7 +1770,7 @@ export class GameRenderer {
         // turns plain stone — the ore colour vanishes until the vein regrows and
         // it can be mined again.
         const oreMat = this.lambert(viewMaterial ?? "resource.rock.copper");
-        activeGroup.add(this.orePyramid(oreMat), makeBlobShadow(1.1));
+        activeGroup.add(this.orePyramid(oreMat), makeBlobShadow(1.6));
         const spent = this.orePyramid(this.lambert("resource.rock.stone"));
         return {
           activeGroup,
@@ -2533,6 +2531,38 @@ export class GameRenderer {
           // Turn the whole door (frame, swinging leaf, step) to face the wall
           // it hangs on. Built facing north (-z); rotate to the placement's
           // facing. The leaf still swings relative to this, so open still works.
+          group.rotation.y = obj.facing === "south" ? Math.PI
+            : obj.facing === "east" ? -Math.PI / 2
+            : obj.facing === "west" ? Math.PI / 2
+            : 0;
+          break;
+        }
+        case "object.gate.oak": {
+          // A Minecraft oak fence gate: two thick posts flanking a swinging
+          // gate of two rails and vertical slats, all in the same plank wood as
+          // the oak fences it sits between, so the line reads continuous. The
+          // swinging half is a doorLeaf so click-to-open/close rotates it.
+          const wood = this.lambert("terrain.plank");
+          for (const fx of [-0.5, 0.5]) {
+            const post = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.5, 0.24), wood);
+            post.position.set(fx, 0.75, 0);
+            group.add(post);
+          }
+          const leaf = new THREE.Group();
+          leaf.position.set(-0.5, 0, 0); // hinge at the left post
+          for (const py of [0.6, 1.15]) {
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.16, 0.16), wood);
+            rail.position.set(0.5, py, 0); // centred between the posts
+            leaf.add(rail);
+          }
+          for (const sx of [0.2, 0.5, 0.8]) {
+            const slat = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.62, 0.13), wood);
+            slat.position.set(sx, 0.875, 0);
+            leaf.add(slat);
+          }
+          leaf.userData.doorLeaf = true;
+          this.doorLeaves.set(obj.instanceId, leaf);
+          group.add(leaf, makeBlobShadow(0.5));
           group.rotation.y = obj.facing === "south" ? Math.PI
             : obj.facing === "east" ? -Math.PI / 2
             : obj.facing === "west" ? Math.PI / 2

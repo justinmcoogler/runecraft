@@ -228,8 +228,10 @@ export class ActionController {
       }
     } else if (objectPlacement) {
       const objectDef = OBJECTS[objectPlacement.defId];
-      // A door with no portal is a click-to-open door (walk through, no travel).
-      const isDoor = objectPlacement.defId.startsWith("object.door.") && !objectPlacement.portal;
+      // A door or fence gate with no portal is a click-to-open door (swing it
+      // open, walk through, no travel).
+      const isDoor = (objectPlacement.defId.startsWith("object.door.") ||
+        objectPlacement.defId.startsWith("object.gate.")) && !objectPlacement.portal;
       if (!isDoor && (objectDef.scenery || (!objectPlacement.portal && !objectDef.shopId &&
           !objectDef.workstationRecipeIds && !objectDef.containerSlots && !objectDef.buildRequires &&
           !objectDef.sleepable))) {
