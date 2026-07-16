@@ -9,6 +9,9 @@
   --gold: #ffd54a;
   --font-body: "VT323", "Courier New", monospace;
   --font-head: "Press Start 2P", "VT323", monospace;
+  /* Minimap edge length (drives its size AND the top-right chip offset so the
+     two never overlap). Shrinks on small screens via the media queries below. */
+  --mm-size: 148px;
 }
 
 * { box-sizing: border-box; }
@@ -81,8 +84,12 @@ html, body {
 
 .hud-top-right {
   position: absolute;
-  top: max(10px, env(safe-area-inset-top));
+  /* Sits directly beneath the minimap (top-right) so the two never collide. */
+  top: calc(max(10px, env(safe-area-inset-top)) + var(--mm-size) + 16px);
   right: max(12px, env(safe-area-inset-right));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   z-index: 6; /* skills panel opens above the inventory panel */
 }
 .skill-chip {
@@ -385,6 +392,7 @@ html, body {
 }
 
 @media (max-width: 720px) {
+  :root { --mm-size: 128px; }
   .inventory-panel { width: 262px; }
   .xp-bar { width: 70px; }
   .xp-text { display: none; }
@@ -398,6 +406,7 @@ html, body {
 
 /* Narrow/portrait phones: compact chips, centered panels, nothing overlaps. */
 @media (max-width: 520px) {
+  :root { --mm-size: 112px; }
   html, body { font-size: 17px; }
   .game-title { font-size: 9px; }
   .skill-chip { padding: 4px 8px; gap: 5px; font-size: 15px; }
@@ -406,10 +415,11 @@ html, body {
   .health-chip { margin-top: 5px; padding: 3px 8px; font-size: 14px; gap: 5px; }
   .hp-bar { width: 54px; }
   .hp-text { font-size: 12px; }
-  /* Toasts drop below the title/chips row instead of colliding with it. */
+  /* Toasts/dialogue drop below the whole minimap + chip stack (top-right) so a
+     wide speech bubble never slides under the map. */
   .hud-top-center.toast-stack {
-    top: calc(max(10px, env(safe-area-inset-top)) + 82px);
-    width: 92vw;
+    top: calc(max(10px, env(safe-area-inset-top)) + var(--mm-size) + 84px);
+    width: 94vw;
   }
   .toast { font-size: 15px; padding: 5px 10px; max-width: 92vw; }
   .toast-level { font-size: 16px; }
@@ -439,13 +449,19 @@ html, body {
     max-height: calc(100vh - 140px);
     overflow-y: auto;
   }
+  /* Skills open as a centered bottom sheet (like the other panels) so the
+     minimap never covers them. */
   .skills-panel {
     position: fixed;
-    right: max(8px, env(safe-area-inset-right));
-    top: calc(max(10px, env(safe-area-inset-top)) + 74px);
-    width: min(94vw, 330px);
-    max-height: calc(100vh - 160px);
+    left: 50%;
+    right: auto;
+    top: auto;
+    transform: translateX(-50%);
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 58px);
+    width: min(94vw, 360px);
+    max-height: calc(100vh - 150px);
     overflow-y: auto;
+    z-index: 20;
   }
   .chest-panel { width: 94vw; }
   .chest-grid { grid-template-columns: repeat(6, 1fr); }

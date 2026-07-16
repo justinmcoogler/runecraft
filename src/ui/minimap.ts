@@ -177,11 +177,12 @@ export class MiniMap {
     const s = document.createElement("style");
     s.id = "mm-styles";
     s.textContent = `
-      .mm-mini { position:absolute; top:12px; right:12px; width:152px; height:152px; padding:2px;
+      .mm-mini { position:absolute; top:max(10px,env(safe-area-inset-top)); right:max(12px,env(safe-area-inset-right));
+        width:calc(var(--mm-size,148px) + 8px); height:calc(var(--mm-size,148px) + 8px); padding:2px;
         background:rgba(18,20,26,0.85); border:2px solid #3a4150; border-radius:8px; cursor:pointer;
-        box-shadow:0 3px 12px rgba(0,0,0,0.4); z-index:30; pointer-events:auto; }
+        box-shadow:0 3px 12px rgba(0,0,0,0.4); z-index:15; pointer-events:auto; }
       .mm-mini:hover { border-color:#5a6472; }
-      .mm-mini canvas { display:block; width:148px; height:148px; border-radius:5px; image-rendering:pixelated; }
+      .mm-mini canvas { display:block; width:var(--mm-size,148px); height:var(--mm-size,148px); border-radius:5px; image-rendering:pixelated; }
       .mm-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.55); display:flex;
         align-items:center; justify-content:center; z-index:45; pointer-events:auto; }
       .mm-panel { display:flex; flex-direction:column; background:rgba(18,20,26,0.97);

@@ -497,6 +497,7 @@ async function boot(): Promise<void> {
       // reference would go stale after travelling through a portal.
       get sim() { return sim; },
       renderer,
+      hud,
       save: doSave,
       regionId: () => currentRegionId,
       enterRegion,
