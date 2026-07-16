@@ -11,12 +11,19 @@ export function zoneNameAt(x: number, z: number): string {
   return zone?.name ?? "the wilds";
 }
 
-/** Overworld home cell of a quest giver (static placement). */
-export function giverCell(questId: string): Cell | null {
+/** The live cell of an NPC — the current region first (tutorial/endless quest
+ *  givers live there), falling back to the authored overworld (province mode). */
+export function npcCell(sim: GameSimulation, npcId: string): Cell | null {
+  const here = sim.world.region.npcs.find((n) => n.instanceId === npcId);
+  if (here) return here.cell;
+  const over = buildOverworld().region.npcs.find((n) => n.instanceId === npcId);
+  return over ? over.cell : null;
+}
+
+/** Home cell of a quest giver. */
+export function giverCell(sim: GameSimulation, questId: string): Cell | null {
   const def = QUESTS[questId];
-  if (!def) return null;
-  const npc = buildOverworld().region.npcs.find((n) => n.instanceId === def.giverNpcId);
-  return npc ? npc.cell : null;
+  return def ? npcCell(sim, def.giverNpcId) : null;
 }
 
 export interface QuestTarget {
@@ -34,17 +41,16 @@ export function activeQuestTarget(sim: GameSimulation): QuestTarget | null {
     if (state?.status !== "active") continue;
     const objective = def.objectives[state.objectiveIndex];
     if (!objective) continue;
-    const fallback = giverCell(questId);
-    const inOverworld = sim.world.region.id === "region.vale_clearing";
+    const fallback = giverCell(sim, questId);
+    // A target is "showable" (map marker + on-screen pointer) whenever it
+    // resolves to a cell in the region the player is actually in.
+    const region = sim.world.region.id;
+    const inOverworld = region === "region.vale_clearing" || region === "region.tutorial" || region === "region.endless";
 
     let cell: Cell | null = null;
-    let overworld = true;
+    let overworld = inOverworld;
     if (objective.type === "talk" || objective.type === "deliver") {
-      cell = giverCell(questId);
-      if (objective.npcId && objective.npcId !== def.giverNpcId) {
-        const npc = buildOverworld().region.npcs.find((n) => n.instanceId === objective.npcId);
-        if (npc) cell = npc.cell;
-      }
+      cell = objective.npcId ? npcCell(sim, objective.npcId) : giverCell(sim, questId);
     } else if (objective.type === "slay" && objective.enemyDefId) {
       // Nearest live enemy in the current region, else its overworld den.
       const p = sim.movement.pos;
@@ -109,12 +115,13 @@ export interface QuestLogEntry {
 
 export function questLog(sim: GameSimulation): QuestLogEntry[] {
   const entries: QuestLogEntry[] = [];
-  const npcs = buildOverworld().region.npcs;
+  const here = sim.world.region.npcs;
+  const over = buildOverworld().region.npcs;
   for (const [questId, def] of Object.entries(QUESTS) as Array<[string, QuestDef]>) {
     const state = sim.quests.states[questId];
-    const npc = npcs.find((n) => n.instanceId === def.giverNpcId);
+    const npc = here.find((n) => n.instanceId === def.giverNpcId) ?? over.find((n) => n.instanceId === def.giverNpcId);
     const giverName = npc?.name ?? "someone";
-    const where = npc ? `${giverName} — ${zoneNameAt(npc.cell.x, npc.cell.z)}` : giverName;
+    const where = npc ? giverName : "the vale";
     let status: QuestLogStatus;
     let objective: string | undefined;
     let progress: string | undefined;

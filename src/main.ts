@@ -412,15 +412,15 @@ async function boot(): Promise<void> {
       frameEvents.push(...events);
       for (const ev of events) {
         if (ev.type === "portalEntered") {
-          // The graduation gateway stays shut until the required lessons are
-          // done; stepping into it early just nudges the player back to work.
+          // The graduation gateway stays shut until the tutorial quest chain is
+          // finished (the final quest sets tutorial.graduated); stepping into it
+          // early just nudges the player back to the quests.
           if (
             currentRegionId === "region.tutorial" &&
             ev.targetRegionId === "region.endless" &&
-            sim.tutorial &&
-            !sim.tutorial.complete
+            !sim.worldFlags.has("tutorial.graduated")
           ) {
-            hud.toast("The gateway isn't open yet — finish your lessons first.", "warn");
+            hud.toast("The gateway isn't open yet — finish the vale's quests first.", "warn");
           } else {
             pendingPortal = ev;
           }

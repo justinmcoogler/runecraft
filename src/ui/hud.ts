@@ -785,7 +785,9 @@ export class Hud {
     const p = this.sim.movement.pos;
     const dx = target.cell.x + 0.5 - p.x;
     const dz = target.cell.z + 0.5 - p.z;
-    if (Math.hypot(dx, dz) < 4 || (target.overworld && this.sim.world.region.id !== "region.vale_clearing")) {
+    // The objective now always resolves to a cell in the current region, so
+    // just hide the arrow once you're right on top of it.
+    if (Math.hypot(dx, dz) < 4) {
       pointer.style.visibility = "hidden";
       return;
     }

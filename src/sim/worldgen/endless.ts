@@ -2730,24 +2730,38 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
     ...region.npcs,
     {
       instanceId: "tutorial.guide",
-      name: "Guide",
+      name: "Rowan the Guide",
       cell: { x: spawn.x + 3, z: spawn.z },
       wanderRadius: 0,
       model: "mob.villager",
       lines: [
-        "Welcome to the vale. Do a lesson for every skill and the gateway opens.",
-        "Follow the glowing marker to your next task — I'll hand you the gear you need.",
+        "Welcome to the vale. Talk to the folk here and they'll set you tasks.",
+        "Follow your quest marker — the dotted trail shows the way.",
       ],
     },
     {
-      // Reuses the slayer taskmaster's id so greeting him hands out a bounty
-      // (see SLAYER_NPC_ID) — that's the Slaying lesson.
+      instanceId: "tutorial.woodsman",
+      name: "Woodcutter Finn",
+      cell: { x: spawn.x - 8, z: spawn.z + 3 },
+      wanderRadius: 0,
+      model: "mob.villager",
+      lines: ["A sharp axe and a strong back — that's the woodcutter's lot.", "Fell the broadleafs around us; the logs stack up quick."],
+    },
+    {
+      instanceId: "tutorial.smith",
+      name: "Smith Dara",
+      cell: { x: spawn.x + 22, z: spawn.z - 1 },
+      wanderRadius: 0,
+      model: "mob.villager",
+      lines: ["Bring me ore and I'll bring you steel.", "The forge never goes cold while there's copper in the rock."],
+    },
+    {
       instanceId: "village.npc.brusk",
       name: "Warden Brusk",
       cell: { x: spawn.x + 9, z: spawn.z + 22 },
       wanderRadius: 0,
       model: "mob.villager",
-      lines: ["Need a bounty? I'll mark a foe for you to hunt."],
+      lines: ["Keep your guard up and your blade sharp.", "The pit's to the south. Foes enough to blood a newcomer."],
     },
   ];
   // Lesson stations, spread across the vale into loose zones so the newcomer
@@ -2756,9 +2770,14 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
   // the southeast. The objective beacon points to whichever is next.
   region.nodes = [
     ...region.nodes,
-    // Gathering yard — west.
+    // Gathering yard — west. Extra trees and rocks so five logs / five ore are
+    // easy to gather for the tutorial quests without waiting on a respawn.
     { instanceId: "tutorial.tree", defId: "resource.tree.basic", cell: { x: spawn.x - 10, z: spawn.z + 2 } },
+    { instanceId: "tutorial.tree2", defId: "resource.tree.basic", cell: { x: spawn.x - 12, z: spawn.z + 5 } },
+    { instanceId: "tutorial.tree3", defId: "resource.tree.basic", cell: { x: spawn.x - 9, z: spawn.z + 7 } },
     { instanceId: "tutorial.rock", defId: "resource.rock.copper", cell: { x: spawn.x - 17, z: spawn.z - 4 } },
+    { instanceId: "tutorial.rock2", defId: "resource.rock.copper", cell: { x: spawn.x - 19, z: spawn.z - 1 } },
+    { instanceId: "tutorial.rock3", defId: "resource.rock.copper", cell: { x: spawn.x - 15, z: spawn.z - 7 } },
     { instanceId: "tutorial.bush", defId: "resource.bush.berry", cell: { x: spawn.x - 13, z: spawn.z - 9 } },
     { instanceId: "tutorial.herb", defId: "resource.herb.sage", cell: { x: spawn.x - 22, z: spawn.z + 4 } },
     { instanceId: "tutorial.trail", defId: "resource.trail.rabbit", cell: { x: spawn.x - 25, z: spawn.z - 7 } },

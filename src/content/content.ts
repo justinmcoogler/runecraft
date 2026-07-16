@@ -4885,332 +4885,99 @@ export interface QuestDef {
 }
 
 export const QUESTS: Record<string, QuestDef> = {
-  "quest.first_timber": {
-    id: "quest.first_timber",
-    name: "First Timber",
-    giverNpcId: "vale.npc.alder",
+  // The tutorial quest chain, given by the vale's NPCs. It teaches the core
+  // loop — gather, craft, fight — and the final quest opens the gateway to the
+  // wild. These are the only quests: the world beyond is a sandbox.
+  "quest.tut_welcome": {
+    id: "quest.tut_welcome",
+    name: "Welcome to the Vale",
+    giverNpcId: "tutorial.guide",
     intro:
-      "This vale eats through firewood, and my old arms aren't what they were. Chop me five fresh logs and my copper axe is yours.",
-    reminder: "Five fresh logs, friend — the broadleafs are all around us.",
-    outro: "Ha! Fine timber. Here — my copper axe. She bites deeper than that worn thing of yours.",
+      "Welcome, traveller. This walled vale is where you'll find your feet. Go west and speak with Finn among the trees — he'll set you your first task.",
+    reminder: "Finn the woodcutter is west of here, among the broadleafs.",
+    outro: "There's Finn now. Off you go — and good luck.",
     objectives: [
-      { id: "talk", label: "Speak with Old Alder", type: "talk", npcId: "vale.npc.alder" },
+      { id: "talk", label: "Speak with the Guide", type: "talk", npcId: "tutorial.guide" },
+      { id: "find_finn", label: "Find Finn the woodcutter (west)", type: "talk", npcId: "tutorial.woodsman" },
+    ],
+    rewards: { xp: [], items: [{ itemId: "item.coin", qty: 25 }] },
+  },
+  "quest.tut_timber": {
+    id: "quest.tut_timber",
+    name: "First Timber",
+    giverNpcId: "tutorial.woodsman",
+    prereqQuestIds: ["quest.tut_welcome"],
+    intro:
+      "New blood, eh? Then let's start with an axe in your hand. Equip one, fell five logs from these broadleafs, and bring them to me.",
+    reminder: "Equip an axe, chop five logs, and bring them back to me.",
+    outro:
+      "Clean work! Here — a copper axe and pick, both keener than a starter's kit. Now Dara the smith wants ore; find her east by the forge.",
+    objectives: [
+      { id: "talk", label: "Speak with Finn", type: "talk", npcId: "tutorial.woodsman" },
       { id: "equip", label: "Equip an axe", type: "equipTag", toolTag: "axe" },
-      { id: "gather", label: "Chop 5 fresh logs", type: "gather", itemId: "item.log.basic", qty: 5 },
-      {
-        id: "deliver",
-        label: "Bring 5 logs to Old Alder",
-        type: "deliver",
-        npcId: "vale.npc.alder",
-        itemId: "item.log.basic",
-        qty: 5,
-      },
+      { id: "gather", label: "Chop 5 logs", type: "gather", itemId: "item.log.basic", qty: 5 },
+      { id: "deliver", label: "Bring 5 logs to Finn", type: "deliver", npcId: "tutorial.woodsman", itemId: "item.log.basic", qty: 5 },
     ],
     rewards: {
       xp: [{ skillId: "skill.woodcutting", amount: 120 }],
-      items: [{ itemId: "tool.axe.copper", qty: 1 }],
+      items: [{ itemId: "tool.axe.copper", qty: 1 }, { itemId: "tool.pickaxe.copper", qty: 1 }],
     },
   },
-  "quest.tin_and_temper": {
-    id: "quest.tin_and_temper",
-    name: "Tin and Temper",
-    giverNpcId: "vale.npc.alder",
-    prereqQuestIds: ["quest.first_timber"],
+  "quest.tut_stone": {
+    id: "quest.tut_stone",
+    name: "Stone and Steel",
+    giverNpcId: "tutorial.smith",
+    prereqQuestIds: ["quest.tut_timber"],
     intro:
-      "Copper alone bends, friend. Take the mine road east past the town — the silvery tin rocks sit on the middle terrace — and bring me a bronze bar off the furnace. Mind: bronze wants a steady Smelting hand.",
-    reminder: "Tin from the pale rocks, then copper and tin together in the furnace. Bronze, friend.",
+      "Finn sent you? Good. I need copper. Equip a pickaxe, mine five copper ore from the rocks yonder, and bring it here.",
+    reminder: "Equip a pickaxe and mine five copper ore, then bring it to me.",
     outro:
-      "Real bronze! You've the temper for this work. Take these bars back — you'll want a blade worthy of what's below.",
+      "That'll do nicely. Take this bronze sword and some coin for your trouble. Warden Brusk drills the guard to the south — he'll want a word.",
     objectives: [
-      { id: "talk", label: "Speak with Old Alder", type: "talk", npcId: "vale.npc.alder" },
-      { id: "tin", label: "Mine 2 tin ore", type: "gather", itemId: "item.ore.tin", qty: 2 },
-      { id: "bronze", label: "Smelt a bronze bar", type: "gather", itemId: "item.bar.bronze", qty: 1 },
-      {
-        id: "deliver",
-        label: "Bring the bronze bar to Old Alder",
-        type: "deliver",
-        npcId: "vale.npc.alder",
-        itemId: "item.bar.bronze",
-        qty: 1,
-      },
+      { id: "talk", label: "Speak with Smith Dara", type: "talk", npcId: "tutorial.smith" },
+      { id: "equip", label: "Equip a pickaxe", type: "equipTag", toolTag: "pickaxe" },
+      { id: "gather", label: "Mine 5 copper ore", type: "gather", itemId: "item.ore.copper", qty: 5 },
+      { id: "deliver", label: "Bring 5 copper ore to Dara", type: "deliver", npcId: "tutorial.smith", itemId: "item.ore.copper", qty: 5 },
     ],
     rewards: {
-      xp: [
-        { skillId: "skill.smelting", amount: 150 },
-        { skillId: "skill.smithing", amount: 100 },
-      ],
-      items: [{ itemId: "item.bar.bronze", qty: 2 }],
+      xp: [{ skillId: "skill.mining", amount: 120 }],
+      items: [{ itemId: "tool.sword.bronze", qty: 1 }, { itemId: "item.coin", qty: 40 }],
     },
   },
-  "quest.the_gnasher": {
-    id: "quest.the_gnasher",
-    name: "The Gnasher Below",
-    giverNpcId: "vale.npc.alder",
-    prereqQuestIds: ["quest.tin_and_temper"],
+  "quest.tut_blooding": {
+    id: "quest.tut_blooding",
+    name: "A Warden's Blooding",
+    giverNpcId: "village.npc.brusk",
+    prereqQuestIds: ["quest.tut_stone"],
     intro:
-      "Old Gnasher's been gnawing the hollow's veins hollow. Forge yourself a proper blade, climb the mine road to the cave mouth, and finish it. Bring me its Emberstone so I know the deed's done.",
-    reminder: "A forged blade in hand, then down the cave mouth. The Emberstone is my proof.",
-    outro:
-      "By the roots… you actually did it. Keep the stone — it was always yours. The vale sleeps easier tonight, warrior.",
+      "So the smith armed you. Let's see you use it. Equip a weapon and cull three of the pigs in the pit south of here, then report back.",
+    reminder: "Equip a weapon and put down three pigs in the pit to the south.",
+    outro: "Not bad for a greenhorn. You're ready for the wilds. Rowan will send you on your way.",
     objectives: [
-      { id: "talk", label: "Speak with Old Alder", type: "talk", npcId: "vale.npc.alder" },
-      { id: "arm", label: "Equip a forged weapon", type: "equipTag", toolTag: "weapon" },
-      {
-        id: "slay",
-        label: "Slay Old Gnasher in Copper Hollow",
-        type: "slay",
-        enemyDefId: "enemy.old_gnasher",
-        qty: 1,
-      },
-      {
-        id: "proof",
-        label: "Bring the Emberstone to Old Alder",
-        type: "deliver",
-        npcId: "vale.npc.alder",
-        itemId: "item.gem.emberstone",
-        qty: 1,
-      },
+      { id: "talk", label: "Speak with Warden Brusk", type: "talk", npcId: "village.npc.brusk" },
+      { id: "equip", label: "Equip a weapon", type: "equipTag", toolTag: "weapon" },
+      { id: "slay", label: "Defeat 3 pigs", type: "slay", enemyDefId: "enemy.pig", qty: 3 },
+      { id: "report", label: "Report back to Brusk", type: "talk", npcId: "village.npc.brusk" },
     ],
     rewards: {
-      xp: [
-        { skillId: "skill.attack", amount: 300 },
-        { skillId: "skill.defense", amount: 200 },
-      ],
-      items: [
-        { itemId: "item.gem.emberstone", qty: 1 },
-        { itemId: "item.fish.cooked", qty: 5 },
-      ],
+      xp: [{ skillId: "skill.attack", amount: 90 }, { skillId: "skill.defense", amount: 60 }],
+      items: [{ itemId: "item.coin", qty: 50 }],
     },
   },
-  "quest.hearth_and_harvest": {
-    id: "quest.hearth_and_harvest",
-    name: "Hearth and Harvest",
-    giverNpcId: "town.npc.bett",
-    prereqQuestIds: ["quest.first_timber"],
+  "quest.tut_graduation": {
+    id: "quest.tut_graduation",
+    name: "Into the Wild",
+    giverNpcId: "tutorial.guide",
+    prereqQuestIds: ["quest.tut_blooding"],
     intro:
-      "The inn's pantry is bare and market day is coming. Berries from the hedgerows, wheat from the farm rows, fresh fish from the river — Alder's chest has a spare rod — and put it all over a fire: three hot fish and two loaves, and I'll owe you.",
-    reminder: "Berries, wheat, fish — then the campfire: hot fish and fresh bread, love. Raw fish feeds nobody.",
-    outro:
-      "Still warm! You've a cook's patience and a fisher's luck. The pantry thanks you, and so does every hungry traveler on the high street.",
+      "You've learned to gather, to craft, and to fight. The vale has no more to teach you. Step through the gateway when you're ready — the whole world waits beyond it.",
+    reminder: "Speak with me, then step through the gateway to leave the vale.",
+    outro: "Go well, traveller. The wilds are yours.",
     objectives: [
-      { id: "talk", label: "Speak with Bett in the market", type: "talk", npcId: "town.npc.bett" },
-      { id: "berries", label: "Pick 4 berries from the hedgerows", type: "gather", itemId: "item.berry.basic", qty: 4 },
-      { id: "wheat", label: "Harvest 4 wheat from the farm", type: "gather", itemId: "item.wheat", qty: 4 },
-      { id: "fish", label: "Catch 3 fresh fish", type: "gather", itemId: "item.fish.raw", qty: 3 },
-      { id: "cook", label: "Cook 3 fish at a campfire", type: "gather", itemId: "item.fish.cooked", qty: 3 },
-      { id: "bread", label: "Bake 2 loaves of bread", type: "gather", itemId: "item.bread.basic", qty: 2 },
-      { id: "deliver", label: "Bring 3 cooked fish to Bett", type: "deliver", npcId: "town.npc.bett", itemId: "item.fish.cooked", qty: 3 },
-      { id: "deliver_bread", label: "Bring 2 loaves to Bett", type: "deliver", npcId: "town.npc.bett", itemId: "item.bread.basic", qty: 2 },
+      { id: "talk", label: "Speak with the Guide", type: "talk", npcId: "tutorial.guide" },
     ],
-    rewards: {
-      xp: [
-        { skillId: "skill.fishing", amount: 200 },
-        { skillId: "skill.cooking", amount: 200 },
-        { skillId: "skill.foraging", amount: 120 },
-        { skillId: "skill.farming", amount: 180 },
-      ],
-      items: [
-        { itemId: "item.coin", qty: 25 },
-        { itemId: "item.berry.basic", qty: 3 },
-      ],
-    },
-  },
-  "quest.stones_for_the_steward": {
-    id: "quest.stones_for_the_steward",
-    name: "Stones for the Steward",
-    giverNpcId: "castle.npc.corin",
-    prereqQuestIds: ["quest.tin_and_temper"],
-    intro:
-      "The east parapet wants mending and the quarry carts are a week late. The copper rocks on the mine road shed good rough stone — fire it into bricks at a furnace and bring me three, true and square. The village pays well for honest work.",
-    reminder: "Rough stone comes off the copper rocks; the furnace fires it into brick. Three bricks, true and square.",
-    outro:
-      "True and square indeed. The masons will have the walls whole by the feast. Take this — and the village remembers its friends, mender.",
-    objectives: [
-      { id: "talk", label: "Speak with Steward Corin in the village courtyard", type: "talk", npcId: "castle.npc.corin" },
-      { id: "bricks", label: "Fire 3 stone bricks", type: "gather", itemId: "item.brick.stone", qty: 3 },
-      { id: "deliver", label: "Bring 3 stone bricks to Corin", type: "deliver", npcId: "castle.npc.corin", itemId: "item.brick.stone", qty: 3 },
-    ],
-    rewards: {
-      xp: [
-        { skillId: "skill.mining", amount: 250 },
-        { skillId: "skill.smelting", amount: 200 },
-        { skillId: "skill.smithing", amount: 150 },
-      ],
-      items: [
-        { itemId: "item.coin", qty: 40 },
-        { itemId: "tool.pickaxe.bronze", qty: 1 },
-      ],
-    },
-  },
-  "quest.cold_comfort": {
-    id: "quest.cold_comfort",
-    name: "Cold Comfort",
-    giverNpcId: "nw.npc.prior",
-    intro:
-      "The infirmary shelf is bare and the passes are freezing folk faster than we can warm them. Bring me three frostbloom — they open only where the snow never quits.",
-    reminder: "Three frostbloom, friend. The white flowers on the high snows.",
-    outro: "Bless your cold fingers. Take these salves — monastery-made, mountain-tested.",
-    objectives: [
-      { id: "talk", label: "Speak with Prior Ashwin", type: "talk", npcId: "nw.npc.prior" },
-      { id: "gather", label: "Gather 3 frostbloom", type: "gather", itemId: "item.herb.frostbloom", qty: 3 },
-      {
-        id: "deliver",
-        label: "Bring the frostbloom to Prior Ashwin",
-        type: "deliver",
-        npcId: "nw.npc.prior",
-        itemId: "item.herb.frostbloom",
-        qty: 3,
-      },
-    ],
-    rewards: {
-      xp: [{ skillId: "skill.herblore", amount: 400 }],
-      items: [{ itemId: "item.salve.healing", qty: 3 }],
-    },
-  },
-  "quest.wolves_at_the_fence": {
-    id: "quest.wolves_at_the_fence",
-    name: "Wolves at the Fence",
-    giverNpcId: "wp.npc.reeve",
-    intro:
-      "Three nights running they've tested the palisade, and I'm down to one whole boot. Thin the pack — three timber wolves — and the border owes you.",
-    reminder: "Three timber wolves, thinned. The wood west of the fence is thick with them.",
-    outro: "That's the first quiet night this month. The border pays its debts — here.",
-    objectives: [
-      { id: "talk", label: "Speak with Marshal Reeve", type: "talk", npcId: "wp.npc.reeve" },
-      { id: "slay", label: "Slay 3 timber wolves", type: "slay", enemyDefId: "enemy.timber_wolf", qty: 3 },
-      { id: "report", label: "Report back to Marshal Reeve", type: "talk", npcId: "wp.npc.reeve" },
-    ],
-    rewards: {
-      xp: [
-        { skillId: "skill.attack", amount: 350 },
-        { skillId: "skill.slaying", amount: 250 },
-      ],
-      items: [{ itemId: "item.coin", qty: 40 }],
-    },
-  },
-  "quest.ledger_and_lamp": {
-    id: "quest.ledger_and_lamp",
-    name: "Ledger and Lamp",
-    giverNpcId: "ne.npc.toller",
-    intro:
-      "Every lamp on this road burns coal I haven't got. The quarry's a short walk east — five lumps of coal keeps the crossing lit a month.",
-    reminder: "Five coal, from the seams up the quarry track. The lamps won't feed themselves.",
-    outro: "Lamps lit, ledger square. You'll pass this road free for life — and take this.",
-    objectives: [
-      { id: "talk", label: "Speak with Toller Grimsby", type: "talk", npcId: "ne.npc.toller" },
-      { id: "gather", label: "Mine 5 coal", type: "gather", itemId: "item.ore.coal", qty: 5 },
-      {
-        id: "deliver",
-        label: "Bring the coal to Toller Grimsby",
-        type: "deliver",
-        npcId: "ne.npc.toller",
-        itemId: "item.ore.coal",
-        qty: 5,
-      },
-    ],
-    rewards: {
-      xp: [{ skillId: "skill.mining", amount: 500 }],
-      items: [{ itemId: "item.coin", qty: 35 }],
-    },
-  },
-  "quest.nine_firs_tally": {
-    id: "quest.nine_firs_tally",
-    name: "The Nine Firs Tally",
-    giverNpcId: "ne.npc.quarrier",
-    intro:
-      "Stonegate wants copper by the cartload and my crew's two hands short. Swing a pick — four copper ore makes the tally.",
-    reminder: "Four copper ore. The face is right there — the pick does the thinking.",
-    outro: "Tally made. You've quarry hands, no mistake. Split's yours.",
-    objectives: [
-      { id: "talk", label: "Speak with Quarrier Hetta", type: "talk", npcId: "ne.npc.quarrier" },
-      { id: "gather", label: "Mine 4 copper ore", type: "gather", itemId: "item.ore.copper", qty: 4 },
-      {
-        id: "deliver",
-        label: "Bring the copper to Quarrier Hetta",
-        type: "deliver",
-        npcId: "ne.npc.quarrier",
-        itemId: "item.ore.copper",
-        qty: 4,
-      },
-    ],
-    rewards: {
-      xp: [{ skillId: "skill.mining", amount: 300 }],
-      items: [{ itemId: "item.coin", qty: 25 }, { itemId: "item.ore.coal", qty: 2 }],
-    },
-  },
-  "quest.dust_in_the_doorways": {
-    id: "quest.dust_in_the_doorways",
-    name: "Dust in the Doorways",
-    giverNpcId: "fe.npc.caravaner",
-    intro:
-      "The tombs north of here shed their dead onto my road, and caravans pay for safe wells, not brave ones. Put three dune husks back in the sand.",
-    reminder: "Three dune husks, back to the sand they crawled from. The tombs are up the north trail.",
-    outro: "The road breathes easier. Water's yours whenever you pass — and so is this.",
-    objectives: [
-      { id: "talk", label: "Speak with Serai-Keeper Nadim", type: "talk", npcId: "fe.npc.caravaner" },
-      { id: "slay", label: "Slay 3 dune husks", type: "slay", enemyDefId: "enemy.dune_husk", qty: 3 },
-      { id: "report", label: "Report back to Serai-Keeper Nadim", type: "talk", npcId: "fe.npc.caravaner" },
-    ],
-    rewards: {
-      xp: [
-        { skillId: "skill.attack", amount: 500 },
-        { skillId: "skill.slaying", amount: 350 },
-      ],
-      items: [{ itemId: "item.coin", qty: 60 }],
-    },
-  },
-  "quest.count_twice": {
-    id: "quest.count_twice",
-    name: "Count Twice",
-    giverNpcId: "sw.npc.shepherd",
-    intro:
-      "Two ewes gone this week and I found the prints. Bring me two wolf hides so I know the culprits won't be back for thirds.",
-    reminder: "Two wolf hides. The pack dens west, past the old wood.",
-    outro: "These are the ones. The flock sleeps sound tonight — and you eat well.",
-    objectives: [
-      { id: "talk", label: "Speak with Shepherd Maud", type: "talk", npcId: "sw.npc.shepherd" },
-      { id: "gather", label: "Take 2 wolf hides", type: "gather", itemId: "item.hide.wolf", qty: 2 },
-      {
-        id: "deliver",
-        label: "Bring the hides to Shepherd Maud",
-        type: "deliver",
-        npcId: "sw.npc.shepherd",
-        itemId: "item.hide.wolf",
-        qty: 2,
-      },
-    ],
-    rewards: {
-      xp: [{ skillId: "skill.hunting", amount: 350 }],
-      items: [{ itemId: "item.fish.cooked", qty: 4 }, { itemId: "item.coin", qty: 20 }],
-    },
-  },
-  "quest.lights_in_the_fen": {
-    id: "quest.lights_in_the_fen",
-    name: "Lights in the Fen",
-    giverNpcId: "mf.npc.tansy",
-    intro:
-      "Emberleaf burns low and slow — the only honest light this bog allows. Fetch me two sprigs and I'll teach your hands something worth knowing.",
-    reminder: "Two emberleaf. Follow the boardwalk, not the lights.",
-    outro: "Good sprigs, dry stems. Here — brewed the way the fen intended.",
-    objectives: [
-      { id: "talk", label: "Speak with Tansy the Bogwise", type: "talk", npcId: "mf.npc.tansy" },
-      { id: "gather", label: "Gather 2 emberleaf", type: "gather", itemId: "item.herb.emberleaf", qty: 2 },
-      {
-        id: "deliver",
-        label: "Bring the emberleaf to Tansy",
-        type: "deliver",
-        npcId: "mf.npc.tansy",
-        itemId: "item.herb.emberleaf",
-        qty: 2,
-      },
-    ],
-    rewards: {
-      xp: [
-        { skillId: "skill.herblore", amount: 300 },
-        { skillId: "skill.brewing", amount: 200 },
-      ],
-      items: [{ itemId: "item.potion.gathering", qty: 2 }],
-    },
+    rewards: { xp: [], items: [{ itemId: "item.coin", qty: 60 }] },
+    completionFlag: "tutorial.graduated",
   },
 };
 

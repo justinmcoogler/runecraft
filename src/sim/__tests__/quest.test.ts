@@ -8,9 +8,10 @@ import { clearSave, loadFromStorage, saveToStorage } from "../../save/save";
 
 const NPC = "test.npc.001";
 const TREE = "test.tree.001";
-const QUEST = "quest.first_timber";
+const QUEST = "quest.tut_timber";
 
-// The content quest is bound to the vale NPC; retarget it at the test NPC.
+// The content quest is bound to a vale NPC; retarget it at the test NPC and
+// satisfy its prerequisite so it can be offered.
 function questSim(seed = 42): GameSimulation {
   const sim = new GameSimulation(makeTestRegion(true), seed);
   const def = (sim.quests as unknown as { defs: Record<string, { giverNpcId: string; objectives: Array<Record<string, unknown>> }> })
@@ -19,6 +20,7 @@ function questSim(seed = 42): GameSimulation {
   for (const objective of def.objectives) {
     if (objective.npcId) objective.npcId = NPC;
   }
+  sim.quests.states["quest.tut_welcome"].status = "completed"; // clear the prereq
   return sim;
 }
 

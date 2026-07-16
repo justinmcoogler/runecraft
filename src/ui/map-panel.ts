@@ -167,7 +167,7 @@ export class MapPanel {
     ctx.font = '10px "Press Start 2P", monospace';
     for (const questId of Object.keys(QUESTS)) {
       const status = sim.quests.states[questId]?.status;
-      const cell = giverCell(questId);
+      const cell = giverCell(sim, questId);
       if (!cell) continue;
       if (status === "available" && sim.quests.isAvailable(questId)) {
         ctx.fillStyle = "#10151b";

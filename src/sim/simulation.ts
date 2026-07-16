@@ -585,9 +585,9 @@ export class GameSimulation {
     const sim = new GameSimulation(tutorialRegion(seed, spawn), seed, terrain, 40);
     sim.chunks = new ChunkManager(sim, terrain);
     sim.chunks.update(spawn);
-    // Drive the required-core lessons and open the gateway on completion.
-    sim.tutorial = new TutorialDriver(sim);
-    sim.tutorial.begin();
+    // The tutorial is delivered as a quest chain given by the vale's NPCs (see
+    // QUESTS "quest.tut_*"); the gateway opens once "quest.tut_graduation" sets
+    // the tutorial.graduated world flag. No separate lesson driver.
     return sim;
   }
 

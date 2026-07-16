@@ -15,6 +15,7 @@ import { REGION_BUILDERS } from "../world";
 import { GameSimulation } from "../simulation";
 import { BIOME } from "../worldgen/geo";
 import { buildOverworld } from "../worldgen/overworld";
+import { ENDLESS_CENTER, tutorialRegion } from "../worldgen/endless";
 import { REGIONS, SPAWN, WORLD } from "../worldgen/regions";
 import { buildRegion, WorldState } from "../world";
 import { findPath } from "../pathfinding";
@@ -298,6 +299,9 @@ describe("province gameplay", () => {
   const npcIds = new Set(
     Object.keys(REGION_BUILDERS).flatMap((id) => buildRegion(id).npcs.map((n) => n.instanceId)),
   );
+  // The tutorial quest chain's givers live in the streamed tutorial vale, not a
+  // static region builder — fold them into the known-NPC set.
+  for (const n of tutorialRegion(20706, { x: ENDLESS_CENTER, z: ENDLESS_CENTER }).npcs) npcIds.add(n.instanceId);
 
   it("every skill is trainable (node, recipe, combat, range, or site)", () => {
     // Combat-hooked skills: Strength/Constitution off any hit, Dungeoneering
