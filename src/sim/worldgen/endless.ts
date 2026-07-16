@@ -92,6 +92,30 @@ function pickLadderNode(x: number, z: number, seed: number): string {
   const idx = Math.min(unlocked - 1, Math.floor(cellHash(z * 7 + 3, x * 11 + 4, salt(seed, 75)) * unlocked));
   return ladder[idx];
 }
+/** A distance-gated Thieving strongbox tier: humble boxes near home, the
+ *  warded reliquary only in the deepest, most dangerous country. */
+function strongboxByDist(x: number, z: number, seed: number): string {
+  const remote = remoteness01(x, z);
+  const rr = cellHash(x, z, salt(seed, 77));
+  if (remote > 0.85) return rr > 0.5 ? "resource.strongbox.warded" : "resource.strongbox.royal";
+  if (remote > 0.6) return rr > 0.5 ? "resource.strongbox.royal" : "resource.strongbox.vault";
+  if (remote > 0.35) return rr > 0.5 ? "resource.strongbox.merchant" : "resource.strongbox.iron";
+  return "resource.strongbox.old";
+}
+/** A distance-gated Agility shortcut rung: easy hops near home climbing to the
+ *  spire traverse in the deep country. This is also where the orphaned Frayed
+ *  Cliff Rope (L10) finally gets placed in the wild. */
+function agilityByDist(x: number, z: number, seed: number): string {
+  const remote = remoteness01(x, z);
+  const rr = cellHash(x, z, salt(seed, 79));
+  if (remote > 0.85) return rr > 0.5 ? "object.shortcut.spiretraverse" : "object.shortcut.zipline";
+  if (remote > 0.68) return rr > 0.5 ? "object.shortcut.cliffclimb" : "object.shortcut.chasmleap";
+  if (remote > 0.5) return rr > 0.5 ? "object.shortcut.culvert" : "object.shortcut.handholds";
+  if (remote > 0.34) return rr > 0.5 ? "object.shortcut.crumbledwall" : "object.shortcut.balancebeam";
+  if (remote > 0.2) return rr > 0.5 ? "object.shortcut.ropeswing" : "object.shortcut.steppingstones";
+  if (remote > 0.1) return rr > 0.5 ? "object.shortcut.cliffrope" : "object.shortcut.mesaledge";
+  return rr > 0.5 ? "object.shortcut.scramble" : "object.shortcut.wallrope";
+}
 
 // Wild beasts by danger tier: placid/weak near home, elites and horrors far
 // out. Tier 5 fields true bosses. (Every id exists in ENEMIES.)
@@ -1679,6 +1703,7 @@ function stampVillagePlaza(
   px: number,
   pz: number,
   objects: ObjectPlacement[],
+  nodes: NodePlacement[],
   npcs: NpcPlacement[],
   houseBoxes: Box[],
   id: () => string,
@@ -1707,7 +1732,26 @@ function stampVillagePlaza(
   const kind = settlementKind(seed, cx, cz, biomes[pz * ECHUNK + px]);
   const settle = SETTLEMENTS[kind];
   for (const d of settle.dress) {
-    objects.push({ instanceId: id(), defId: d.defId, cell: { x: wx + d.dx, z: wz + d.dz } });
+    const dcell = { x: wx + d.dx, z: wz + d.dz };
+    objects.push({ instanceId: id(), defId: d.defId, cell: dcell });
+    // A dressed market stall becomes a real Thieving target: co-place a
+    // steal node one tile toward the green's centre (so it is reachable),
+    // its tier climbing with settlement kind and distance from the anchor so
+    // wild markets train Thieving all the way up, not just at L1.
+    if (d.defId === "object.stall.market") {
+      const remote = remoteness01(dcell.x, dcell.z);
+      const rr = cellHash(dcell.x, dcell.z, salt(seed, 76));
+      let tier: string;
+      if (kind === "monastery") tier = "resource.stall.scholar";
+      else if (kind === "trade_post") {
+        tier = remote > 0.6 ? (rr > 0.5 ? "resource.stall.gem" : "resource.stall.scholar")
+          : remote > 0.35 ? (rr > 0.5 ? "resource.stall.spice" : "resource.stall.silk")
+            : "resource.stall.fruit";
+      } else tier = remote > 0.4 ? "resource.stall.fruit" : "resource.stall.market";
+      const tx = dcell.x + Math.sign(wx - dcell.x);
+      const tz = dcell.z + Math.sign(wz - dcell.z);
+      nodes.push({ instanceId: id(), defId: tier, cell: { x: tx || dcell.x, z: tz || dcell.z + 1 } });
+    }
   }
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
@@ -1826,7 +1870,7 @@ function tryStampLandmark(
       raise(dx, dz, anchor + (crumble ? 2 : 5), rock(dx * 7 + dz));
     }
   }
-  nodes.push({ instanceId: id(), defId: "resource.strongbox.old", cell: { x: wx, z: wz } });
+  nodes.push({ instanceId: id(), defId: strongboxByDist(wx, wz, seed), cell: { x: wx, z: wz } });
   enemies.push({ instanceId: id(), defId: "enemy.skeleton", cell: { x: wx + 1, z: wz - 1 } });
   houseBoxes.push({ x0: px - 7, z0: pz - 7, x1: px + 7, z1: pz + 7 }); // clear the whole clearing
   return true;
@@ -1990,7 +2034,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   if (!stamped && village) {
     const alx = village.x - x0, alz = village.z - z0;
     if (alx >= 24 && alx < ECHUNK - 24 && alz >= 24 && alz < ECHUNK - 24) {
-      stamped = stampVillagePlaza(seed, cx, cz, heights, blocks, biomes, x0, z0, alx, alz, objects, npcs, houseBoxes, id);
+      stamped = stampVillagePlaza(seed, cx, cz, heights, blocks, biomes, x0, z0, alx, alz, objects, nodes, npcs, houseBoxes, id);
     }
   }
   // Landmarks: standing-stone circles and ruined watchtowers, raised straight
@@ -2214,7 +2258,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.06) nodes.push({ instanceId: id(), defId: "resource.rock.tin", cell });
           else if (r < 0.08) nodes.push({ instanceId: id(), defId: "resource.digsite.old", cell });
           else if (r < 0.09) enemies.push({ instanceId: id(), defId: "enemy.cave_spider", cell });
-          else if (r < 0.095) nodes.push({ instanceId: id(), defId: "resource.strongbox.old", cell });
+          else if (r < 0.095) nodes.push({ instanceId: id(), defId: strongboxByDist(cell.x, cell.z, seed), cell });
           else if (r < 0.11) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
           else if (r < 0.113) enemies.push({ instanceId: id(), defId: "enemy.dragon.fire", cell });
           else if (r < 0.121) objects.push({ instanceId: id(), defId: "object.rock.mesa", cell });
@@ -2234,7 +2278,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.04) enemies.push({ instanceId: id(), defId: "enemy.hollow_wight", cell });
           else if (r < 0.06) nodes.push({ instanceId: id(), defId: "resource.herb.duskcap", cell });
           else if (r < 0.08) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
-          else if (r < 0.088) nodes.push({ instanceId: id(), defId: "resource.strongbox.old", cell });
+          else if (r < 0.088) nodes.push({ instanceId: id(), defId: strongboxByDist(cell.x, cell.z, seed), cell });
           else if (r < 0.096) nodes.push({ instanceId: id(), defId: "resource.digsite.old", cell });
           else if (r < 0.106) nodes.push({ instanceId: id(), defId: "resource.tree.spruce", cell });
           else if (r < 0.108) enemies.push({ instanceId: id(), defId: "enemy.dragon.twoheaded", cell });
@@ -2250,7 +2294,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.385) enemies.push({ instanceId: id(), defId: "enemy.spore_shambler", cell });
           else if (r < 0.42) nodes.push({ instanceId: id(), defId: "resource.herb.duskcap", cell });
           else if (r < 0.44) nodes.push({ instanceId: id(), defId: "resource.herb.ember", cell });
-          else if (r < 0.448) nodes.push({ instanceId: id(), defId: "resource.strongbox.old", cell });
+          else if (r < 0.448) nodes.push({ instanceId: id(), defId: strongboxByDist(cell.x, cell.z, seed), cell });
           else if (r < 0.456) nodes.push({ instanceId: id(), defId: "resource.tree.grand.oak", cell });
           else if (r < 0.472) objects.push({ instanceId: id(), defId: "object.mushroom.giant", cell });
           else if (r < 0.484) enemies.push({ instanceId: id(), defId: "enemy.creeper", cell });
@@ -2330,7 +2374,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.49) enemies.push({ instanceId: id(), defId: "enemy.gloom_spinner", cell });
           else if (r < 0.5) enemies.push({ instanceId: id(), defId: "enemy.marsh_lurker", cell });
           else if (r < 0.508) enemies.push({ instanceId: id(), defId: "enemy.moss_golem", cell });
-          else if (r < 0.52) nodes.push({ instanceId: id(), defId: "resource.strongbox.old", cell });
+          else if (r < 0.52) nodes.push({ instanceId: id(), defId: strongboxByDist(cell.x, cell.z, seed), cell });
           break;
         case 26: // bamboo forest — lush warm-wet groves
           if (r < 0.32) nodes.push({ instanceId: id(), defId: "resource.tree.jungle", cell });
@@ -2600,6 +2644,37 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
             portal: { targetRegionId: "region.endless", targetCell: { x: wx + span, z: wz } },
           });
         }
+      }
+    }
+  }
+
+  // Cliff shortcuts (Agility): a dedicated pass over dry land — the main
+  // scatter loop skips slopes, so cliff edges need their own sweep. Where the
+  // ground steps up/down a real cliff to a neighbour, hang a rung whose tier
+  // climbs with distance from the anchor, so the mid/high shortcut ladder (and
+  // the once-orphaned Frayed Cliff Rope) trains out in the world. The hop
+  // teleports to the far side and the action re-checks walkability, so an
+  // unreachable target simply no-ops.
+  for (let jz = 3; jz < ECHUNK - 3; jz += 3) {
+    for (let jx = 3; jx < ECHUNK - 3; jx += 3) {
+      const i = jz * ECHUNK + jx;
+      const here = BLOCK_LIST[blocks[i]];
+      if (here === "water" || here === "ice" || here === "stonebrick" || here === "plank") continue;
+      const wx = x0 + jx, wz = z0 + jz;
+      if (inStarterTown(seed, wx, wz)) continue;
+      // Look for a cliff step to one of the four neighbours; hop across it.
+      const neigh = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+      const pick = Math.floor(cellHash(wx, wz, salt(seed, 80)) * 4);
+      const [ddx, ddz] = neigh[pick];
+      const ni = (jz + ddz) * ECHUNK + (jx + ddx);
+      const nb = BLOCK_LIST[blocks[ni]];
+      if (nb === "water" || nb === "ice") continue;
+      const step = Math.abs(heights[i] - heights[ni]);
+      if (step >= 2 && step <= 6 && cellHash(wz, wx, salt(seed, 78)) < 0.14) {
+        objects.push({
+          instanceId: id(), defId: agilityByDist(wx, wz, seed), cell: { x: wx, z: wz },
+          portal: { targetRegionId: "region.endless", targetCell: { x: wx + ddx * 2, z: wz + ddz * 2 } },
+        });
       }
     }
   }

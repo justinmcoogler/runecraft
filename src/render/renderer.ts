@@ -1987,8 +1987,12 @@ export class GameRenderer {
           group.add(furnace);
           break;
         }
+        case "object.shortcut.balancebeam":
+        case "object.shortcut.spiretraverse":
         case "object.shortcut.log": {
           // A mossy fallen trunk, long enough to read as a river crossing.
+          // The higher rungs (balance beam, spire catwalk) reuse the plank/log
+          // silhouette; their distinct art is a later texture-pack pass.
           const bark = this.lambert("resource.tree.log.side");
           const trunk = this.tiledBox(0.875, 0.875, 2.5, bark, this.lambert("resource.tree.log.top"));
           trunk.position.y = 0.4375;
@@ -2000,9 +2004,15 @@ export class GameRenderer {
           group.add(trunk, moss, makeBlobShadow(0.8));
           break;
         }
+        case "object.shortcut.steppingstones":
+        case "object.shortcut.crumbledwall":
+        case "object.shortcut.culvert":
+        case "object.shortcut.chasmleap":
         case "object.shortcut.scramble":
         case "object.shortcut.mesaledge": {
-          // Broken rock steps jutting from the terrace face.
+          // Broken rock steps jutting from the terrace face. The stepping
+          // stones, crumbled wall, culvert and chasm-leap rungs reuse this
+          // rock silhouette until their bespoke art lands.
           const stone = this.lambert("terrain.stone");
           for (const [sy, sx] of [[0.25, -0.25], [0.75, 0.05], [1.25, 0.3]] as const) {
             const step = this.tiledBox(0.5, 0.5, 0.5, stone);
@@ -2011,9 +2021,15 @@ export class GameRenderer {
           }
           break;
         }
+        case "object.shortcut.ropeswing":
+        case "object.shortcut.handholds":
+        case "object.shortcut.cliffclimb":
+        case "object.shortcut.zipline":
         case "object.shortcut.wallrope":
         case "object.shortcut.cliffrope": {
-          // A knotted rope hanging down the wall, anchored on a stake.
+          // A knotted rope hanging down the wall, anchored on a stake. The
+          // rope-swing, handholds, cliff-climb and zip-line rungs reuse this
+          // rope silhouette until their bespoke art lands.
           const ropeMat = new THREE.MeshLambertMaterial({ color: "#b09265" });
           const rope = new THREE.Mesh(new THREE.BoxGeometry(0.125, 2.4, 0.125), ropeMat);
           rope.position.y = 1.2;
@@ -2146,6 +2162,42 @@ export class GameRenderer {
           );
           bench.position.y = 0.5;
           group.add(bench);
+          break;
+        }
+        case "object.buildbench.basic": {
+          // Carpenter's Bench: a stout oak trestle with a saw biting a
+          // half-cut plank clamped on top — reads as a woodworking station,
+          // distinct from the plain crafting Workbench and the metal Anvil.
+          const oak = this.lambert("resource.tree.log.side");
+          const plank = this.lambert("terrain.plank");
+          const top = this.tiledBox(0.95, 0.16, 0.62, plank);
+          top.position.y = 0.5;
+          group.add(top);
+          for (const dx of [-0.36, 0.36] as const) for (const dz of [-0.22, 0.22] as const) {
+            const leg = this.tiledBox(0.12, 0.5, 0.12, oak);
+            leg.position.set(dx, 0.25, dz);
+            group.add(leg);
+          }
+          // A board clamped on the bench, mid-cut.
+          const board = this.tiledBox(0.7, 0.06, 0.24, plank);
+          board.position.set(0.05, 0.61, -0.02);
+          group.add(board);
+          // The saw: a thin steel blade on a dark handle, angled into the cut.
+          const blade = new THREE.Mesh(
+            new THREE.BoxGeometry(0.02, 0.2, 0.34),
+            new THREE.MeshLambertMaterial({ color: "#b8bcc2" }),
+          );
+          blade.position.set(0.18, 0.72, 0.06);
+          blade.rotation.z = 0.5;
+          const handle = new THREE.Mesh(
+            new THREE.BoxGeometry(0.06, 0.1, 0.12),
+            new THREE.MeshLambertMaterial({ color: "#5a3a1e" }),
+          );
+          handle.position.set(0.30, 0.80, 0.06);
+          // A mallet resting on the far corner.
+          const mallet = this.tiledBox(0.1, 0.1, 0.22, oak);
+          mallet.position.set(-0.32, 0.6, 0.16);
+          group.add(blade, handle, mallet, makeBlobShadow(0.55));
           break;
         }
         case "object.anvil.basic": {

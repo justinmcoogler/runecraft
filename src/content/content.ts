@@ -4559,6 +4559,35 @@ function ladderNodes(): Record<string, ResourceNodeDef> {
   vein("resource.rock.mithril", "Mithril-veined Rock", 30, 58, 3.0, 0.56, 0.95, "item.ore.mithril", 75, "resource.rock.mithril");
   vein("resource.rock.adamant", "Adamantite Rock", 45, 100, 3.4, 0.50, 0.94, "item.ore.adamant", 110, "resource.rock.adamant");
   vein("resource.rock.runite", "Runite Vein", 58, 160, 3.8, 0.46, 0.92, "item.ore.runite", 150, "resource.rock.runite");
+  // ---- Thieving: town stalls (fast respawn) + guarded strongboxes ----
+  const stall = (id: string, name: string, level: number, xp: number, cycleTimeS: number, sBase: number, sMax: number, failDamage: number, resMin: number, resMax: number, respawnS: number, drops: DropEntry[]) => {
+    out[id] = {
+      id, name, skillId: "skill.thieving", requiredLevel: level, toolTagsAny: [],
+      interaction: { mode: "adjacent_4", rangeCells: 1 }, cycleTimeS,
+      successBase: sBase, successPerLevel: 0.012, successMax: sMax, xpPerCycle: xp,
+      drops, depletes: true, resourceMin: resMin, resourceMax: resMax, respawnS,
+      blocksNav: true, view: "stall", failDamage,
+    };
+  };
+  stall("resource.stall.fruit", "Produce Stall", 10, 32, 2.4, 0.58, 0.93, 3, 2, 3, 36, [drop("item.coin", 2, 5, 6), drop("item.pumpkin", 1, 1, 2), drop("item.seed.carrot", 1, 2, 2), drop("item.berry.basic", 1, 2, 1)]);
+  stall("resource.stall.silk", "Silk & Cloth Stall", 25, 64, 2.6, 0.52, 0.92, 5, 2, 3, 45, [drop("item.coin", 4, 9, 6), drop("item.wool", 1, 3, 3), drop("item.trinket.jade", 1, 1, 1)]);
+  stall("resource.stall.spice", "Spice Stall", 40, 108, 2.8, 0.48, 0.90, 7, 2, 2, 60, [drop("item.coin", 8, 16, 6), drop("item.herb.sage", 1, 2, 3), drop("item.herb.mint", 1, 2, 2), drop("item.gem.opal", 1, 1, 1)]);
+  stall("resource.stall.gem", "Gem Stall", 55, 165, 3.0, 0.44, 0.90, 9, 1, 2, 90, [drop("item.coin", 12, 24, 6), drop("item.gem.opal", 1, 1, 3), drop("item.gem.jade", 1, 1, 2), drop("item.gem.topaz", 1, 1, 2), drop("item.gem.sapphire", 1, 1, 1)]);
+  stall("resource.stall.scholar", "Scholar's Stall", 70, 235, 3.2, 0.40, 0.88, 12, 1, 2, 120, [drop("item.coin", 20, 40, 6), drop("item.relic.coin", 1, 1, 2), drop("item.relic.tablet", 1, 1, 2), drop("item.gem.ruby", 1, 1, 1), drop("item.treasure_map", 1, 1, 1)]);
+  const box = (id: string, name: string, level: number, xp: number, cycleTimeS: number, sBase: number, sMax: number, failDamage: number, respawnS: number, drops: DropEntry[]) => {
+    out[id] = {
+      id, name, skillId: "skill.thieving", requiredLevel: level, toolTagsAny: [],
+      interaction: { mode: "adjacent_4", rangeCells: 1 }, cycleTimeS,
+      successBase: sBase, successPerLevel: 0.012, successMax: sMax, xpPerCycle: xp,
+      drops, depletes: true, resourceMin: 1, resourceMax: 1, respawnS,
+      blocksNav: true, view: "strongbox", failDamage,
+    };
+  };
+  box("resource.strongbox.iron", "Iron-Banded Strongbox", 20, 120, 3.4, 0.46, 0.88, 8, 210, [drop("item.coin", 10, 24, 5), drop("item.ring.gold", 1, 1, 2), drop("item.gem.sapphire", 1, 1, 2), drop("item.relic.urn", 1, 1, 1)]);
+  box("resource.strongbox.merchant", "Merchant's Strongbox", 35, 200, 3.8, 0.42, 0.87, 11, 260, [drop("item.coin", 20, 45, 5), drop("item.amulet.gold", 1, 1, 2), drop("item.gem.ruby", 1, 1, 2), drop("item.relic.tablet", 1, 1, 1), drop("item.treasure_map", 1, 1, 1)]);
+  box("resource.strongbox.vault", "Vault Strongbox", 50, 300, 4.2, 0.38, 0.86, 14, 320, [drop("item.coin", 40, 90, 5), drop("item.bar.gold", 1, 1, 2), drop("item.gem.dragonstone", 1, 1, 1), drop("item.relic.mask", 1, 1, 1)]);
+  box("resource.strongbox.royal", "Royal Coffer", 65, 430, 4.6, 0.34, 0.85, 17, 400, [drop("item.coin", 80, 160, 5), drop("item.amulet.ruby", 1, 1, 2), drop("item.gem.dragonstone", 1, 1, 2), drop("item.relic.idol", 1, 1, 1)]);
+  box("resource.strongbox.warded", "Warded Reliquary", 80, 600, 5.0, 0.30, 0.84, 21, 480, [drop("item.coin", 150, 300, 5), drop("item.amulet.dragonstone", 1, 1, 2), drop("item.gem.diamond", 1, 1, 1), drop("item.relic.mask", 1, 1, 1)]);
   // ---- Farming: two higher crops (plantable plots) ----
   out["resource.plot.corn"] = {
     id: "resource.plot.corn", name: "Cornfield", skillId: "skill.farming", requiredLevel: 38, toolTagsAny: [],
@@ -4705,6 +4734,47 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     interaction: { mode: "adjacent_8", rangeCells: 1 },
     shortcut: { level: 12, xp: 60 },
     blocksNav: false,
+  },
+  // ---- Agility: the mid/high shortcut ladder (SKILL_PLANS.md) ----
+  "object.shortcut.steppingstones": {
+    id: "object.shortcut.steppingstones", name: "Stepping Stones",
+    interaction: { mode: "adjacent_8", rangeCells: 1 }, shortcut: { level: 18, xp: 82 }, blocksNav: false,
+  },
+  "object.shortcut.ropeswing": {
+    id: "object.shortcut.ropeswing", name: "Rope Swing",
+    interaction: { mode: "adjacent_8", rangeCells: 1 }, shortcut: { level: 24, xp: 108 }, blocksNav: false,
+  },
+  "object.shortcut.balancebeam": {
+    id: "object.shortcut.balancebeam", name: "Balance Beam",
+    interaction: { mode: "adjacent_8", rangeCells: 1 }, shortcut: { level: 31, xp: 138 }, blocksNav: false,
+  },
+  "object.shortcut.crumbledwall": {
+    id: "object.shortcut.crumbledwall", name: "Crumbled Wall",
+    interaction: { mode: "adjacent_8", rangeCells: 1 }, shortcut: { level: 38, xp: 172 }, blocksNav: false,
+  },
+  "object.shortcut.handholds": {
+    id: "object.shortcut.handholds", name: "Cliff Handholds",
+    interaction: { mode: "adjacent_8", rangeCells: 1 }, shortcut: { level: 45, xp: 212 }, blocksNav: false,
+  },
+  "object.shortcut.culvert": {
+    id: "object.shortcut.culvert", name: "Culvert Squeeze",
+    interaction: { mode: "adjacent_8", rangeCells: 1 }, shortcut: { level: 52, xp: 258 }, blocksNav: false,
+  },
+  "object.shortcut.cliffclimb": {
+    id: "object.shortcut.cliffclimb", name: "Sheer Cliff Climb",
+    interaction: { mode: "adjacent_8", rangeCells: 1 }, shortcut: { level: 60, xp: 312 }, blocksNav: false,
+  },
+  "object.shortcut.chasmleap": {
+    id: "object.shortcut.chasmleap", name: "Chasm Leap",
+    interaction: { mode: "adjacent_8", rangeCells: 1 }, shortcut: { level: 68, xp: 372 }, blocksNav: false,
+  },
+  "object.shortcut.zipline": {
+    id: "object.shortcut.zipline", name: "Rope Zip-line",
+    interaction: { mode: "adjacent_8", rangeCells: 1 }, shortcut: { level: 74, xp: 432 }, blocksNav: false,
+  },
+  "object.shortcut.spiretraverse": {
+    id: "object.shortcut.spiretraverse", name: "Spire Traverse",
+    interaction: { mode: "adjacent_8", rangeCells: 1 }, shortcut: { level: 80, xp: 500 }, blocksNav: false,
   },
   "object.enchanter.basic": {
     id: "object.enchanter.basic",

@@ -248,6 +248,8 @@ function townCore(d: Draft, o: TownOpts): { h: number } {
   obj(d, `${p}.furnace`, "object.furnace.basic", cx + 5, cz - 5);
   obj(d, `${p}.anvil`, "object.anvil.basic", cx + 7, cz - 5);
   obj(d, `${p}.bench`, "object.workbench.basic", cx + 5, cz - 7);
+  // Every town's Carpenter's Bench — the repeatable Construction ladder.
+  obj(d, `${p}.buildbench`, "object.buildbench.basic", cx + 3, cz - 7);
   obj(d, `${p}.fire`, "object.campfire.basic", cx - 5, cz + 5);
   obj(d, `${p}.cauldron`, "object.cauldron.basic", cx - 7, cz + 5);
   obj(d, `${p}.stall`, "object.stall.market", cx + 4, cz + 5, {
