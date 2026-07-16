@@ -425,9 +425,10 @@ export class GameSimulation {
     for (const itemId of Object.values(this.equippedArmor)) {
       if (itemId) total += ITEMS[itemId].protection ?? 0;
     }
-    // Cap leaves headroom above a full bronze set (0.60) so the iron tier (and
-    // its boots slot) is a real upgrade, while never granting immunity.
-    return Math.min(0.75, total);
+    // Cap leaves headroom for the full steel..netherite ladder (a rune set is
+    // 0.92, netherite 0.95) so every high tier is a real upgrade, while
+    // damagePlayer's Math.max(1,...) floor still means armor is never immunity.
+    return Math.min(0.95, total);
   }
 
   damagePlayer(amount: number): void {

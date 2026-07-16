@@ -811,12 +811,22 @@ export class ActionController {
     // half the time (the rest are recoverable too).
     const usingBow = d.combatSkillId() === "skill.archery";
     let arrowId: string | null = null;
+    let arrowBonus = 0;
     if (usingBow) {
-      arrowId = ["item.arrow.bronze", "item.arrow.iron"].find((id) => d.inventory.count(id) > 0) ?? null;
+      // Nock the deadliest arrow held: scan every arrow tier (not the fletching
+      // shaft) and take the one with the highest damageBonus you actually have.
+      let best = -1;
+      for (const id of Object.keys(ITEMS)) {
+        if (!id.startsWith("item.arrow.") || id === "item.arrow.shaft") continue;
+        if (d.inventory.count(id) <= 0) continue;
+        const bonus = ITEMS[id].damageBonus ?? 0;
+        if (bonus > best) { best = bonus; arrowId = id; }
+      }
       if (!arrowId) {
         this.reject("missing_inputs", pipeline.targetId);
         return this.end("failed", "out_of_arrows");
       }
+      arrowBonus = best;
       d.inventory.removeItemById(arrowId, 1);
       d.events.emit({ type: "inventoryChanged" });
     }
@@ -834,7 +844,7 @@ export class ActionController {
       const melee = d.combatSkillId() === "skill.attack";
       const strengthBonus = melee ? Math.floor(d.skills.levelOf("skill.strength") / 8) : 0;
       const damage =
-        d.rng.intBetween(attack.dmgMin, attack.dmgMax + levelDamageBonus) + d.weaponBonus() + strengthBonus;
+        d.rng.intBetween(attack.dmgMin, attack.dmgMax + levelDamageBonus) + d.weaponBonus() + strengthBonus + arrowBonus;
       const killed = d.enemies.damage(pipeline.targetId, damage);
       d.events.emit({ type: "playerAttack", instanceId: pipeline.targetId, damage, killed });
       // A landed arrow survives half the time, stuck in the target's cell.

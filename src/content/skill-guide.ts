@@ -60,6 +60,7 @@ const STATION_WHERE: Record<string, string> = {
   "skill.runecrafting": "Arcane Altar",
   "skill.summoning": "Summoning Obelisk",
   "skill.invention": "Workbench",
+  "skill.construction": "Carpenter's Bench",
 };
 
 const STATION_VERB: Record<string, string> = {
@@ -75,6 +76,7 @@ const STATION_VERB: Record<string, string> = {
   "skill.runecrafting": "Bind",
   "skill.summoning": "Summon",
   "skill.invention": "Invent",
+  "skill.construction": "Build",
 };
 
 /** Every activity that trains a skill, sorted by unlock level then name. */

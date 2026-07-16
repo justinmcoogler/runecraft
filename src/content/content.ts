@@ -1680,8 +1680,8 @@ export const ITEMS: Record<string, ItemDef> = {
   "item.rune.soul": { id: "item.rune.soul", name: "Echo Rune", icon: "🖤", stackable: true, maxStack: 99 },
   // ---- Fletching: arrows and a ladder of bows ----
   "item.arrow.shaft": { id: "item.arrow.shaft", name: "Arrow Shafts", icon: "➖", stackable: true, maxStack: 99 },
-  "item.arrow.bronze": { id: "item.arrow.bronze", name: "Bronze Arrows", icon: "🏹", stackable: true, maxStack: 99 },
-  "item.arrow.iron": { id: "item.arrow.iron", name: "Iron Arrows", icon: "🏹", stackable: true, maxStack: 99 },
+  "item.arrow.bronze": { id: "item.arrow.bronze", name: "Bronze Arrows", icon: "🏹", stackable: true, maxStack: 99, damageBonus: 0 },
+  "item.arrow.iron": { id: "item.arrow.iron", name: "Iron Arrows", icon: "🏹", stackable: true, maxStack: 99, damageBonus: 1 },
   "tool.bow.oak": { id: "tool.bow.oak", name: "Oak Longbow", icon: "🏹", stackable: false, maxStack: 1, toolTags: ["bow", "weapon"], damageBonus: 5 },
   "tool.bow.spruce": { id: "tool.bow.spruce", name: "Spruce Longbow", icon: "🏹", stackable: false, maxStack: 1, toolTags: ["bow", "weapon"], damageBonus: 7 },
   "tool.bow.jungle": { id: "tool.bow.jungle", name: "Jungle Warbow", icon: "🏹", stackable: false, maxStack: 1, toolTags: ["bow", "weapon"], damageBonus: 9 },
@@ -1694,6 +1694,163 @@ export const ITEMS: Record<string, ItemDef> = {
   "item.component.parts": { id: "item.component.parts", name: "Salvaged Parts", icon: "⚙️", stackable: true, maxStack: 99 },
   "item.gizmo.swift": { id: "item.gizmo.swift", name: "Swift Gizmo", icon: "🧭", stackable: true, maxStack: 20, buff: { kind: "speed", durationS: 90 } },
   "item.gizmo.precise": { id: "item.gizmo.precise", name: "Precise Gizmo", icon: "🎯", stackable: true, maxStack: 20, buff: { kind: "focus", durationS: 90 } },
+  "item.gizmo.bulwark": { id: "item.gizmo.bulwark", name: "Bulwark Gizmo", icon: "🛡️", stackable: true, maxStack: 20, buff: { kind: "stoneskin", durationS: 90 } },
+  "item.gizmo.titan": { id: "item.gizmo.titan", name: "Titan Gizmo", icon: "🤜", stackable: true, maxStack: 20, buff: { kind: "strength", durationS: 90 } },
+
+  // ============================================================================
+  // SKILL-LADDER EXPANSION (see SKILL_PLANS.md) — gathering, crafting, combat.
+  // ============================================================================
+  // ---- Foraging: a RuneScape berry-bush ladder + the secateurs tool line ----
+  "item.forage.redberry": { id: "item.forage.redberry", name: "Redberries", icon: "🔴", stackable: true, maxStack: 50, healAmount: 3 },
+  "item.forage.cadava": { id: "item.forage.cadava", name: "Cadava Berries", icon: "🫐", stackable: true, maxStack: 50, healAmount: 4 },
+  "item.forage.dwellberry": { id: "item.forage.dwellberry", name: "Dwellberries", icon: "🟣", stackable: true, maxStack: 50, healAmount: 5 },
+  "item.forage.cloudberry": { id: "item.forage.cloudberry", name: "Cloudberries", icon: "🟠", stackable: true, maxStack: 50, healAmount: 6 },
+  "item.forage.jangerberry": { id: "item.forage.jangerberry", name: "Jangerberries", icon: "🍇", stackable: true, maxStack: 50, healAmount: 7 },
+  "item.forage.pricklypear": { id: "item.forage.pricklypear", name: "Prickly Pear", icon: "🌵", stackable: true, maxStack: 50, healAmount: 8 },
+  "item.forage.whiteberry": { id: "item.forage.whiteberry", name: "Whiteberries", icon: "⚪", stackable: true, maxStack: 50, healAmount: 9 },
+  "item.forage.poisonivy": { id: "item.forage.poisonivy", name: "Poison Ivy Berries", icon: "🟢", stackable: true, maxStack: 50 },
+  "item.forage.everlight": { id: "item.forage.everlight", name: "Everlight Berries", icon: "🩵", stackable: true, maxStack: 50, healAmount: 12 },
+  "tool.secateurs.basic": { id: "tool.secateurs.basic", name: "Secateurs", icon: "✂️", stackable: false, maxStack: 1, toolTags: ["secateurs"], successBonus: 0 },
+  "tool.secateurs.magic": { id: "tool.secateurs.magic", name: "Magic Secateurs", icon: "✂️", stackable: false, maxStack: 1, toolTags: ["secateurs"], successBonus: 0.12 },
+  // ---- Hunting: game meats, hides, tusks + two more trap tiers ----
+  "item.game.fowl": { id: "item.game.fowl", name: "Raw Pheasant", icon: "🐦", stackable: true, maxStack: 20, healAmount: 1 },
+  "item.fowl.cooked": { id: "item.fowl.cooked", name: "Roast Pheasant", icon: "🍗", stackable: true, maxStack: 20, healAmount: 6 },
+  "item.hide.kebbit": { id: "item.hide.kebbit", name: "Kebbit Fur", icon: "🦫", stackable: true, maxStack: 20 },
+  "item.game.boar": { id: "item.game.boar", name: "Raw Boar", icon: "🥩", stackable: true, maxStack: 20, healAmount: 1 },
+  "item.boar.cooked": { id: "item.boar.cooked", name: "Roast Boar", icon: "🍖", stackable: true, maxStack: 20, healAmount: 10 },
+  "item.hide.thick": { id: "item.hide.thick", name: "Thick Hide", icon: "🟫", stackable: true, maxStack: 20 },
+  "item.tusk": { id: "item.tusk", name: "Ivory Tusk", icon: "🦷", stackable: true, maxStack: 20 },
+  "item.chinchompa": { id: "item.chinchompa", name: "Chinchompa", icon: "🐿️", stackable: true, maxStack: 50 },
+  "item.hide.polar": { id: "item.hide.polar", name: "Polar Kebbit Fur", icon: "❄️", stackable: true, maxStack: 20 },
+  "item.hide.sabre": { id: "item.hide.sabre", name: "Sabre-tooth Pelt", icon: "🐯", stackable: true, maxStack: 20 },
+  "item.game.grenwall": { id: "item.game.grenwall", name: "Raw Grenwall", icon: "🍖", stackable: true, maxStack: 20, healAmount: 1 },
+  "item.grenwall.cooked": { id: "item.grenwall.cooked", name: "Roast Grenwall", icon: "🍖", stackable: true, maxStack: 20, healAmount: 16 },
+  "item.spike.grenwall": { id: "item.spike.grenwall", name: "Grenwall Spike", icon: "📌", stackable: true, maxStack: 99 },
+  "item.hide.antelope": { id: "item.hide.antelope", name: "Moonlight Hide", icon: "🌙", stackable: true, maxStack: 20 },
+  "item.game.antelope": { id: "item.game.antelope", name: "Raw Antelope", icon: "🥩", stackable: true, maxStack: 20, healAmount: 1 },
+  "item.antelope.cooked": { id: "item.antelope.cooked", name: "Roast Antelope", icon: "🍖", stackable: true, maxStack: 20, healAmount: 20 },
+  "item.antler": { id: "item.antler", name: "Antler", icon: "🦌", stackable: true, maxStack: 20 },
+  "tool.trap.box": { id: "tool.trap.box", name: "Steel Box Trap", icon: "🪤", stackable: false, maxStack: 1, toolTags: ["trap"], successBonus: 0.14 },
+  "tool.trap.magic": { id: "tool.trap.magic", name: "Magic Box Trap", icon: "🪤", stackable: false, maxStack: 1, toolTags: ["trap"], successBonus: 0.2 },
+  // ---- Archaeology: excavated samples, an artefact collection, mattock tools ----
+  "item.arch.samples": { id: "item.arch.samples", name: "Excavated Samples", icon: "🧫", stackable: true, maxStack: 99 },
+  "item.relic.torque": { id: "item.relic.torque", name: "Bronze Torc", icon: "🔗", stackable: true, maxStack: 10 },
+  "item.relic.chalice": { id: "item.relic.chalice", name: "Silver Chalice", icon: "🏆", stackable: true, maxStack: 10 },
+  "item.relic.censer": { id: "item.relic.censer", name: "Bronze Censer", icon: "🪔", stackable: true, maxStack: 10 },
+  "item.relic.astrolabe": { id: "item.relic.astrolabe", name: "Star Astrolabe", icon: "🧭", stackable: true, maxStack: 10 },
+  "item.relic.sceptre": { id: "item.relic.sceptre", name: "War Sceptre", icon: "🔱", stackable: true, maxStack: 10 },
+  "item.relic.crown": { id: "item.relic.crown", name: "Old King's Crown", icon: "👑", stackable: true, maxStack: 10 },
+  "tool.mattock.basic": { id: "tool.mattock.basic", name: "Trowel", icon: "🥄", stackable: false, maxStack: 1, toolTags: ["mattock"], successBonus: 0 },
+  "tool.mattock.iron": { id: "tool.mattock.iron", name: "Iron Mattock", icon: "⛏️", stackable: false, maxStack: 1, toolTags: ["mattock"], successBonus: 0.1 },
+  "tool.mattock.dragon": { id: "tool.mattock.dragon", name: "Dragon Mattock", icon: "⛏️", stackable: false, maxStack: 1, toolTags: ["mattock"], successBonus: 0.18 },
+  "tool.mattock.crystal": { id: "tool.mattock.crystal", name: "Crystal Mattock", icon: "⛏️", stackable: false, maxStack: 1, toolTags: ["mattock"], successBonus: 0.26 },
+  // ---- Brewing: Keen/Emberward bridge + Greater/Super/Grand draughts ----
+  "item.potion.gathering_keen": { id: "item.potion.gathering_keen", name: "Keen Forager's Brew", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "gathering", durationS: 150 } },
+  "item.tonic.warden": { id: "item.tonic.warden", name: "Emberward Tonic", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "regen", durationS: 90 } },
+  "item.potion.swift_greater": { id: "item.potion.swift_greater", name: "Greater Swiftness Draught", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "speed", durationS: 150 } },
+  "item.potion.gathering_greater": { id: "item.potion.gathering_greater", name: "Greater Forager's Brew", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "gathering", durationS: 300 } },
+  "item.potion.strength_greater": { id: "item.potion.strength_greater", name: "Greater Strength Tonic", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "strength", durationS: 150 } },
+  "item.potion.stoneskin_greater": { id: "item.potion.stoneskin_greater", name: "Greater Stoneskin Brew", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "stoneskin", durationS: 150 } },
+  "item.potion.focus_greater": { id: "item.potion.focus_greater", name: "Greater Hunter's Focus", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "focus", durationS: 300 } },
+  "item.tonic.warden_greater": { id: "item.tonic.warden_greater", name: "Greater Warden's Tonic", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "regen", durationS: 180 } },
+  "item.potion.swift_super": { id: "item.potion.swift_super", name: "Super Swiftness Draught", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "speed", durationS: 330 } },
+  "item.potion.gathering_super": { id: "item.potion.gathering_super", name: "Super Forager's Brew", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "gathering", durationS: 600 } },
+  "item.potion.strength_super": { id: "item.potion.strength_super", name: "Super Strength Tonic", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "strength", durationS: 330 } },
+  "item.potion.stoneskin_super": { id: "item.potion.stoneskin_super", name: "Super Stoneskin Brew", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "stoneskin", durationS: 330 } },
+  "item.potion.focus_super": { id: "item.potion.focus_super", name: "Super Hunter's Focus", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "focus", durationS: 600 } },
+  "item.tonic.warden_super": { id: "item.tonic.warden_super", name: "Super Warden's Tonic", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "regen", durationS: 300 } },
+  "item.potion.swift_grand": { id: "item.potion.swift_grand", name: "Grand Swiftness Elixir", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "speed", durationS: 600 } },
+  "item.potion.gathering_grand": { id: "item.potion.gathering_grand", name: "Grand Forager's Elixir", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "gathering", durationS: 1200 } },
+  "item.potion.strength_grand": { id: "item.potion.strength_grand", name: "Grand Strength Elixir", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "strength", durationS: 600 } },
+  "item.potion.stoneskin_grand": { id: "item.potion.stoneskin_grand", name: "Grand Stoneskin Elixir", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "stoneskin", durationS: 600 } },
+  "item.potion.focus_grand": { id: "item.potion.focus_grand", name: "Grand Hunter's Elixir", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "focus", durationS: 1200 } },
+  "item.tonic.warden_grand": { id: "item.tonic.warden_grand", name: "Grand Warden's Draught", icon: "🧪", stackable: true, maxStack: 50, buff: { kind: "regen", durationS: 480 } },
+  // ---- Herblore: two campfire salves that consume the orphan herbs ----
+  "item.salve.frost": { id: "item.salve.frost", name: "Frostbloom Salve", icon: "🧊", stackable: true, maxStack: 50, healAmount: 24 },
+  "item.salve.dusk": { id: "item.salve.dusk", name: "Duskcap Poultice", icon: "🍯", stackable: true, maxStack: 50, healAmount: 40 },
+  // ---- Runecrafting: four mid-tier runes filling the Fire->Nature dead zone ----
+  "item.rune.body": { id: "item.rune.body", name: "Copper Rune", icon: "🟫", stackable: true, maxStack: 99 },
+  "item.rune.cosmic": { id: "item.rune.cosmic", name: "Star Rune", icon: "✨", stackable: true, maxStack: 99 },
+  "item.rune.chaos": { id: "item.rune.chaos", name: "Crimson Rune", icon: "💥", stackable: true, maxStack: 99 },
+  "item.rune.astral": { id: "item.rune.astral", name: "Glowstone Rune", icon: "💫", stackable: true, maxStack: 99 },
+  // ---- Construction: three plank tiers + a flatpack furniture set ----
+  "item.plank.oak": { id: "item.plank.oak", name: "Oak Plank", icon: "🪵", stackable: true, maxStack: 50 },
+  "item.plank.teak": { id: "item.plank.teak", name: "Teak Plank", icon: "🪵", stackable: true, maxStack: 50 },
+  "item.plank.mahogany": { id: "item.plank.mahogany", name: "Mahogany Plank", icon: "🪵", stackable: true, maxStack: 50 },
+  "item.flatpack.stool": { id: "item.flatpack.stool", name: "Stool (flatpack)", icon: "🪑", stackable: true, maxStack: 50 },
+  "item.flatpack.crate": { id: "item.flatpack.crate", name: "Crate (flatpack)", icon: "📦", stackable: true, maxStack: 50 },
+  "item.flatpack.chair": { id: "item.flatpack.chair", name: "Chair (flatpack)", icon: "🪑", stackable: true, maxStack: 50 },
+  "item.flatpack.table": { id: "item.flatpack.table", name: "Table (flatpack)", icon: "🛋️", stackable: true, maxStack: 50 },
+  "item.flatpack.bench": { id: "item.flatpack.bench", name: "Bench (flatpack)", icon: "🛋️", stackable: true, maxStack: 50 },
+  "item.flatpack.bookshelf": { id: "item.flatpack.bookshelf", name: "Bookshelf (flatpack)", icon: "📚", stackable: true, maxStack: 50 },
+  "item.flatpack.bed": { id: "item.flatpack.bed", name: "Bed (flatpack)", icon: "🛏️", stackable: true, maxStack: 50 },
+  "item.flatpack.dresser": { id: "item.flatpack.dresser", name: "Oak Dresser (flatpack)", icon: "🗄️", stackable: true, maxStack: 50 },
+  "item.flatpack.wardrobe": { id: "item.flatpack.wardrobe", name: "Oak Wardrobe (flatpack)", icon: "🚪", stackable: true, maxStack: 50 },
+  "item.flatpack.hearth": { id: "item.flatpack.hearth", name: "Stone Hearth (flatpack)", icon: "🔥", stackable: true, maxStack: 50 },
+  "item.flatpack.fireplace": { id: "item.flatpack.fireplace", name: "Teak Fireplace (flatpack)", icon: "🔥", stackable: true, maxStack: 50 },
+  "item.flatpack.cabinet": { id: "item.flatpack.cabinet", name: "Teak Cabinet (flatpack)", icon: "🗄️", stackable: true, maxStack: 50 },
+  "item.flatpack.shelf": { id: "item.flatpack.shelf", name: "Mahogany Wall Shelf (flatpack)", icon: "📚", stackable: true, maxStack: 50 },
+  "item.flatpack.fourposter": { id: "item.flatpack.fourposter", name: "Four-Poster Bed (flatpack)", icon: "🛏️", stackable: true, maxStack: 50 },
+  "item.flatpack.throne": { id: "item.flatpack.throne", name: "Gilded Throne (flatpack)", icon: "👑", stackable: true, maxStack: 50 },
+  "item.flatpack.altar": { id: "item.flatpack.altar", name: "Marble Altar (flatpack)", icon: "⛩️", stackable: true, maxStack: 50 },
+  // ---- Smelting: the steel/mithril/adamant/runite bar ladder ----
+  "item.bar.steel": { id: "item.bar.steel", name: "Steel Bar", icon: "⬜", stackable: true, maxStack: 50 },
+  "item.bar.mithril": { id: "item.bar.mithril", name: "Mithril Bar", icon: "🟦", stackable: true, maxStack: 50 },
+  "item.bar.adamant": { id: "item.bar.adamant", name: "Adamant Bar", icon: "🟩", stackable: true, maxStack: 50 },
+  "item.bar.runite": { id: "item.bar.runite", name: "Runite Bar", icon: "🟦", stackable: true, maxStack: 50 },
+  // ---- Mining: three high-tier metal ores feeding the bar ladder ----
+  "item.ore.mithril": { id: "item.ore.mithril", name: "Mithril Ore", icon: "🔵", stackable: true, maxStack: 50 },
+  "item.ore.adamant": { id: "item.ore.adamant", name: "Adamantite Ore", icon: "🟢", stackable: true, maxStack: 50 },
+  "item.ore.runite": { id: "item.ore.runite", name: "Runite Ore", icon: "🩵", stackable: true, maxStack: 50 },
+  // ---- Smithing: steel/mithril/adamant/rune/diamond/netherite armor sets ----
+  "armor.cap.steel": { id: "armor.cap.steel", name: "Steel Helm", icon: "🪖", stackable: false, maxStack: 1, armorSlot: "head", protection: 0.21 },
+  "armor.tunic.steel": { id: "armor.tunic.steel", name: "Steel Chestplate", icon: "👕", stackable: false, maxStack: 1, armorSlot: "body", protection: 0.21 },
+  "armor.leggings.steel": { id: "armor.leggings.steel", name: "Steel Greaves", icon: "👖", stackable: false, maxStack: 1, armorSlot: "legs", protection: 0.21 },
+  "armor.boots.steel": { id: "armor.boots.steel", name: "Steel Sabatons", icon: "🥾", stackable: false, maxStack: 1, armorSlot: "feet", protection: 0.17 },
+  "armor.cap.mithril": { id: "armor.cap.mithril", name: "Mithril Helm", icon: "🪖", stackable: false, maxStack: 1, armorSlot: "head", protection: 0.22 },
+  "armor.tunic.mithril": { id: "armor.tunic.mithril", name: "Mithril Chestplate", icon: "👕", stackable: false, maxStack: 1, armorSlot: "body", protection: 0.22 },
+  "armor.leggings.mithril": { id: "armor.leggings.mithril", name: "Mithril Greaves", icon: "👖", stackable: false, maxStack: 1, armorSlot: "legs", protection: 0.22 },
+  "armor.boots.mithril": { id: "armor.boots.mithril", name: "Mithril Sabatons", icon: "🥾", stackable: false, maxStack: 1, armorSlot: "feet", protection: 0.18 },
+  "armor.cap.adamant": { id: "armor.cap.adamant", name: "Adamant Helm", icon: "🪖", stackable: false, maxStack: 1, armorSlot: "head", protection: 0.23 },
+  "armor.tunic.adamant": { id: "armor.tunic.adamant", name: "Adamant Chestplate", icon: "👕", stackable: false, maxStack: 1, armorSlot: "body", protection: 0.23 },
+  "armor.leggings.adamant": { id: "armor.leggings.adamant", name: "Adamant Greaves", icon: "👖", stackable: false, maxStack: 1, armorSlot: "legs", protection: 0.23 },
+  "armor.boots.adamant": { id: "armor.boots.adamant", name: "Adamant Sabatons", icon: "🥾", stackable: false, maxStack: 1, armorSlot: "feet", protection: 0.19 },
+  "armor.cap.rune": { id: "armor.cap.rune", name: "Rune Helm", icon: "🪖", stackable: false, maxStack: 1, armorSlot: "head", protection: 0.24 },
+  "armor.tunic.rune": { id: "armor.tunic.rune", name: "Rune Chestplate", icon: "👕", stackable: false, maxStack: 1, armorSlot: "body", protection: 0.24 },
+  "armor.leggings.rune": { id: "armor.leggings.rune", name: "Rune Greaves", icon: "👖", stackable: false, maxStack: 1, armorSlot: "legs", protection: 0.24 },
+  "armor.boots.rune": { id: "armor.boots.rune", name: "Rune Sabatons", icon: "🥾", stackable: false, maxStack: 1, armorSlot: "feet", protection: 0.2 },
+  "armor.cap.diamond": { id: "armor.cap.diamond", name: "Diamond Helm", icon: "🪖", stackable: false, maxStack: 1, armorSlot: "head", protection: 0.25 },
+  "armor.tunic.diamond": { id: "armor.tunic.diamond", name: "Diamond Chestplate", icon: "👕", stackable: false, maxStack: 1, armorSlot: "body", protection: 0.25 },
+  "armor.leggings.diamond": { id: "armor.leggings.diamond", name: "Diamond Greaves", icon: "👖", stackable: false, maxStack: 1, armorSlot: "legs", protection: 0.25 },
+  "armor.boots.diamond": { id: "armor.boots.diamond", name: "Diamond Sabatons", icon: "🥾", stackable: false, maxStack: 1, armorSlot: "feet", protection: 0.21 },
+  "armor.cap.netherite": { id: "armor.cap.netherite", name: "Netherite Helm", icon: "🪖", stackable: false, maxStack: 1, armorSlot: "head", protection: 0.26 },
+  "armor.tunic.netherite": { id: "armor.tunic.netherite", name: "Netherite Chestplate", icon: "👕", stackable: false, maxStack: 1, armorSlot: "body", protection: 0.26 },
+  "armor.leggings.netherite": { id: "armor.leggings.netherite", name: "Netherite Greaves", icon: "👖", stackable: false, maxStack: 1, armorSlot: "legs", protection: 0.26 },
+  "armor.boots.netherite": { id: "armor.boots.netherite", name: "Netherite Sabatons", icon: "🥾", stackable: false, maxStack: 1, armorSlot: "feet", protection: 0.22 },
+  // ---- Enchanting: gap-filler + ceiling-extension items ----
+  "armor.boots.runed": { id: "armor.boots.runed", name: "Runed Sabatons", icon: "🥾", stackable: false, maxStack: 1, armorSlot: "feet", protection: 0.22 },
+  "tool.sword.astral": { id: "tool.sword.astral", name: "Astral Blade", icon: "🗡️", stackable: false, maxStack: 1, toolTags: ["weapon"], damageBonus: 11 },
+  // ---- Fishing: a rod ladder with success bonuses ----
+  "tool.fishingrod.fly": { id: "tool.fishingrod.fly", name: "Feathered Fly Rod", icon: "🎣", stackable: false, maxStack: 1, toolTags: ["fishing_tool"], successBonus: 0.1 },
+  "tool.fishingrod.barbed": { id: "tool.fishingrod.barbed", name: "Barbed Rod", icon: "🎣", stackable: false, maxStack: 1, toolTags: ["fishing_tool"], successBonus: 0.16 },
+  "tool.fishingrod.pearl": { id: "tool.fishingrod.pearl", name: "Pearlshell Rod", icon: "🎣", stackable: false, maxStack: 1, toolTags: ["fishing_tool"], successBonus: 0.22 },
+  "tool.fishingrod.enchanted": { id: "tool.fishingrod.enchanted", name: "Enchanted Rod", icon: "🎣", stackable: false, maxStack: 1, toolTags: ["fishing_tool"], successBonus: 0.28 },
+  // ---- Fletching: metal-tipped arrows carrying per-shot damage ----
+  "item.arrow.steel": { id: "item.arrow.steel", name: "Steel Arrows", icon: "🏹", stackable: true, maxStack: 99, damageBonus: 3 },
+  "item.arrow.mithril": { id: "item.arrow.mithril", name: "Mithril Arrows", icon: "🏹", stackable: true, maxStack: 99, damageBonus: 5 },
+  "item.arrow.adamant": { id: "item.arrow.adamant", name: "Adamant Arrows", icon: "🏹", stackable: true, maxStack: 99, damageBonus: 7 },
+  "item.arrow.rune": { id: "item.arrow.rune", name: "Rune Arrows", icon: "🏹", stackable: true, maxStack: 99, damageBonus: 10 },
+  // ---- Boating: two faster hulls extending the Mariner ladder ----
+  "tool.boat.cutter": { id: "tool.boat.cutter", name: "River Cutter", icon: "⛵", stackable: false, maxStack: 1, toolTags: ["boat"], boat: { speed: 7.6, level: 34 } },
+  "tool.boat.longship": { id: "tool.boat.longship", name: "Coastal Longship", icon: "⛵", stackable: false, maxStack: 1, toolTags: ["boat"], boat: { speed: 9.2, level: 55 } },
+  // ---- Summoning: two higher familiar pouches ----
+  "item.pouch.lynx": { id: "item.pouch.lynx", name: "Blood Lynx Pouch", icon: "🐈", stackable: true, maxStack: 20, buff: { kind: "focus", durationS: 60 } },
+  "item.pouch.drake": { id: "item.pouch.drake", name: "Storm Drake Pouch", icon: "🐲", stackable: true, maxStack: 20, buff: { kind: "speed", durationS: 60 } },
+  // ---- Farming: two higher crops (seed + produce) ----
+  "item.seed.corn": { id: "item.seed.corn", name: "Sweetcorn Seed", icon: "🌱", stackable: true, maxStack: 50 },
+  "item.crop.corn": { id: "item.crop.corn", name: "Sweetcorn", icon: "🌽", stackable: true, maxStack: 50, healAmount: 7 },
+  "item.seed.sunfruit": { id: "item.seed.sunfruit", name: "Sunfruit Seed", icon: "🌱", stackable: true, maxStack: 50 },
+  "item.crop.sunfruit": { id: "item.crop.sunfruit", name: "Sunfruit", icon: "🟠", stackable: true, maxStack: 50, healAmount: 12 },
 };
 
 // Firemaking: lighting a log in the pack trains it, on a ladder that mirrors
@@ -1725,6 +1882,8 @@ for (const [id, p] of Object.entries(BONE_PRAYER)) ITEMS[id].prayer = p;
 export const ALCH_VALUES: Record<string, number> = {
   "item.bar.copper": 12, "item.bar.tin": 12, "item.bar.bronze": 20, "item.bar.iron": 36,
   "item.bar.gold": 60, "item.ingot.netherite": 900,
+  "item.bar.steel": 55, "item.bar.mithril": 100, "item.bar.adamant": 170, "item.bar.runite": 270,
+  "tool.sword.astral": 320,
   "item.gem.opal": 15, "item.gem.jade": 26, "item.gem.topaz": 40, "item.gem.sapphire": 66,
   "item.gem.emerald": 120, "item.gem.ruby": 120, "item.gem.diamond": 180, "item.gem.dragonstone": 380,
   "item.ring.opal": 60, "item.ring.sapphire": 170, "item.amulet.emerald": 320,
@@ -1744,6 +1903,10 @@ export const RUNE_CRAFT: Array<{ runeId: string; level: number; xp: number; per:
   { runeId: "item.rune.water", level: 5, xp: 6, per: 1 },
   { runeId: "item.rune.earth", level: 9, xp: 6.5, per: 1 },
   { runeId: "item.rune.fire", level: 14, xp: 7, per: 1 },
+  { runeId: "item.rune.body", level: 20, xp: 7.5, per: 1 },
+  { runeId: "item.rune.cosmic", level: 27, xp: 7.9, per: 1 },
+  { runeId: "item.rune.chaos", level: 35, xp: 8.4, per: 1 },
+  { runeId: "item.rune.astral", level: 40, xp: 8.8, per: 1 },
   { runeId: "item.rune.nature", level: 44, xp: 9, per: 1 },
   { runeId: "item.rune.law", level: 54, xp: 9.5, per: 1 },
   { runeId: "item.rune.death", level: 65, xp: 10, per: 1 },
@@ -2865,7 +3028,125 @@ export const RECIPES: Record<string, RecipeDef> = {
     cycleTimeS: 3.4, inputs: [{ itemId: "item.component.parts", qty: 10 }, { itemId: "item.gem.ruby", qty: 1 }],
     outputs: [{ itemId: "item.gizmo.precise", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 210,
   },
+  ...ladderRecipes(),
 };
+
+// ============================================================================
+// SKILL-LADDER EXPANSION recipes (see SKILL_PLANS.md). Grouped by skill; all
+// craft at existing or new workstations wired via workstationRecipeIds.
+// ============================================================================
+function ladderRecipes(): Record<string, RecipeDef> {
+  const out: Record<string, RecipeDef> = {};
+  const R = (r: RecipeDef) => { out[r.id] = r; };
+  const brew = (id: string, name: string, level: number, cycleTimeS: number, inputs: RecipeItem[], out2: string, xp: number, successBase: number) =>
+    R({ id, name, skillId: "skill.brewing", requiredLevel: level, cycleTimeS, inputs, outputs: [{ itemId: out2, qty: 1 }], successBase, successPerLevel: 0.012, successMax: 0.99, xp });
+  const inp = (a: string, q = 1, b?: string, qb = 1, c?: string, qc = 1): RecipeItem[] => {
+    const arr: RecipeItem[] = [{ itemId: a, qty: q }];
+    if (b) arr.push({ itemId: b, qty: qb });
+    if (c) arr.push({ itemId: c, qty: qc });
+    return arr;
+  };
+  // ---- Brewing: bridge, then Greater / Super / Grand tiers ----
+  brew("recipe.potion_gathering_keen", "Keen Forager's Brew", 10, 3.2, inp("item.herb.emberleaf", 1, "item.herb.mint", 2), "item.potion.gathering_keen", 58, 0.78);
+  brew("recipe.tonic_warden", "Emberward Tonic", 13, 3.4, inp("item.herb.emberleaf", 1, "item.berry.basic", 3), "item.tonic.warden", 70, 0.74);
+  brew("recipe.potion_swift_greater", "Greater Swiftness Draught", 16, 3.4, inp("item.herb.frostbloom", 1, "item.feather", 2), "item.potion.swift_greater", 90, 0.72);
+  brew("recipe.potion_gathering_greater", "Greater Forager's Brew", 20, 3.6, inp("item.herb.frostbloom", 1, "item.herb.mint", 2), "item.potion.gathering_greater", 104, 0.72);
+  brew("recipe.potion_strength_greater", "Greater Strength Tonic", 24, 3.6, inp("item.herb.frostbloom", 1, "item.bone.big", 1), "item.potion.strength_greater", 118, 0.7);
+  brew("recipe.potion_stoneskin_greater", "Greater Stoneskin Brew", 28, 3.8, inp("item.herb.frostbloom", 2, "item.stone.rough", 2), "item.potion.stoneskin_greater", 132, 0.7);
+  brew("recipe.potion_focus_greater", "Greater Hunter's Focus", 34, 3.8, inp("item.herb.frostbloom", 1, "item.feather", 3), "item.potion.focus_greater", 150, 0.68);
+  brew("recipe.tonic_warden_greater", "Greater Warden's Tonic", 40, 4.0, inp("item.herb.frostbloom", 1, "item.berry.basic", 3, "item.spore.pale", 1), "item.tonic.warden_greater", 168, 0.68);
+  brew("recipe.potion_swift_super", "Super Swiftness Draught", 44, 4.0, inp("item.herb.duskcap", 1, "item.herb.frostbloom", 1, "item.venom.sac", 1), "item.potion.swift_super", 210, 0.66);
+  brew("recipe.potion_gathering_super", "Super Forager's Brew", 48, 4.1, inp("item.herb.duskcap", 1, "item.herb.mint", 3, "item.spore.pale", 1), "item.potion.gathering_super", 228, 0.66);
+  brew("recipe.potion_strength_super", "Super Strength Tonic", 52, 4.2, inp("item.herb.duskcap", 1, "item.bone.dragon", 1, "item.gem.emberstone", 1), "item.potion.strength_super", 248, 0.64);
+  brew("recipe.potion_stoneskin_super", "Super Stoneskin Brew", 56, 4.3, inp("item.herb.duskcap", 1, "item.core.construct", 1), "item.potion.stoneskin_super", 268, 0.64);
+  brew("recipe.potion_focus_super", "Super Hunter's Focus", 60, 4.3, inp("item.herb.duskcap", 1, "item.gem.emberstone", 1, "item.feather", 3), "item.potion.focus_super", 290, 0.62);
+  brew("recipe.tonic_warden_super", "Super Warden's Tonic", 64, 4.4, inp("item.herb.duskcap", 1, "item.spore.pale", 2, "item.berry.basic", 3), "item.tonic.warden_super", 312, 0.62);
+  brew("recipe.potion_swift_grand", "Grand Swiftness Elixir", 70, 4.5, inp("item.herb.duskcap", 2, "item.herb.frostbloom", 2, "item.gem.diamond", 1), "item.potion.swift_grand", 420, 0.6);
+  brew("recipe.potion_gathering_grand", "Grand Forager's Elixir", 74, 4.6, inp("item.herb.duskcap", 2, "item.spore.pale", 2, "item.gem.emerald", 1), "item.potion.gathering_grand", 452, 0.6);
+  brew("recipe.potion_strength_grand", "Grand Strength Elixir", 78, 4.7, inp("item.herb.duskcap", 2, "item.bone.dragon", 2, "item.gem.emberstone", 2), "item.potion.strength_grand", 488, 0.58);
+  brew("recipe.potion_stoneskin_grand", "Grand Stoneskin Elixir", 82, 4.8, inp("item.herb.duskcap", 2, "item.core.construct", 2), "item.potion.stoneskin_grand", 524, 0.58);
+  brew("recipe.potion_focus_grand", "Grand Hunter's Elixir", 86, 4.9, inp("item.herb.duskcap", 3, "item.gem.emberstone", 2, "item.feather", 4), "item.potion.focus_grand", 556, 0.56);
+  brew("recipe.tonic_warden_grand", "Grand Warden's Draught", 90, 5.0, inp("item.herb.duskcap", 3, "item.core.construct", 2, "item.gem.dragonstone", 1), "item.tonic.warden_grand", 600, 0.56);
+  // ---- Herblore: two salves at the campfire ----
+  R({ id: "recipe.frost_salve", name: "Frostbloom Salve", skillId: "skill.herblore", requiredLevel: 20, cycleTimeS: 3.4, inputs: inp("item.herb.frostbloom", 1, "item.herb.sage", 2), outputs: [{ itemId: "item.salve.frost", qty: 1 }], successBase: 0.74, successPerLevel: 0.012, successMax: 0.99, xp: 72 });
+  R({ id: "recipe.dusk_poultice", name: "Duskcap Poultice", skillId: "skill.herblore", requiredLevel: 34, cycleTimeS: 3.6, inputs: inp("item.herb.duskcap", 1, "item.spore.pale", 1), outputs: [{ itemId: "item.salve.dusk", qty: 1 }], successBase: 0.7, successPerLevel: 0.012, successMax: 0.99, xp: 132 });
+  // ---- Smelting: the steel/mithril/adamant/runite bar ladder ----
+  const smelt = (id: string, name: string, level: number, cycleTimeS: number, inputs: RecipeItem[], out2: string, xp: number) =>
+    R({ id, name, skillId: "skill.smelting", requiredLevel: level, cycleTimeS, inputs, outputs: [{ itemId: out2, qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp });
+  smelt("recipe.steel_bar", "Steel Bar", 16, 4.2, inp("item.bar.iron", 1, "item.ore.coal", 2), "item.bar.steel", 90);
+  smelt("recipe.mithril_bar", "Mithril Bar", 30, 4.6, inp("item.ore.mithril", 1, "item.ore.coal", 2), "item.bar.mithril", 150);
+  smelt("recipe.adamant_bar", "Adamant Bar", 45, 5.0, inp("item.ore.adamant", 1, "item.ore.coal", 3), "item.bar.adamant", 220);
+  smelt("recipe.runite_bar", "Runite Bar", 58, 5.4, inp("item.ore.runite", 1, "item.ore.coal", 4), "item.bar.runite", 300);
+  // ---- Fletching: metal arrow tiers (5 per craft) ----
+  const fletchArrow = (id: string, name: string, level: number, cycleTimeS: number, bar: string, out2: string, xp: number) =>
+    R({ id, name, skillId: "skill.fletching", requiredLevel: level, cycleTimeS, inputs: [{ itemId: "item.arrow.shaft", qty: 5 }, { itemId: "item.feather", qty: 5 }, { itemId: bar, qty: 1 }], outputs: [{ itemId: out2, qty: 5 }], successBase: 1, successPerLevel: 0, successMax: 1, xp });
+  fletchArrow("recipe.fletch_steel_arrows", "Steel Arrows", 32, 2.4, "item.bar.steel", "item.arrow.steel", 75);
+  fletchArrow("recipe.fletch_mithril_arrows", "Mithril Arrows", 45, 2.6, "item.bar.mithril", "item.arrow.mithril", 105);
+  fletchArrow("recipe.fletch_adamant_arrows", "Adamant Arrows", 58, 2.8, "item.bar.adamant", "item.arrow.adamant", 140);
+  fletchArrow("recipe.fletch_rune_arrows", "Rune Arrows", 70, 3.0, "item.bar.runite", "item.arrow.rune", 190);
+  // ---- Crafting: three plank tiers sawn from logs ----
+  const saw = (id: string, name: string, level: number, cycleTimeS: number, log: string, out2: string, xp: number) =>
+    R({ id, name, skillId: "skill.crafting", requiredLevel: level, cycleTimeS, inputs: [{ itemId: log, qty: 1 }], outputs: [{ itemId: out2, qty: 2 }], successBase: 1, successPerLevel: 0, successMax: 1, xp });
+  saw("recipe.cut_planks_oak", "Oak Planks", 20, 2.6, "item.log.spruce", "item.plank.oak", 32);
+  saw("recipe.cut_planks_teak", "Teak Planks", 35, 2.8, "item.log.jungle", "item.plank.teak", 45);
+  saw("recipe.cut_planks_mahogany", "Mahogany Planks", 50, 3.0, "item.log.darkoak", "item.plank.mahogany", 62);
+  // ---- Fishing: rod ladder crafted at the workbench ----
+  R({ id: "recipe.rod_fly", name: "Feathered Fly Rod", skillId: "skill.crafting", requiredLevel: 15, cycleTimeS: 3.0, inputs: inp("item.plank.cut", 2, "item.rope", 1, "item.feather", 3), outputs: [{ itemId: "tool.fishingrod.fly", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 70 });
+  R({ id: "recipe.rod_barbed", name: "Barbed Rod", skillId: "skill.crafting", requiredLevel: 30, cycleTimeS: 3.4, inputs: inp("item.plank.cut", 2, "item.bar.iron", 1, "item.rope", 1), outputs: [{ itemId: "tool.fishingrod.barbed", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 130 });
+  R({ id: "recipe.rod_pearl", name: "Pearlshell Rod", skillId: "skill.crafting", requiredLevel: 45, cycleTimeS: 3.8, inputs: inp("item.plank.cut", 3, "item.gem.sapphire", 1, "item.rope", 2), outputs: [{ itemId: "tool.fishingrod.pearl", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 220 });
+  // ---- Boating: two faster hulls ----
+  R({ id: "recipe.boat_cutter", name: "River Cutter", skillId: "skill.boating", requiredLevel: 34, cycleTimeS: 7.0, inputs: inp("item.plank.cut", 10, "item.rope", 3, "item.bar.iron", 1), outputs: [{ itemId: "tool.boat.cutter", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 240 });
+  R({ id: "recipe.boat_longship", name: "Coastal Longship", skillId: "skill.boating", requiredLevel: 55, cycleTimeS: 8.5, inputs: inp("item.plank.cut", 14, "item.rope", 4, "item.bar.steel", 2), outputs: [{ itemId: "tool.boat.longship", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 460 });
+  // ---- Enchanting: gap-fillers + apex ----
+  R({ id: "recipe.runed_boots", name: "Runed Sabatons", skillId: "skill.enchanting", requiredLevel: 14, cycleTimeS: 4.0, inputs: inp("armor.boots.iron", 1, "item.relic.idol", 1), outputs: [{ itemId: "armor.boots.runed", qty: 1 }], successBase: 0.9, successPerLevel: 0.01, successMax: 0.99, xp: 130 });
+  R({ id: "recipe.runed_rod", name: "Enchanted Rod", skillId: "skill.enchanting", requiredLevel: 22, cycleTimeS: 4.5, inputs: inp("tool.fishingrod.pearl", 1, "item.relic.idol", 1), outputs: [{ itemId: "tool.fishingrod.enchanted", qty: 1 }], successBase: 0.9, successPerLevel: 0.01, successMax: 0.99, xp: 150 });
+  R({ id: "recipe.astral_sword", name: "Astral Blade", skillId: "skill.enchanting", requiredLevel: 58, cycleTimeS: 5.0, inputs: inp("tool.sword.diamond", 1, "item.relic.idol", 3, "item.charm.bone", 1), outputs: [{ itemId: "tool.sword.astral", qty: 1 }], successBase: 0.85, successPerLevel: 0.012, successMax: 0.99, xp: 420 });
+  // ---- Summoning: two higher pouches ----
+  R({ id: "recipe.pouch_lynx", name: "Blood Lynx Pouch", skillId: "skill.summoning", requiredLevel: 58, cycleTimeS: 3.4, inputs: inp("item.charm.bone", 4, "item.essence.rune", 14, "item.bar.steel", 1), outputs: [{ itemId: "item.pouch.lynx", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 320 });
+  R({ id: "recipe.pouch_drake", name: "Storm Drake Pouch", skillId: "skill.summoning", requiredLevel: 72, cycleTimeS: 3.8, inputs: inp("item.charm.bone", 5, "item.essence.rune", 20, "item.bar.mithril", 1), outputs: [{ itemId: "item.pouch.drake", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 460 });
+  // ---- Invention: high salvage source + two apex gizmos ----
+  R({ id: "recipe.salvage_plate", name: "Salvage Plate", skillId: "skill.invention", requiredLevel: 50, cycleTimeS: 2.6, inputs: [{ itemId: "item.bar.runite", qty: 1 }], outputs: [{ itemId: "item.component.parts", qty: 8 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 90 });
+  R({ id: "recipe.gizmo_bulwark", name: "Bulwark Gizmo", skillId: "skill.invention", requiredLevel: 55, cycleTimeS: 3.6, inputs: inp("item.component.parts", 14, "item.gem.emerald", 1), outputs: [{ itemId: "item.gizmo.bulwark", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 320 });
+  R({ id: "recipe.gizmo_titan", name: "Titan Gizmo", skillId: "skill.invention", requiredLevel: 70, cycleTimeS: 4.0, inputs: inp("item.component.parts", 20, "item.gem.diamond", 1), outputs: [{ itemId: "item.gizmo.titan", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 480 });
+  // ---- Smithing: diamond + netherite armor (manual, gem/upgrade costs) ----
+  const smith = (id: string, name: string, level: number, cycleTimeS: number, inputs: RecipeItem[], out2: string, xp: number) =>
+    R({ id, name, skillId: "skill.smithing", requiredLevel: level, cycleTimeS, inputs, outputs: [{ itemId: out2, qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp, toolTagsAny: ["hammer"] });
+  smith("recipe.cap_diamond", "Diamond Helm", 60, 5.0, inp("item.bar.runite", 1, "item.gem.diamond", 2), "armor.cap.diamond", 620);
+  smith("recipe.tunic_diamond", "Diamond Chestplate", 61, 5.4, inp("item.bar.runite", 2, "item.gem.diamond", 3), "armor.tunic.diamond", 900);
+  smith("recipe.leggings_diamond", "Diamond Greaves", 60, 5.2, inp("item.bar.runite", 1, "item.gem.diamond", 3), "armor.leggings.diamond", 720);
+  smith("recipe.boots_diamond", "Diamond Sabatons", 60, 4.8, inp("item.bar.runite", 1, "item.gem.diamond", 1), "armor.boots.diamond", 360);
+  smith("recipe.cap_netherite", "Netherite Helm", 74, 5.4, inp("armor.cap.diamond", 1, "item.ingot.netherite", 1), "armor.cap.netherite", 820);
+  smith("recipe.tunic_netherite", "Netherite Chestplate", 76, 5.8, inp("armor.tunic.diamond", 1, "item.ingot.netherite", 1), "armor.tunic.netherite", 1000);
+  smith("recipe.leggings_netherite", "Netherite Greaves", 75, 5.6, inp("armor.leggings.diamond", 1, "item.ingot.netherite", 1), "armor.leggings.netherite", 900);
+  smith("recipe.boots_netherite", "Netherite Sabatons", 74, 5.2, inp("armor.boots.diamond", 1, "item.ingot.netherite", 1), "armor.boots.netherite", 640);
+  // ---- Construction: the Carpenter's Bench furniture ladder ----
+  const build = (id: string, name: string, level: number, cycleTimeS: number, inputs: RecipeItem[], out2: string, xp: number) =>
+    R({ id, name, skillId: "skill.construction", requiredLevel: level, cycleTimeS, inputs, outputs: [{ itemId: out2, qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp, toolTagsAny: ["hammer"] });
+  build("recipe.build_stool", "Wooden Stool", 1, 2.4, inp("item.plank.cut", 2), "item.flatpack.stool", 40);
+  build("recipe.build_crate", "Storage Crate", 5, 2.5, inp("item.plank.cut", 3), "item.flatpack.crate", 58);
+  build("recipe.build_chair", "Wooden Chair", 9, 2.6, inp("item.plank.cut", 3, "item.rope", 1), "item.flatpack.chair", 72);
+  build("recipe.build_table", "Kitchen Table", 14, 2.8, inp("item.plank.cut", 4), "item.flatpack.table", 96);
+  build("recipe.build_bench", "Long Bench", 19, 2.8, inp("item.plank.cut", 5, "item.rope", 1), "item.flatpack.bench", 128);
+  build("recipe.build_bookshelf", "Bookshelf", 24, 3.0, inp("item.plank.cut", 6), "item.flatpack.bookshelf", 165);
+  build("recipe.build_bed", "Wooden Bed", 29, 3.0, inp("item.plank.cut", 6, "item.rope", 2), "item.flatpack.bed", 205);
+  build("recipe.build_dresser", "Oak Dresser", 34, 3.2, inp("item.plank.oak", 4), "item.flatpack.dresser", 250);
+  build("recipe.build_wardrobe", "Oak Wardrobe", 40, 3.4, inp("item.plank.oak", 6, "item.rope", 1), "item.flatpack.wardrobe", 300);
+  build("recipe.build_hearth", "Stone Hearth", 46, 3.6, inp("item.brick.stone", 6, "item.plank.oak", 2), "item.flatpack.hearth", 360);
+  build("recipe.build_fireplace", "Teak Fireplace", 52, 3.8, inp("item.plank.teak", 6, "item.brick.stone", 4), "item.flatpack.fireplace", 420);
+  build("recipe.build_cabinet", "Teak Cabinet", 58, 4.0, inp("item.plank.teak", 8, "item.rope", 1), "item.flatpack.cabinet", 500);
+  build("recipe.build_wall_shelf", "Mahogany Wall Shelf", 66, 4.2, inp("item.plank.mahogany", 8), "item.flatpack.shelf", 585);
+  build("recipe.build_fourposter", "Mahogany Four-Poster Bed", 74, 4.4, inp("item.plank.mahogany", 10, "item.rope", 4), "item.flatpack.fourposter", 680);
+  build("recipe.build_throne", "Gilded Throne", 82, 4.8, inp("item.plank.mahogany", 12, "item.bar.gold", 2), "item.flatpack.throne", 800);
+  build("recipe.build_altar", "Marble Altar", 90, 5.0, inp("item.plank.mahogany", 14, "item.brick.stone", 8, "item.bar.gold", 2), "item.flatpack.altar", 950);
+  // ---- Cooking: roast the new hunted game at a campfire ----
+  const cook = (id: string, name: string, level: number, cycleTimeS: number, raw: string, cooked: string, xp: number) =>
+    R({ id, name, skillId: "skill.cooking", requiredLevel: level, cycleTimeS, inputs: [{ itemId: raw, qty: 1 }], outputs: [{ itemId: cooked, qty: 1 }], failOutputs: [], successBase: 0.78, successPerLevel: 0.012, successMax: 0.99, xp });
+  cook("recipe.cooked_fowl", "Roast Pheasant", 15, 2.8, "item.game.fowl", "item.fowl.cooked", 70);
+  cook("recipe.cooked_boar", "Roast Boar", 30, 3.0, "item.game.boar", "item.boar.cooked", 130);
+  cook("recipe.cooked_grenwall", "Roast Grenwall", 55, 3.4, "item.game.grenwall", "item.grenwall.cooked", 240);
+  cook("recipe.cooked_antelope", "Roast Antelope", 70, 3.6, "item.game.antelope", "item.antelope.cooked", 320);
+  return out;
+}
 
 /** Runecrafting: bind rune essence into runes at an altar. */
 function runeRecipes(): Record<string, RecipeDef> {
@@ -2902,6 +3183,10 @@ function armorRecipes(): Record<string, RecipeDef> {
     { tier: "copper", level: 3, input: "item.bar.copper", xp: 48, cycleTimeS: 3.5 },
     { tier: "bronze", level: 5, input: "item.bar.bronze", xp: 80, cycleTimeS: 4.0 },
     { tier: "iron", level: 7, input: "item.bar.iron", xp: 130, cycleTimeS: 4.5 },
+    { tier: "steel", level: 16, input: "item.bar.steel", xp: 200, cycleTimeS: 5.0 },
+    { tier: "mithril", level: 30, input: "item.bar.mithril", xp: 300, cycleTimeS: 5.4 },
+    { tier: "adamant", level: 44, input: "item.bar.adamant", xp: 420, cycleTimeS: 5.8 },
+    { tier: "rune", level: 55, input: "item.bar.runite", xp: 560, cycleTimeS: 6.2 },
   ];
   const pieces: Array<{ piece: string; qty: number }> = [
     { piece: "cap", qty: 2 },
@@ -4181,7 +4466,114 @@ export const NODES: Record<string, ResourceNodeDef> = {
     blocksNav: false,
     view: "herb",
   },
+  ...ladderNodes(),
 };
+
+// ============================================================================
+// SKILL-LADDER EXPANSION nodes (see SKILL_PLANS.md): Foraging berry bushes,
+// Hunting game trails, Archaeology dig sites, high-tier Mining veins, and two
+// higher Farming crops. Views reuse the existing bush/trail/digsite/rock/crop
+// renderers; per-tier viewMaterial drives the (deferred) art variants and, for
+// rocks, the tinted ore tile. Placement lives in worldgen (endless ladder
+// scatter + settlement homes).
+// ============================================================================
+function ladderNodes(): Record<string, ResourceNodeDef> {
+  const out: Record<string, ResourceNodeDef> = {};
+  const drop = (itemId: string, min: number, max: number, weight: number): DropEntry => ({ itemId, min, max, weight });
+  // ---- Foraging: 9-tier berry-bush ladder (view 'bush') ----
+  const bush = (
+    id: string, name: string, level: number, xp: number, cycleTimeS: number,
+    sBase: number, sPer: number, sMax: number, drops: DropEntry[], respawnS: number,
+    resMin: number, resMax: number, tools: string[], viewMaterial: string, failDamage?: number,
+  ) => {
+    out[id] = {
+      id, name, skillId: "skill.foraging", requiredLevel: level, toolTagsAny: tools,
+      interaction: { mode: "adjacent_4", rangeCells: 1 }, cycleTimeS,
+      successBase: sBase, successPerLevel: sPer, successMax: sMax, xpPerCycle: xp,
+      drops, depletes: true, resourceMin: resMin, resourceMax: resMax, respawnS,
+      blocksNav: false, view: "bush", viewMaterial, ...(failDamage ? { failDamage } : {}),
+    };
+  };
+  bush("resource.bush.redberry", "Redberry Bush", 8, 30, 1.5, 0.82, 0.008, 0.98, [drop("item.forage.redberry", 1, 2, 1)], 55, 3, 4, [], "redberry");
+  bush("resource.bush.cadava", "Cadava Bush", 15, 55, 1.7, 0.78, 0.008, 0.97, [drop("item.forage.cadava", 1, 2, 1)], 65, 3, 4, [], "cadava");
+  bush("resource.bush.dwellberry", "Dwellberry Bramble", 22, 85, 1.9, 0.74, 0.008, 0.97, [drop("item.forage.dwellberry", 1, 2, 1)], 80, 3, 4, [], "dwellberry");
+  bush("resource.bush.cloudberry", "Cloudberry Bush", 30, 130, 2.1, 0.70, 0.008, 0.96, [drop("item.forage.cloudberry", 1, 2, 1)], 95, 2, 4, ["secateurs"], "cloudberry");
+  bush("resource.bush.jangerberry", "Jangerberry Vine", 40, 200, 2.2, 0.66, 0.008, 0.96, [drop("item.forage.jangerberry", 1, 2, 1)], 110, 2, 3, ["secateurs"], "jangerberry");
+  bush("resource.bush.prickly", "Prickly Pear Cactus", 52, 300, 2.3, 0.62, 0.008, 0.95, [drop("item.forage.pricklypear", 1, 2, 1)], 120, 2, 3, ["secateurs"], "prickly");
+  bush("resource.bush.whiteberry", "Whiteberry Bush", 65, 440, 2.4, 0.58, 0.009, 0.95, [drop("item.forage.whiteberry", 1, 2, 1)], 130, 2, 3, ["secateurs"], "whiteberry");
+  bush("resource.bush.poisonivy", "Poison Ivy Bush", 78, 620, 2.5, 0.54, 0.009, 0.95, [drop("item.forage.poisonivy", 1, 3, 1)], 140, 2, 3, ["secateurs"], "poisonivy", 3);
+  bush("resource.bush.everlight", "Everlight Bramble", 90, 850, 2.6, 0.50, 0.010, 0.95, [drop("item.forage.everlight", 1, 2, 5), drop("item.forage.jangerberry", 1, 1, 1)], 150, 2, 3, ["secateurs"], "everlight");
+  // ---- Hunting: 8-tier game-trail ladder (view 'trail', trap-gated) ----
+  const trail = (
+    id: string, name: string, level: number, xp: number, cycleTimeS: number,
+    sBase: number, sMax: number, drops: DropEntry[], respawnS: number,
+    resMin: number, resMax: number, viewMaterial: string,
+  ) => {
+    out[id] = {
+      id, name, skillId: "skill.hunting", requiredLevel: level, toolTagsAny: ["trap"],
+      interaction: { mode: "adjacent_4", rangeCells: 1 }, cycleTimeS,
+      successBase: sBase, successPerLevel: 0.012, successMax: sMax, xpPerCycle: xp,
+      drops, depletes: true, resourceMin: resMin, resourceMax: resMax, respawnS,
+      blocksNav: false, view: "trail", viewMaterial,
+    };
+  };
+  trail("resource.trail.fowl", "Fowl Snare", 15, 70, 3.0, 0.50, 0.92, [drop("item.game.fowl", 1, 1, 4), drop("item.feather", 2, 4, 4), drop("item.fur", 1, 1, 2)], 65, 2, 4, "net");
+  trail("resource.trail.kebbit", "Kebbit Burrow", 22, 105, 3.2, 0.48, 0.92, [drop("item.hide.kebbit", 1, 1, 5), drop("item.fur", 1, 2, 3)], 80, 2, 3, "box");
+  trail("resource.trail.boar", "Boar Wallow", 30, 155, 3.3, 0.46, 0.90, [drop("item.game.boar", 1, 1, 5), drop("item.hide.thick", 1, 1, 3), drop("item.tusk", 1, 1, 1)], 90, 2, 3, "pit");
+  trail("resource.trail.chinchompa", "Chinchompa Nest", 40, 230, 3.4, 0.44, 0.90, [drop("item.chinchompa", 1, 1, 5), drop("item.fur", 1, 2, 2)], 110, 1, 3, "box");
+  trail("resource.trail.polar", "Polar Kebbit Track", 52, 340, 3.5, 0.42, 0.90, [drop("item.hide.polar", 1, 1, 5), drop("item.tusk", 1, 1, 2)], 120, 1, 3, "deadfall");
+  trail("resource.trail.sabre", "Sabre-tooth Track", 65, 480, 3.7, 0.40, 0.88, [drop("item.hide.sabre", 1, 1, 5), drop("item.tusk", 1, 2, 3), drop("item.bone.big", 1, 1, 2)], 130, 1, 2, "pit");
+  trail("resource.trail.grenwall", "Grenwall Thicket", 78, 660, 3.8, 0.38, 0.88, [drop("item.game.grenwall", 1, 1, 4), drop("item.spike.grenwall", 1, 3, 4)], 135, 1, 2, "box");
+  trail("resource.trail.antelope", "Moonlight Antelope Track", 90, 900, 4.0, 0.36, 0.88, [drop("item.hide.antelope", 1, 1, 5), drop("item.game.antelope", 1, 1, 4), drop("item.antler", 1, 1, 2)], 145, 1, 2, "net");
+  // ---- Archaeology: 8-tier dig-site ladder (view 'digsite', mattock-gated) ----
+  const dig = (
+    id: string, name: string, level: number, xp: number, cycleTimeS: number,
+    sBase: number, sMax: number, drops: DropEntry[], respawnS: number, viewMaterial: string,
+  ) => {
+    out[id] = {
+      id, name, skillId: "skill.archaeology", requiredLevel: level, toolTagsAny: ["mattock"],
+      interaction: { mode: "adjacent_4", rangeCells: 1 }, cycleTimeS,
+      successBase: sBase, successPerLevel: 0.012, successMax: sMax, xpPerCycle: xp,
+      drops, depletes: true, resourceMin: 2, resourceMax: 3, respawnS,
+      blocksNav: true, view: "digsite", viewMaterial,
+    };
+  };
+  dig("resource.digsite.barrow", "Barrow Mound", 15, 80, 2.9, 0.58, 0.95, [drop("item.arch.samples", 1, 3, 6), drop("item.bone.old", 1, 2, 3), drop("item.relic.torque", 1, 1, 2), drop("item.coin", 2, 8, 2)], 90, "barrow");
+  dig("resource.digsite.ruin", "Sunken Ruin", 25, 120, 3.0, 0.54, 0.95, [drop("item.arch.samples", 1, 3, 6), drop("item.relic.tablet", 1, 1, 2), drop("item.relic.chalice", 1, 1, 2), drop("item.coin", 4, 10, 2)], 100, "ruin");
+  dig("resource.digsite.kiln", "Ashen Kiln", 35, 175, 3.2, 0.50, 0.94, [drop("item.arch.samples", 1, 3, 6), drop("item.relic.censer", 1, 1, 2), drop("item.gem.emberstone", 1, 1, 2), drop("item.coin", 6, 14, 2)], 110, "kiln");
+  dig("resource.digsite.temple", "Buried Temple", 45, 250, 3.3, 0.48, 0.94, [drop("item.arch.samples", 2, 4, 6), drop("item.relic.mask", 1, 1, 2), drop("item.relic.idol", 1, 1, 2), drop("item.gem.jade", 1, 1, 1)], 120, "temple");
+  dig("resource.digsite.citadel", "Frozen Citadel", 55, 350, 3.5, 0.46, 0.93, [drop("item.arch.samples", 2, 4, 6), drop("item.relic.astrolabe", 1, 1, 2), drop("item.gem.sapphire", 1, 1, 1), drop("item.coin", 10, 20, 2)], 130, "citadel");
+  dig("resource.digsite.warforge", "Warforge Trench", 65, 480, 3.6, 0.44, 0.93, [drop("item.arch.samples", 2, 4, 6), drop("item.relic.sceptre", 1, 1, 2), drop("item.bar.iron", 1, 2, 2), drop("item.gem.ruby", 1, 1, 1)], 135, "warforge");
+  dig("resource.digsite.everlight", "Everlight Excavation", 78, 650, 3.8, 0.42, 0.92, [drop("item.arch.samples", 3, 5, 6), drop("item.relic.crown", 1, 1, 1), drop("item.gem.diamond", 1, 1, 1), drop("item.coin", 15, 30, 2)], 145, "everlight");
+  dig("resource.digsite.senntisten", "Senntisten Dig", 90, 900, 4.0, 0.40, 0.92, [drop("item.arch.samples", 3, 5, 6), drop("item.relic.crown", 1, 1, 2), drop("item.relic.astrolabe", 1, 1, 2), drop("item.coin", 20, 40, 2)], 150, "senntisten");
+  // ---- Mining: three high-tier metal veins (view 'rock') ----
+  const vein = (id: string, name: string, level: number, xp: number, cycleTimeS: number, sBase: number, sMax: number, oreId: string, respawnS: number, viewMaterial: string) => {
+    out[id] = {
+      id, name, skillId: "skill.mining", requiredLevel: level, toolTagsAny: ["pickaxe"],
+      interaction: { mode: "adjacent_4", rangeCells: 1 }, cycleTimeS,
+      successBase: sBase, successPerLevel: 0.01, successMax: sMax, xpPerCycle: xp,
+      drops: [drop(oreId, 1, 1, 1)], depletes: true, resourceMin: 3, resourceMax: 5, respawnS,
+      blocksNav: true, view: "rock", viewMaterial,
+    };
+  };
+  vein("resource.rock.mithril", "Mithril-veined Rock", 30, 58, 3.0, 0.56, 0.95, "item.ore.mithril", 75, "resource.rock.mithril");
+  vein("resource.rock.adamant", "Adamantite Rock", 45, 100, 3.4, 0.50, 0.94, "item.ore.adamant", 110, "resource.rock.adamant");
+  vein("resource.rock.runite", "Runite Vein", 58, 160, 3.8, 0.46, 0.92, "item.ore.runite", 150, "resource.rock.runite");
+  // ---- Farming: two higher crops (plantable plots) ----
+  out["resource.plot.corn"] = {
+    id: "resource.plot.corn", name: "Cornfield", skillId: "skill.farming", requiredLevel: 38, toolTagsAny: [],
+    interaction: { mode: "adjacent_4", rangeCells: 1 }, cycleTimeS: 2.4, successBase: 0.78, successPerLevel: 0.006, successMax: 0.99, xpPerCycle: 175,
+    drops: [drop("item.crop.corn", 3, 5, 5), drop("item.seed.corn", 1, 2, 2)], depletes: true, resourceMin: 1, resourceMax: 2, respawnS: 240,
+    blocksNav: false, view: "crop.wheat", plantable: { seedItemId: "item.seed.corn", growS: 240, plantXp: 80 },
+  };
+  out["resource.plot.sunfruit"] = {
+    id: "resource.plot.sunfruit", name: "Sunfruit Grove", skillId: "skill.farming", requiredLevel: 52, toolTagsAny: [],
+    interaction: { mode: "adjacent_4", rangeCells: 1 }, cycleTimeS: 2.8, successBase: 0.74, successPerLevel: 0.006, successMax: 0.99, xpPerCycle: 260,
+    drops: [drop("item.crop.sunfruit", 2, 4, 5), drop("item.seed.sunfruit", 1, 1, 2)], depletes: true, resourceMin: 1, resourceMax: 2, respawnS: 300,
+    blocksNav: false, view: "crop.pumpkin", viewMaterial: "sunfruit", plantable: { seedItemId: "item.seed.sunfruit", growS: 300, plantXp: 120 },
+  };
+  return out;
+}
 
 export const OBJECTS: Record<string, WorldObjectDef> = {
   "object.storage_chest.basic": {
@@ -4203,6 +4595,8 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
       "recipe.carrot_stew", "recipe.oakblood_tonic", "recipe.smoked_eel",
       "recipe.seared_icefin", "recipe.panfried_trout", "recipe.roast_seabass",
       "recipe.glazed_sunscale",
+      "recipe.frost_salve", "recipe.dusk_poultice",
+      "recipe.cooked_fowl", "recipe.cooked_boar", "recipe.cooked_grenwall", "recipe.cooked_antelope",
     ],
     blocksNav: true,
   },
@@ -4210,7 +4604,7 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     id: "object.furnace.basic",
     name: "Stone Furnace",
     interaction: { mode: "adjacent_4", rangeCells: 1 },
-    workstationRecipeIds: ["recipe.copper_bar", "recipe.tin_bar", "recipe.bronze_bar", "recipe.iron_bar", "recipe.gold_bar", "recipe.stone_brick", "recipe.netherite_scrap", "recipe.netherite_ingot"],
+    workstationRecipeIds: ["recipe.copper_bar", "recipe.tin_bar", "recipe.bronze_bar", "recipe.iron_bar", "recipe.steel_bar", "recipe.mithril_bar", "recipe.gold_bar", "recipe.adamant_bar", "recipe.runite_bar", "recipe.stone_brick", "recipe.netherite_scrap", "recipe.netherite_ingot"],
     blocksNav: true,
   },
   "object.buildsite.jetty": {
@@ -4265,6 +4659,18 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     completionFlag: "worldstate.ramp_built",
     blocksNav: true,
   },
+  "object.buildbench.basic": {
+    id: "object.buildbench.basic",
+    name: "Carpenter's Bench",
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    workstationRecipeIds: [
+      "recipe.build_stool", "recipe.build_crate", "recipe.build_chair", "recipe.build_table",
+      "recipe.build_bench", "recipe.build_bookshelf", "recipe.build_bed", "recipe.build_dresser",
+      "recipe.build_wardrobe", "recipe.build_hearth", "recipe.build_fireplace", "recipe.build_cabinet",
+      "recipe.build_wall_shelf", "recipe.build_fourposter", "recipe.build_throne", "recipe.build_altar",
+    ],
+    blocksNav: true,
+  },
   "object.shortcut.log": {
     id: "object.shortcut.log",
     name: "Fallen Log",
@@ -4304,7 +4710,7 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     id: "object.enchanter.basic",
     name: "Enchanting Table",
     interaction: { mode: "adjacent_4", rangeCells: 1 },
-    workstationRecipeIds: ["recipe.runed_axe", "recipe.runed_pickaxe", "recipe.runed_sword", "recipe.runed_bow"],
+    workstationRecipeIds: ["recipe.runed_axe", "recipe.runed_pickaxe", "recipe.runed_boots", "recipe.runed_rod", "recipe.runed_sword", "recipe.runed_bow", "recipe.astral_sword"],
     blocksNav: true,
   },
   "object.cauldron.basic": {
@@ -4314,6 +4720,13 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     workstationRecipeIds: [
       "recipe.potion_swift", "recipe.potion_strength", "recipe.potion_stoneskin",
       "recipe.potion_gathering", "recipe.potion_focus",
+      "recipe.potion_gathering_keen", "recipe.tonic_warden",
+      "recipe.potion_swift_greater", "recipe.potion_gathering_greater", "recipe.potion_strength_greater",
+      "recipe.potion_stoneskin_greater", "recipe.potion_focus_greater", "recipe.tonic_warden_greater",
+      "recipe.potion_swift_super", "recipe.potion_gathering_super", "recipe.potion_strength_super",
+      "recipe.potion_stoneskin_super", "recipe.potion_focus_super", "recipe.tonic_warden_super",
+      "recipe.potion_swift_grand", "recipe.potion_gathering_grand", "recipe.potion_strength_grand",
+      "recipe.potion_stoneskin_grand", "recipe.potion_focus_grand", "recipe.tonic_warden_grand",
     ],
     blocksNav: true,
   },
@@ -4329,7 +4742,11 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
       "recipe.ring_opal", "recipe.ring_sapphire", "recipe.amulet_emerald",
       "recipe.amulet_ruby", "recipe.amulet_dragonstone",
       "recipe.salvage_bar", "recipe.salvage_gem", "recipe.gizmo_swift", "recipe.gizmo_precise",
-      "recipe.boat_raft", "recipe.boat_rowboat", "recipe.boat_skiff",
+      "recipe.salvage_plate", "recipe.gizmo_bulwark", "recipe.gizmo_titan",
+      "recipe.boat_raft", "recipe.boat_rowboat", "recipe.boat_skiff", "recipe.boat_cutter", "recipe.boat_longship",
+      "recipe.cut_planks_oak", "recipe.cut_planks_teak", "recipe.cut_planks_mahogany",
+      "recipe.fletch_steel_arrows", "recipe.fletch_mithril_arrows", "recipe.fletch_adamant_arrows", "recipe.fletch_rune_arrows",
+      "recipe.rod_fly", "recipe.rod_barbed", "recipe.rod_pearl",
     ],
     blocksNav: true,
   },
@@ -4339,6 +4756,7 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     interaction: { mode: "adjacent_4", rangeCells: 1 },
     workstationRecipeIds: [
       "recipe.rune_air", "recipe.rune_water", "recipe.rune_earth", "recipe.rune_fire",
+      "recipe.rune_body", "recipe.rune_cosmic", "recipe.rune_chaos", "recipe.rune_astral",
       "recipe.rune_nature", "recipe.rune_law", "recipe.rune_death", "recipe.rune_blood", "recipe.rune_soul",
     ],
     blocksNav: true,
@@ -4347,7 +4765,7 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     id: "object.obelisk.summon",
     name: "Summoning Obelisk",
     interaction: { mode: "adjacent_4", rangeCells: 1 },
-    workstationRecipeIds: ["recipe.pouch_wolf", "recipe.pouch_ox", "recipe.pouch_tortoise"],
+    workstationRecipeIds: ["recipe.pouch_wolf", "recipe.pouch_ox", "recipe.pouch_tortoise", "recipe.pouch_lynx", "recipe.pouch_drake"],
     blocksNav: true,
   },
   "object.anvil.basic": {
@@ -4388,6 +4806,12 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
       "recipe.boots_copper",
       "recipe.boots_bronze",
       "recipe.boots_iron",
+      "recipe.cap_steel", "recipe.tunic_steel", "recipe.leggings_steel", "recipe.boots_steel",
+      "recipe.cap_mithril", "recipe.tunic_mithril", "recipe.leggings_mithril", "recipe.boots_mithril",
+      "recipe.cap_adamant", "recipe.tunic_adamant", "recipe.leggings_adamant", "recipe.boots_adamant",
+      "recipe.cap_rune", "recipe.tunic_rune", "recipe.leggings_rune", "recipe.boots_rune",
+      "recipe.cap_diamond", "recipe.tunic_diamond", "recipe.leggings_diamond", "recipe.boots_diamond",
+      "recipe.cap_netherite", "recipe.tunic_netherite", "recipe.leggings_netherite", "recipe.boots_netherite",
     ],
     blocksNav: true,
   },
@@ -4790,6 +5214,25 @@ export const SHOPS: Record<string, ShopDef> = {
       "item.bar.bronze": 22,
       "item.bar.iron": 32,
       "item.brick.stone": 3,
+      // ---- skill-ladder sinks (SKILL_PLANS.md): every new product sells ----
+      "item.bar.steel": 40, "item.bar.mithril": 72, "item.bar.adamant": 120, "item.bar.runite": 190,
+      "item.ore.mithril": 20, "item.ore.adamant": 30, "item.ore.runite": 45,
+      "item.arrow.bronze": 1, "item.arrow.iron": 2, "item.arrow.steel": 3,
+      "item.arrow.mithril": 5, "item.arrow.adamant": 8, "item.arrow.rune": 12,
+      // Foraging berries
+      "item.forage.redberry": 2, "item.forage.cadava": 3, "item.forage.dwellberry": 4,
+      "item.forage.cloudberry": 6, "item.forage.jangerberry": 9, "item.forage.pricklypear": 12,
+      "item.forage.whiteberry": 16, "item.forage.poisonivy": 10, "item.forage.everlight": 30,
+      // Hunting meats, hides, tusks, spikes
+      "item.game.fowl": 3, "item.fowl.cooked": 8, "item.game.boar": 6, "item.boar.cooked": 14,
+      "item.game.grenwall": 10, "item.grenwall.cooked": 22, "item.game.antelope": 12, "item.antelope.cooked": 30,
+      "item.hide.kebbit": 8, "item.hide.thick": 14, "item.hide.polar": 20, "item.hide.sabre": 30, "item.hide.antelope": 45,
+      "item.tusk": 18, "item.antler": 16, "item.chinchompa": 20, "item.spike.grenwall": 12,
+      // Archaeology samples + relic collection
+      "item.arch.samples": 6, "item.relic.torque": 18, "item.relic.chalice": 30, "item.relic.censer": 45,
+      "item.relic.astrolabe": 70, "item.relic.sceptre": 110, "item.relic.crown": 200,
+      // A trickle of coin for early flatpacks
+      "item.flatpack.stool": 8, "item.flatpack.crate": 12, "item.flatpack.chair": 16,
     },
     sells: [
       { itemId: "tool.axe.basic", price: 25 },
@@ -4813,6 +5256,13 @@ export const SHOPS: Record<string, ShopDef> = {
       { itemId: "item.plank.cut", price: 6 },
       { itemId: "item.brick.stone", price: 8 },
       { itemId: "item.arrow.bronze", price: 2 },
+      // Skill-ladder tool gates: the secateurs / mattock / box-trap gate tools
+      // and the two new farm seeds, so every gathering ladder is buyable.
+      { itemId: "tool.secateurs.basic", price: 40 },
+      { itemId: "tool.mattock.basic", price: 40 },
+      { itemId: "tool.trap.box", price: 60 },
+      { itemId: "item.seed.corn", price: 12 },
+      { itemId: "item.seed.sunfruit", price: 20 },
     ],
   },
   "shop.tanglewood": {

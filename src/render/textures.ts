@@ -92,6 +92,10 @@ const TILE_SPECS: Record<string, TileSpec> = {
   "resource.rock.coal": { base: "#8a8d90", speckle: "#26262a", speckleDensity: 0.3 },
   "resource.rock.gold": { base: "#8a8d90", speckle: "#e8c33a", speckleDensity: 0.28 },
   "resource.rock.diamond": { base: "#8a8d90", speckle: "#6fdbe0", speckleDensity: 0.25 },
+  // High-tier metal veins (SKILL_PLANS.md): grey stone with tier-tinted flecks.
+  "resource.rock.mithril": { base: "#8a8d90", speckle: "#4a6fc0", speckleDensity: 0.28 },
+  "resource.rock.adamant": { base: "#7f8a80", speckle: "#3f9a5a", speckleDensity: 0.28 },
+  "resource.rock.runite": { base: "#859092", speckle: "#38c0c8", speckleDensity: 0.28 },
   "resource.rock.essence": { base: "#b9b2c6", speckle: "#d7d1e4", speckleDensity: 0.4 },
   "object.melon.side": { base: "#6f9636", speckle: "#8fba4a", speckleDensity: 0.3, border: "#557428" },
   "object.melon.top": { base: "#7ba23e", speckle: "#95c052", speckleDensity: 0.3 },
