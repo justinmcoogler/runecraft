@@ -1881,8 +1881,11 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   }
 
   // All feature/structure/mob placement is gated off during the asset
-  // transition (see CLEAR_ASSETS) — the world stays bare terrain + roads.
-  if (!CLEAR_ASSETS) {
+  // transition (see CLEAR_ASSETS). It is ALSO gated off entirely while the
+  // tutorial vale is active: the walled vale is a self-contained sandbox, so
+  // nothing wild streams in beyond its walls — outside is bare terrain and the
+  // graded gate ramps only. All tutorial content is placed by tutorialRegion.
+  if (!CLEAR_ASSETS && !VALE_ACTIVE) {
 
   // Wild structures: a rare per-chunk roll drops a schematic (ruins today;
   // player-authored houses and set pieces later) onto a level, dry site.
