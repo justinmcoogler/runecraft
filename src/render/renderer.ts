@@ -277,6 +277,9 @@ export class GameRenderer {
   readonly materials: MaterialResolver;
   private nodeViews = new Map<string, NodeView>();
   private groundItemViews = new Map<string, { group: THREE.Group; cell: Cell; baseY: number }>();
+  /** Quest-guidance pathing world: doors/gates count walkable (cached per world). */
+  private guideWorld: import("../sim/world").WorldState | null = null;
+  private guideWorldFor: unknown = null;
   private pickables: THREE.Object3D[] = [];
   private terrainChunks = new Map<string, {
     mesh: THREE.Mesh;
@@ -416,9 +419,24 @@ export class GameRenderer {
     this.tutorialBeacon.visible = true;
 
     // Dotted trail from the player to a walkable cell beside the objective.
+    // Click-to-open doors and pen gates count as walkable for GUIDANCE (the
+    // player can open them), or the dots would vanish for any objective that
+    // sits behind a closed gate.
     const player = this.sim.movement.currentCell();
+    const world = this.sim.world;
+    if (this.guideWorldFor !== world) {
+      const doorCells = new Set(
+        world.region.objects
+          .filter((o) => (o.defId.startsWith("object.door.") || o.defId.startsWith("object.gate.")) && !o.portal)
+          .map((o) => `${o.cell.x},${o.cell.z}`),
+      );
+      const gw = Object.create(world) as typeof world;
+      gw.walkable = (c: Cell, boat?: boolean) => world.walkable(c, boat) || doorCells.has(`${c.x},${c.z}`);
+      this.guideWorld = gw;
+      this.guideWorldFor = world;
+    }
     const approach = this.walkableNear(goal);
-    const path = approach ? findPath(this.sim.world, player, approach) : null;
+    const path = approach ? findPath(this.guideWorld!, player, approach) : null;
     if (!path || path.length === 0) {
       for (const d of this.questDots) d.visible = false;
       return;
@@ -3980,10 +3998,10 @@ export class GameRenderer {
       const built = buildBBModel(mobModelId);
       if (built) {
         if (tint) for (const m of built.materials) m.color.set(tint); // variant recolor (multiplies the skin)
-        // The sheep bb-model is authored facing +Z, opposite every other mob
-        // (which face -Z, matching the shared `facing + Math.PI`). Spin its rig
-        // 180° so it walks forwards instead of rear-first.
-        if (mobModelId === "mob.sheep") built.group.rotation.y += Math.PI;
+        // A few bb-models are authored facing the opposite way to the rest of
+        // the pack (verified empirically with camera-facing line-ups): spin
+        // those rigs 180° so they walk forwards instead of rear-first.
+        if (mobModelId === "mob.sheep" || mobModelId === "mob.cow") built.group.rotation.y += Math.PI;
         body.add(built.group);
         // Procedural animation off the bone names: legs and arms swing on the
         // walk cycle (the existing leg loop drives anim.legs), wings flap, and
