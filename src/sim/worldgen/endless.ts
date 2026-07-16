@@ -1282,9 +1282,19 @@ function frontDoorCell(asset: StructureAsset): { x: number; z: number } {
  *  are left out of the intimate starter town so it reads as a village, not a
  *  city. Positions are computed from each build's real footprint so nothing
  *  overlaps. */
-const TOWN_ORDER = [
-  "inn", "blacksmith", "butcher", "bakery",
-  "library", "leader_house", "little_house", "watch_tower",
+// Footprint sizes for the town-lane layout. These no longer reference imported
+// schematics — the actual buildings that land near the anchor are our own
+// code-drawn homes (object.house.small / .big), clustered by the homestead
+// gate. This table only shapes where the lanes reach.
+const TOWN_BUILDS: Array<{ name: string; sx: number; sz: number }> = [
+  { name: "Inn", sx: 6, sz: 5 },
+  { name: "Smithy", sx: 5, sz: 4 },
+  { name: "Butcher", sx: 5, sz: 4 },
+  { name: "Bakery", sx: 5, sz: 4 },
+  { name: "Library", sx: 6, sz: 5 },
+  { name: "Elder's House", sx: 5, sz: 4 },
+  { name: "Cottage", sx: 5, sz: 4 },
+  { name: "Watchtower", sx: 4, sz: 4 },
 ];
 
 interface VillageHouse {
@@ -1303,46 +1313,25 @@ const VILLAGE_CACHE = new Map<number, VillageLayout>();
  *  step out is always an open outdoor yard on the path. Clicking anywhere on the
  *  solid mass still enters — this only fixes where the door + path meet. */
 function townDoor(
-  asset: StructureAsset,
+  build: { sx: number; sz: number },
   min: { x: number; z: number },
   green: { x: number; z: number },
 ): { doorLocal: { x: number; z: number; facing: Facing }; exit: { x: number; z: number } } {
-  const solid = new Set(solidColumns(asset).map((c) => `${c.x},${c.z}`));
-  const W = asset.sx, D = asset.sz;
+  // The buildings are simple code-drawn rectangles now, so the door hangs at
+  // the middle of whichever wall faces the town green, with the yard cell one
+  // step out onto the lane.
+  const W = build.sx, D = build.sz;
   const cxW = min.x + W / 2, czW = min.z + D / 2;
   const tgx = green.x - cxW, tgz = green.z - czW;
   const facing: Facing = Math.abs(tgx) > Math.abs(tgz)
     ? (tgx > 0 ? "east" : "west")
     : (tgz > 0 ? "south" : "north");
+  const doorLocal =
+    facing === "south" ? { x: (W - 1) >> 1, z: D - 1, facing }
+      : facing === "north" ? { x: (W - 1) >> 1, z: 0, facing }
+        : facing === "east" ? { x: W - 1, z: (D - 1) >> 1, facing }
+          : { x: 0, z: (D - 1) >> 1, facing };
   const [ox, oz] = { south: [0, 1], north: [0, -1], east: [1, 0], west: [-1, 0] }[facing] as [number, number];
-  // Perpendicular scan axis: for an east/west door the lanes run along z; for a
-  // north/south door they run along x. Walk lanes from the footprint centre out
-  // and take the first that carries solid mass, so the door lands mid-wall.
-  const alongX = facing === "north" || facing === "south";
-  const nLanes = alongX ? W : D;
-  const nDepth = alongX ? D : W;
-  const centre = Math.round((nLanes - 1) / 2);
-  const laneOrder: number[] = [];
-  for (let off = 0; off < nLanes; off++) {
-    laneOrder.push(centre + off);
-    if (off > 0) laneOrder.push(centre - off);
-  }
-  const cellOf = (lane: number, depth: number) => (alongX ? { x: lane, z: depth } : { x: depth, z: lane });
-  let doorLocal: { x: number; z: number; facing: Facing } | null = null;
-  for (const lane of laneOrder) {
-    if (lane < 0 || lane >= nLanes) continue;
-    // Outermost solid cell along the facing direction in this lane.
-    let edge = -1;
-    for (let depth = 0; depth < nDepth; depth++) {
-      const c = cellOf(lane, depth);
-      if (!solid.has(`${c.x},${c.z}`)) continue;
-      const val = facing === "south" ? c.z : facing === "north" ? nDepth - 1 - c.z
-        : facing === "east" ? c.x : nDepth - 1 - c.x;
-      if (val > edge) { edge = val; doorLocal = { x: c.x, z: c.z, facing }; }
-    }
-    if (doorLocal) break;
-  }
-  if (!doorLocal) doorLocal = { x: centre, z: alongX ? D - 1 : centre, facing };
   const exit = { x: min.x + doorLocal.x + ox, z: min.z + doorLocal.z + oz };
   return { doorLocal, exit };
 }
@@ -1356,19 +1345,18 @@ function villageLayout(seed: number): VillageLayout {
   // Size-aware ring: each build takes an arc proportional to its footprint, so
   // a 44-wide schematic never crowds the little cottage next to it. The radius
   // scales with the total so nothing overlaps the plaza or a neighbour.
-  const builds = TOWN_ORDER.map((id) => getStructure(id)).filter((x): x is StructureAsset => !!x);
-  const span = (s: StructureAsset) => Math.max(s.sx, s.sz) + 6; // footprint + gap
-  const total = builds.reduce((n, s) => n + span(s), 0);
+  const span = (s: { sx: number; sz: number }) => Math.max(s.sx, s.sz) + 6; // footprint + gap
+  const total = TOWN_BUILDS.reduce((n, s) => n + span(s), 0);
   const radius = Math.max(40, Math.round(total / (2 * Math.PI)) + 4);
   let ang = 0;
-  for (const asset of builds) {
-    const slice = (span(asset) / total) * Math.PI * 2;
+  for (const build of TOWN_BUILDS) {
+    const slice = (span(build) / total) * Math.PI * 2;
     const mid = ang + slice / 2;
     ang += slice;
     const cx = Math.sin(mid) * radius, cz = -Math.cos(mid) * radius;
-    const min = { x: Math.round(a.x + cx - asset.sx / 2), z: Math.round(a.z + cz - asset.sz / 2) };
-    const { doorLocal, exit } = townDoor(asset, min, green);
-    houses.push({ id: asset.name, min, doorLocal, exit });
+    const min = { x: Math.round(a.x + cx - build.sx / 2), z: Math.round(a.z + cz - build.sz / 2) };
+    const { doorLocal, exit } = townDoor(build, min, green);
+    houses.push({ id: build.name, min, doorLocal, exit });
   }
   // Cobbled paths: an L-shaped lane from the green to each door's yard cell,
   // three cells wide, plus a ring around the green.
@@ -1928,20 +1916,16 @@ function tryStampLandmark(
   };
 
   const kind = cellHash(cx * 3 + 1, cz * 5 + 2, salt(seed, 98));
-  const shrine = getStructure("wayshrine");
-  if (kind >= 0.72 && shrine) {
-    // A roadside wayshrine: a small shrine flanked by benches and a lamp, a
-    // quiet waypoint for travelers.
+  if (kind >= 0.72 && px >= 3 && pz >= 3 && px < ECHUNK - 3 && pz < ECHUNK - 3) {
+    // A roadside wayshrine: our own code-drawn stone shrine flanked by benches
+    // and a lamp, a quiet waypoint for travelers.
     flatten(5);
-    const hx = px - (shrine.sx >> 1), hz = pz - (shrine.sz >> 1);
-    if (hx >= 2 && hz >= 2 && hx + shrine.sx < ECHUNK - 2 && hz + shrine.sz < ECHUNK - 2) {
-      structures.push({ instanceId: id(), structureId: "wayshrine", cell: { x: x0 + hx, z: z0 + hz } });
-      objects.push({ instanceId: id(), defId: "object.bench.wood", cell: { x: wx - 3, z: wz + 3 } });
-      objects.push({ instanceId: id(), defId: "object.bench.wood", cell: { x: wx + 3, z: wz + 3 } });
-      objects.push({ instanceId: id(), defId: "object.lamp.post", cell: { x: wx, z: wz + 5 } });
-      houseBoxes.push({ x0: px - 5, z0: pz - 5, x1: px + 5, z1: pz + 5 });
-      return true;
-    }
+    objects.push({ instanceId: id(), defId: "object.shrine.stone", cell: { x: wx, z: wz } });
+    objects.push({ instanceId: id(), defId: "object.bench.wood", cell: { x: wx - 3, z: wz + 3 } });
+    objects.push({ instanceId: id(), defId: "object.bench.wood", cell: { x: wx + 3, z: wz + 3 } });
+    objects.push({ instanceId: id(), defId: "object.lamp.post", cell: { x: wx, z: wz + 5 } });
+    houseBoxes.push({ x0: px - 5, z0: pz - 5, x1: px + 5, z1: pz + 5 });
+    return true;
     // No room for the shrine — fall through to a stone circle instead.
   }
 
@@ -2152,9 +2136,9 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   // into an endlessly-descending dungeon. The clickable mouth sits one row in
   // front (south) of the arch, so the approach is always walkable.
   if (!stamped && cellHash(cx * 70001, cz * 30011, salt(seed, 63)) < 0.03) {
-    const gate = getStructure("portal_crimson");
-    const w = gate?.sx ?? 25;
-    const d = gate?.sz ?? 25;
+    // No imported arch — the clickable cave-mouth portal (a code object) is the
+    // whole gate now, on a modest cleared pad.
+    const w = 11, d = 11;
     if (w + 8 < ECHUNK && d + 10 < ECHUNK) {
       const ex = 4 + Math.floor(cellHash(cx * 3 + 1, cz * 5 + 2, salt(seed, 64)) * (ECHUNK - w - 8));
       const ez = 4 + Math.floor(cellHash(cz * 7 + 3, cx * 11 + 4, salt(seed, 65)) * (ECHUNK - d - 10));
@@ -2193,9 +2177,8 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           : 2 + Math.floor(cellHash(x0 + ex + 3, z0 + ez + 1, salt(seed, 69)) * 4);
         const doorX = x0 + ex + (w >> 1);
         const doorZ = z0 + ez + d;
-        structures.push({ instanceId: `end.${cx}.${cz}.gate`, structureId: "portal_crimson", cell: { x: x0 + ex, z: z0 + ez } });
         objects.push({
-          instanceId: id(),
+          instanceId: `end.${cx}.${cz}.gate`,
           defId: "object.portal.cave",
           cell: { x: doorX, z: doorZ },
           portal: {

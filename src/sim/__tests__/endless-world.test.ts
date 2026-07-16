@@ -139,8 +139,15 @@ describe("the endless world", () => {
     expect(species, "tree variety").toBeGreaterThan(5);
     // Surface ore is the common metals only (rares are underground); a few show.
     expect(ores, "surface ore variety").toBeGreaterThanOrEqual(3);
-    // Civilisation + adventure: dungeons and built structures generate.
+    // Civilisation + adventure: dungeons and built homesteads generate.
     expect([...objects].some((d) => d.includes("portal.cave")), "dungeon gates").toBe(true);
-    expect(structures, "wild structures/homesteads").toBeGreaterThan(0);
+    // Wild homes and village houses are now our own code-drawn buildings
+    // (object.house.small / .big), not imported schematic StructurePlacements —
+    // a populated world scatters them across the sweep. Ruined landmarks still
+    // count as structures, so either surfacing proves civilisation generated.
+    const homes = [...objects].filter(
+      (d) => d === "object.house.small" || d === "object.house.big",
+    ).length;
+    expect(homes + structures, "wild homesteads/structures").toBeGreaterThan(0);
   }, 90000);
 });

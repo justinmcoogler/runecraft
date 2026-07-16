@@ -2521,6 +2521,27 @@ export class GameRenderer {
           }
           break;
         }
+        case "object.shrine.stone": {
+          // A code-drawn roadside shrine: a stepped stone plinth, a short
+          // pillar, and a small pitched cap sheltering a warm votive glow.
+          const stone = this.lambert("terrain.stonebrick");
+          const base = this.tiledBox(1.1, 0.3, 1.1, stone);
+          base.position.y = 0.15;
+          const plinth = this.tiledBox(0.7, 0.35, 0.7, stone);
+          plinth.position.y = 0.47;
+          const pillar = this.tiledBox(0.4, 0.7, 0.4, stone);
+          pillar.position.y = 1.0;
+          // A votive niche: an emissive amber block under a little roof.
+          const flame = new THREE.Mesh(
+            new THREE.BoxGeometry(0.22, 0.28, 0.22),
+            new THREE.MeshLambertMaterial({ color: "#000000", emissive: "#e8a13a" }),
+          );
+          flame.position.y = 1.5;
+          const cap = this.tiledBox(0.6, 0.18, 0.6, this.lambert("roof.slate"));
+          cap.position.y = 1.78;
+          group.add(base, plinth, pillar, flame, cap, makeBlobShadow(0.7));
+          break;
+        }
         case "object.well.basic": {
           const brick = this.lambert("object.furnace.side");
           const ring = this.tiledBox(0.95, 0.55, 0.95, brick);

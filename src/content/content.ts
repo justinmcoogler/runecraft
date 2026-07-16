@@ -5025,6 +5025,13 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     scenery: true,
     blocksNav: true,
   },
+  "object.shrine.stone": {
+    id: "object.shrine.stone",
+    name: "Wayshrine",
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    scenery: true,
+    blocksNav: true,
+  },
   "object.well.basic": {
     id: "object.well.basic",
     name: "Town Well",
