@@ -164,8 +164,24 @@ export function showStartScreen(opts: StartScreenOptions): Promise<StartChoice> 
         del.title = "Delete this world";
         del.setAttribute("aria-label", `Delete World #${w.seed}`);
         del.textContent = "✕";
+        // Two-click confirm, in the DOM (pixel font) — a native confirm() is
+        // both off-theme and silently blocked in a sandboxed iframe, which was
+        // stopping deletes entirely.
+        let armed = false;
+        let disarm: number | undefined;
         del.onclick = () => {
-          if (!confirm(`Delete World #${w.seed}? This can't be undone.`)) return;
+          if (!armed) {
+            armed = true;
+            del.textContent = "Delete?";
+            del.classList.add("armed");
+            disarm = window.setTimeout(() => {
+              armed = false;
+              del.textContent = "✕";
+              del.classList.remove("armed");
+            }, 3000);
+            return;
+          }
+          if (disarm) window.clearTimeout(disarm);
           opts.onDelete(w.seed);
           worlds = worlds.filter((x) => x.seed !== w.seed);
           render("continue");

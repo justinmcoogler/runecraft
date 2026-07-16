@@ -45,6 +45,9 @@ interface EnemyAnim {
   /** Flapping wing bones (bee, bat, allay, ghast, parrot…) on baked mob models
    *  that carry no keyframes: each flaps about its rest z by a mirrored sign. */
   wings?: Array<{ obj: THREE.Object3D; base: number; sign: number }>;
+  /** A ground bird (chicken): wings stay tucked and only flutter — gently at
+   *  rest, harder when it scurries — instead of the constant hover-flap. */
+  groundBird?: boolean;
   /** Slow idle sway for limbless dangly bits (warden tendrils, tails, spines):
    *  a gentle rock about the rest x/z, always on, so the boss never freezes. */
   sway?: Array<{ obj: THREE.Object3D; baseX: number; baseZ: number; sign: number }>;
@@ -3877,7 +3880,7 @@ export class GameRenderer {
       warden: 1.0,
     }[kind] ?? 0.5;
     group.add(body, makeBlobShadow(shadowSize));
-    const anim: EnemyAnim = { body, legs: [], head: null, headRestZ: 0, segments: [], walkPhase: 0, lungeT: 0 };
+    const anim: EnemyAnim = { body, legs: [], head: null, headRestZ: 0, segments: [], walkPhase: 0, lungeT: 0, groundBird: kind === "chicken" };
     // BetaSharp vanilla mob models: exact box-UV geometry skinned with the
     // Faithful entity textures baked in. Static for now (the source files carry
     // no keyframe animation), but a clear upgrade over the approximate rigs.
@@ -3886,6 +3889,10 @@ export class GameRenderer {
       const built = buildBBModel(mobModelId);
       if (built) {
         if (tint) for (const m of built.materials) m.color.set(tint); // variant recolor (multiplies the skin)
+        // The sheep bb-model is authored facing +Z, opposite every other mob
+        // (which face -Z, matching the shared `facing + Math.PI`). Spin its rig
+        // 180° so it walks forwards instead of rear-first.
+        if (mobModelId === "mob.sheep") built.group.rotation.y += Math.PI;
         body.add(built.group);
         // Procedural animation off the bone names: legs and arms swing on the
         // walk cycle (the existing leg loop drives anim.legs), wings flap, and
@@ -4586,8 +4593,17 @@ export class GameRenderer {
         leg.rotation.x = moving ? (i % 2 === 0 ? swing : -swing) : leg.rotation.x * 0.8;
       });
       if (anim.wings) {
-        const flap = Math.sin(this.elapsed * 22) * 0.6;
-        for (const w of anim.wings) w.obj.rotation.z = w.base + w.sign * flap;
+        if (anim.groundBird) {
+          // Wings tucked, fluttering up from the body — a gentle idle ripple,
+          // faster while it scurries — rather than a frantic constant flap.
+          const amp = moving ? 0.5 : 0.12;
+          const flap = Math.abs(Math.sin(this.elapsed * (moving ? 9 : 3))) * amp;
+          for (const w of anim.wings) w.obj.rotation.z = w.base + w.sign * flap;
+        } else {
+          // Hovering flyers (bat, bee, allay…) beat their wings constantly.
+          const flap = Math.sin(this.elapsed * 22) * 0.6;
+          for (const w of anim.wings) w.obj.rotation.z = w.base + w.sign * flap;
+        }
       }
       if (anim.sway) {
         const s = Math.sin(this.elapsed * 2.2);
