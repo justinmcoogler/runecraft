@@ -203,6 +203,7 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
     // leaves an orthogonally-adjacent dry bank to fish from.
     const { px, pz } = perpAt(line, stopIdx[idx + 1]);
     const perp = Math.abs(px) >= Math.abs(pz) ? { x: Math.sign(px) || 1, z: 0 } : { x: 0, z: Math.sign(pz) || 1 };
+    const tangent = perp.x !== 0 ? { x: 0, z: 1 } : { x: 1, z: 0 };
     const off = (d: number, sign: number): Cell => ({
       x: clamp(stop.x + perp.x * sign * d, MOAT + 4, W - 1 - MOAT - 4),
       z: clamp(stop.z + perp.z * sign * d, MOAT + 4, D - 1 - MOAT - 4),
@@ -225,7 +226,16 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
             `Train ${skillName} here, then come back to me and I'll sign it off.`,
           ],
     });
-    objects.push({ instanceId: `tut.lamp.${short}`, defId: "object.lamp.post", cell: off(CLEAR_R, -1) });
+    // Lamp to a clearing corner (diagonal), well off the path and off the pen
+    // gate so it can't block the way in to the animals.
+    objects.push({
+      instanceId: `tut.lamp.${short}`,
+      defId: "object.lamp.post",
+      cell: {
+        x: clamp(stop.x + perp.x * 5 + tangent.x * 5, MOAT + 4, W - 1 - MOAT - 4),
+        z: clamp(stop.z + perp.z * 5 + tangent.z * 5, MOAT + 4, D - 1 - MOAT - 4),
+      },
+    });
 
     // Station bay: on the +perp side. Carve a floored bay and set the station in it.
     if (t.station) {
@@ -247,9 +257,15 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
         }
       } else {
         const scell = off(CLEAR_R - 2, 1);
-        disc(scell.x, scell.z, 2, "coarsedirt"); // a small floored bay
+        disc(scell.x, scell.z, 3, "coarsedirt"); // a small floored bay
         if (t.station.startsWith("resource.")) {
+          // Two of the resource, a couple of cells apart, so you can alternate
+          // between them (chop/mine one while the other regrows).
+          const alt = perp.x !== 0
+            ? { x: scell.x, z: scell.z + 2 }
+            : { x: scell.x + 2, z: scell.z };
           nodes.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell });
+          nodes.push({ instanceId: `tut.station.${short}.b`, defId: t.station, cell: alt });
         } else if (t.station === "object.shortcut.log") {
           objects.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell, portal: { targetRegionId: "region.tutorial", targetCell: { x: stop.x, z: stop.z } } });
         } else {
@@ -262,7 +278,7 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
     if (t.pen) {
       const penC = off(CLEAR_R + 3, -1);
       const gate = { dx: Math.sign(Math.round(stop.x - penC.x)), dz: Math.sign(Math.round(stop.z - penC.z)) };
-      buildPen(set, trail, enemies, penC.x, penC.z, gate, short, t.pen, !!t.combat, !!t.boss);
+      buildPen(set, trail, enemies, objects, penC.x, penC.z, gate, short, t.pen, !!t.combat, !!t.boss);
     }
   });
 
@@ -373,22 +389,25 @@ function decorateField(
       if (d < 4) continue; // a clean grass verge frames the path
       const h = ((x * 73856093) ^ (z * 19349663)) >>> 0;
       const r = h % 100;
-      // Trees and boulders only where the ground is flat all around, so they
-      // never float. Low cover (flowers/tufts) can sit anywhere on the field.
-      if (d >= 10 && r < 3 && flatHere(x, z)) put(x, z, "resource.tree.basic", true);
-      else if (r < 4 && flatHere(x, z)) put(x, z, "object.boulder.stone");
-      else if (r < 16) put(x, z, "object.flowers.wild");
-      else if (r < 34) put(x, z, "object.grass.tuft");
+      // A living countryside: trees and leafy berry bushes deeper in, low grass
+      // tufts near the verge. No boulders (the stray rocks read as odd) and no
+      // showy flowers (they tower into weird coloured voxel masses). Trees and
+      // bushes only where the ground is flat all around, so they never perch on
+      // an edge and float.
+      if (d >= 8 && r < 4 && flatHere(x, z)) put(x, z, "resource.tree.basic", true);
+      else if (d >= 6 && r < 8 && flatHere(x, z)) put(x, z, "resource.bush.berry", true);
+      else if (r < 48) put(x, z, "object.grass.tuft");
     }
   }
 }
 
-/** A compact fenced pen carved as a floor bay, with a one-cell gate opening on
- *  the side that faces the clearing. */
+/** A compact fenced pen carved as a floor bay, with a functional gate (a
+ *  click-to-open door) on the side that faces the clearing. */
 function buildPen(
   set: (x: number, z: number, block: BlockType, h: number) => void,
   trail: Uint8Array,
   enemies: EnemyPlacement[],
+  objects: ObjectPlacement[],
   cx: number,
   cz: number,
   gateDir: { dx: number; dz: number },
@@ -405,6 +424,9 @@ function buildPen(
   const wall = (x: number, z: number) => { if (!(x === gx && z === gz)) set(x, z, "oak_fence", BASE); };
   for (let z = z0; z <= z1; z++) { wall(x0, z); wall(x1, z); }
   for (let x = x0; x <= x1; x++) { wall(x, z0); wall(x, z1); }
+  // A real gate in the gap: a click-to-open door so the pen actually closes and
+  // you open it to get at the animals (and it swings shut behind you).
+  objects.push({ instanceId: `tut.pen.${short}.gate`, defId: "object.door.wood", cell: { x: gx, z: gz } });
   const primary = boss ? `tut.pen.${short}.boss` : `tut.pen.${short}.a`;
   enemies.push(
     { instanceId: primary, defId: enemyDef, cell: { x: cx, z: cz - 1 } },

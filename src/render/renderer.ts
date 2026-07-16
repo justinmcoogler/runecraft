@@ -2924,32 +2924,28 @@ export class GameRenderer {
           break;
         }
         case "object.portal.graduate": {
-          // A standing stone-brick gateway with a glowing membrane — step through
-          // to leave the tutorial vale for a fresh random world. All cubes.
-          const brick = this.lambert("terrain.stonebrick");
-          for (const px of [-0.55, 0.55]) {
-            const post = this.tiledBox(0.4, 3, 0.4, brick);
-            post.position.set(px, 1.5, 0);
-            group.add(post);
-          }
-          const lintel = this.tiledBox(1.5, 0.4, 0.4, brick);
-          lintel.position.set(0, 3.2, 0);
-          group.add(lintel);
+          // A Minecraft Nether-style gateway: a dark obsidian frame around a
+          // wide 2×3 opening, with the glowing membrane filling ONLY the
+          // interior (the frame itself doesn't glow). Step through to leave the
+          // tutorial for a fresh random world. All cubes.
+          const obsidian = new THREE.MeshLambertMaterial({ color: "#160f22" });
+          const bar = (w: number, h: number, x: number, y: number) => {
+            const b = this.tiledBox(w, h, 0.5, obsidian);
+            b.position.set(x, y, 0);
+            group.add(b);
+          };
+          bar(0.5, 4, -1.25, 2);  // left post
+          bar(0.5, 4, 1.25, 2);   // right post
+          bar(3, 0.5, 0, 3.75);   // top lintel
+          bar(3, 0.5, 0, 0.25);   // bottom sill
+          // The purple portal surface — glows and pulses, only within the frame.
           const glowMat = new THREE.MeshBasicMaterial({
-            color: "#57e0ff", transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false,
+            color: "#a35bff", transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false,
           });
-          const membrane = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.7, 0.12), glowMat);
-          membrane.position.set(0, 1.55, 0);
-          group.add(membrane, makeBlobShadow(0.8));
-          this.portalGlows.push({ mat: glowMat, base: 0.42, amp: 0.18, group });
-          // A soft square beam so the gateway is a findable landmark.
-          const beamMat = new THREE.MeshBasicMaterial({
-            color: "#57e0ff", transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending,
-          });
-          const beam = new THREE.Mesh(new THREE.BoxGeometry(0.5, 9, 0.5), beamMat);
-          beam.position.set(0, 5.4, 0);
-          group.add(beam);
-          this.portalGlows.push({ mat: beamMat, base: 0.1, amp: 0.05, group });
+          const membrane = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 0.14), glowMat);
+          membrane.position.set(0, 2, 0);
+          group.add(membrane, makeBlobShadow(1.2));
+          this.portalGlows.push({ mat: glowMat, base: 0.6, amp: 0.2, group });
           break;
         }
         case "object.portal.cave": {

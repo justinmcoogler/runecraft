@@ -360,8 +360,16 @@ export class GameSimulation {
   /** Open a door: lift its nav blocker so the player can walk through, and
    *  arm a timer to swing it shut again once they're clear. */
   openDoor(instanceId: string): void {
-    if (this.openDoors.has(instanceId)) {
-      this.openDoors.get(instanceId)!.remainS = DOOR_OPEN_S; // re-clicking holds it open
+    const already = this.openDoors.get(instanceId);
+    if (already) {
+      // Re-click toggles it shut — unless you're standing in the doorway, in
+      // which case hold it open so you're never trapped in a closing frame.
+      const here = this.movement.currentCell();
+      const cells = [already.cell, ...already.footprint];
+      if (cells.some((c) => cellsMatch(c, here))) { already.remainS = DOOR_OPEN_S; return; }
+      for (const cell of cells) this.world.registerBlocker(instanceId, cell);
+      this.openDoors.delete(instanceId);
+      this.events.emit({ type: "doorClosed", instanceId, cell: already.cell });
       return;
     }
     const obj = this.world.region.objects.find((o) => o.instanceId === instanceId);
