@@ -81,6 +81,18 @@ export class QuestService {
     return null;
   }
 
+  /** If this NPC has a quest to give but it's still gated behind an unfinished
+   *  prerequisite, the quest id the player must complete first — so the HUD can
+   *  send them back to the right master instead of a blank shrug. */
+  blockedByFor(npcId: string): string | null {
+    for (const [id, def] of Object.entries(this.defs)) {
+      if (def.giverNpcId !== npcId || this.states[id].status !== "available" || this.isAvailable(id)) continue;
+      const pending = (def.prereqQuestIds ?? []).find((p) => this.states[p]?.status !== "completed");
+      if (pending) return pending;
+    }
+    return null;
+  }
+
   /** Consume this tick's events and advance quest state. May emit quest events. */
   process(events: SimEvent[]): void {
     for (const ev of events) {

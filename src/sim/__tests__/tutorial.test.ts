@@ -54,6 +54,27 @@ describe("Tutor's Trail", () => {
     expect((sim.world.region.enemies ?? []).some((e) => e.defId === "enemy.pig")).toBe(true);
   });
 
+  it("an out-of-order master points you back to the lesson you still owe", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    const mining = masterNpcId("skill.mining");
+    // Nothing done: the miner's lesson is gated behind the woodcutter's.
+    expect(sim.quests.blockedByFor(mining)).toBe("quest.tut_woodcutting");
+    // Clear the way and the miner opens up — no longer blocked.
+    sim.quests.states["quest.tut_welcome"].status = "completed";
+    sim.quests.states["quest.tut_woodcutting"].status = "completed";
+    expect(sim.quests.blockedByFor(mining)).toBeNull();
+    expect(sim.quests.isAvailable("quest.tut_mining")).toBe(true);
+  });
+
+  it("puts a real fishing spot on the water with a bank to cast from", () => {
+    const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
+    const node = sim.world.region.nodes.find((n) => n.instanceId === "tut.station.fishing");
+    expect(node?.defId).toBe("resource.fishing.pond");
+    expect(sim.world.blockAt(node!.cell)).toBe("water");
+    const bank = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => sim.world.walkable({ x: node!.cell.x + dx, z: node!.cell.z + dz }));
+    expect(bank).toBe(true);
+  });
+
   it("does not set the graduation flag until the chain is done", () => {
     const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
     expect(sim.worldFlags.has("tutorial.graduated")).toBe(false);

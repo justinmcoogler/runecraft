@@ -705,9 +705,21 @@ export class Hud {
           );
           if (questSpokeThisBatch) break;
           const reminder = this.sim.quests.reminderFor(ev.instanceId);
+          if (reminder) { this.toast(`${ev.name}: “${reminder}”`, "speech"); break; }
+          // Talking to a master out of order: point them back to the lesson they
+          // still owe before this one will open.
+          const blockedBy = this.sim.quests.blockedByFor(ev.instanceId);
+          if (blockedBy) {
+            const pre = QUESTS[blockedBy];
+            this.toast(
+              `${ev.name}: “You're not ready for my lesson yet — go and finish "${pre.name}" with ${npcName(pre.giverNpcId, this.sim)} first, then come back.”`,
+              "speech",
+            );
+            break;
+          }
           const own = this.sim.npcs.get(ev.instanceId)?.lines;
           const pool = own ?? NPC_LINES;
-          const line = reminder ?? pool[this.npcLineIndex++ % pool.length];
+          const line = pool[this.npcLineIndex++ % pool.length];
           this.toast(`${ev.name}: “${line}”`, "speech");
           break;
         }

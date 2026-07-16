@@ -195,17 +195,22 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
     });
     objects.push({ instanceId: `tut.lamp.${short}`, defId: "object.lamp.post", cell: { x: stop.x, z: stop.z - CLEAR_R } });
 
-    // A pond off to one side of the clearing for the anglers/mariners.
+    // A pond off to one side of the clearing for the anglers/mariners. It laps
+    // right up to the clearing edge so there's dry bank to fish/dock from.
     if (t.water) {
-      for (let dz = -2; dz <= 2; dz++) for (let dx = 0; dx <= 3; dx++) {
+      for (let dz = -3; dz <= 3; dz++) for (let dx = 0; dx <= 4; dx++) {
         set(stop.x + side * (CLEAR_R - 1 + dx), stop.z + dz, "water", BASE);
       }
-      objects.push({ instanceId: `tut.reeds.${short}`, defId: "object.reeds.water", cell: { x: stop.x + side * (CLEAR_R - 1), z: stop.z } });
+      objects.push({ instanceId: `tut.reeds.${short}`, defId: "object.reeds.water", cell: { x: stop.x + side * (CLEAR_R + 1), z: stop.z + 2 } });
     }
 
-    // Station out toward the edge of the roomy clearing.
-    if (t.station) {
-      const scell = { x: stop.x + side * 4, z: stop.z + (t.water ? -3 : 0) };
+    // Station placement.
+    if (t.station === "resource.fishing.pond") {
+      // The fishing spot sits ON the near edge of the pond (a water cell); the
+      // dry clearing cell one step in is where the angler stands to cast.
+      nodes.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: { x: stop.x + side * (CLEAR_R - 1), z: stop.z } });
+    } else if (t.station) {
+      const scell = { x: stop.x + side * 4, z: stop.z };
       set(scell.x, scell.z, "coarsedirt", BASE);
       if (t.station.startsWith("resource.")) {
         nodes.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell });
