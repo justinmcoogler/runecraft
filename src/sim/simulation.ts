@@ -920,14 +920,36 @@ export class GameSimulation {
     const questEvents = this.events.drain();
     // Completed quests may set world flags that visibly repair the world.
     for (const ev of questEvents) {
-      if (ev.type !== "questCompleted") continue;
-      const flag = QUESTS[ev.questId]?.completionFlag;
-      if (flag && !this.worldFlags.has(flag)) this.setWorldFlag(flag);
-      // On the tutorial trail, finishing one lesson auto-tracks the next so the
-      // guidance line/marker leads straight on to the following master.
-      this.trackNextTutorialQuest(ev.questId);
+      if (ev.type === "questCompleted") {
+        const flag = QUESTS[ev.questId]?.completionFlag;
+        if (flag && !this.worldFlags.has(flag)) this.setWorldFlag(flag);
+        // On the tutorial trail, finishing one lesson auto-tracks the next so
+        // the guidance line/marker leads straight on to the following master.
+        this.trackNextTutorialQuest(ev.questId);
+      }
+      // Accepting or finishing a lesson moves your respawn to that master, so
+      // dying to the penned beasts wakes you right there — not a long trudge
+      // back from the camp at the start of the island.
+      if (ev.type === "questStarted" || ev.type === "questCompleted") this.updateTutorialRespawn();
     }
     return [...events, ...questEvents, ...this.events.drain()];
+  }
+
+  /** In the tutorial, set the respawn point to the master of the lesson you're
+   *  on, so death drops you back at the lesson rather than at the camp. */
+  private updateTutorialRespawn(): void {
+    if (this.world.region.id !== "region.tutorial") return;
+    const activeId =
+      this.trackedQuestId && this.quests.states[this.trackedQuestId]?.status === "active"
+        ? this.trackedQuestId
+        : Object.keys(this.quests.states).find(
+            (id) => id.startsWith("quest.tut_") && this.quests.states[id].status === "active",
+          );
+    const giver = activeId ? QUESTS[activeId]?.giverNpcId : undefined;
+    const npc = giver ? this.world.region.npcs.find((n) => n.instanceId === giver) : undefined;
+    if (!npc) return;
+    const safe = this.world.walkable(npc.cell) ? npc.cell : this.world.nearestWalkable(npc.cell, 5);
+    if (safe) this.homePoint = { regionId: "region.tutorial", cell: { ...safe } };
   }
 
   /** After a tutorial lesson completes, pin the next quest in the trail chain

@@ -68,7 +68,7 @@ describe("Tutor's Trail sequential unlock", () => {
 });
 
 describe("the Combat Instructor lesson", () => {
-  it("grants a sword on accept, then counts three pig kills", () => {
+  it("grants a sword on accept, then makes you switch attack styles", () => {
     const sim = chainSim();
     // Complete every lesson up to (not including) Attack so it's available.
     sim.quests.states["quest.tut_welcome"].status = "completed";
@@ -77,14 +77,16 @@ describe("the Combat Instructor lesson", () => {
       sim.quests.states[lessonId(skill)].status = "completed";
     }
     const swordsBefore = sim.inventory.count("tool.sword.bronze");
-    sim.equippedTool = "tool.sword.bronze"; // a weapon in hand: the equip step auto-clears
-    talk(sim); // accept: startItems hands over a sword, then talk + equip auto-advance -> slay
+    sim.equippedTool = "tool.sword.bronze";
+    talk(sim); // accept: startItems hands over a sword
     expect(sim.inventory.count("tool.sword.bronze")).toBe(swordsBefore + 1);
-    expect(sim.quests.activeObjective("quest.tut_attack")?.id).toBe("do");
-
-    sim.quests.process([{ type: "enemyDied", instanceId: PIG }, { type: "enemyDied", instanceId: PIG }] as SimEvent[]);
-    expect(sim.quests.states["quest.tut_attack"].progress).toBe(2);
-    sim.quests.process([{ type: "enemyDied", instanceId: PIG }] as SimEvent[]);
+    // First a hit on Accurate (Attack), then a switch to Aggressive (Strength) —
+    // the two train steps can't be finished on one style, so you must switch.
+    expect(sim.quests.activeObjective("quest.tut_attack")?.type).toBe("train");
+    expect(sim.quests.activeObjective("quest.tut_attack")?.skillId).toBe("skill.attack");
+    sim.quests.process([{ type: "xpGained", skillId: "skill.attack", amount: 4 }] as SimEvent[]);
+    expect(sim.quests.activeObjective("quest.tut_attack")?.skillId).toBe("skill.strength");
+    sim.quests.process([{ type: "xpGained", skillId: "skill.strength", amount: 4 }] as SimEvent[]);
     // The lesson now ends by reporting back to the instructor.
     expect(sim.quests.activeObjective("quest.tut_attack")?.id).toBe("report");
     talk(sim);
