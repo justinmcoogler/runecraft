@@ -710,15 +710,9 @@ export class WorldEditor implements EditorInputTarget {
   private buildPalette(): Array<{ name: string; entries: PaletteEntry[] }> {
     const bySpecies = new Map<string, string[]>();
     const buildings: string[] = [];
-    // The interiored-house library is thousands of assets: pool them into one
-    // random-draw entry and never decode them here (getStructure on each would
-    // materialize millions of blocks just to build the menu).
-    const interiored: string[] = [];
+    // The imported voxel-house library has been removed; the palette now lists
+    // only our own baked builds (and the code-drawn houses live as objects).
     for (const id of structureIds()) {
-      if (id.startsWith("ihouse.")) {
-        interiored.push(id);
-        continue;
-      }
       const asset = getStructure(id);
       if (!asset) continue;
       if (id.startsWith("tree.")) {
@@ -726,8 +720,6 @@ export class WorldEditor implements EditorInputTarget {
         if (!bySpecies.has(species)) bySpecies.set(species, []);
         bySpecies.get(species)!.push(id);
       } else if (id.startsWith("house.")) {
-        // The plain house.* library is retired in favour of the interiored
-        // homes; keep it out of the editor palette.
         continue;
       } else if (id !== "castle.overgrowncastle") {
         buildings.push(id);
@@ -765,13 +757,6 @@ export class WorldEditor implements EditorInputTarget {
         pool: [id],
       };
     });
-    if (interiored.length > 0) {
-      buildingEntries.unshift({
-        label: `Interiored home — random (${interiored.length})`,
-        kind: "structure",
-        pool: interiored,
-      });
-    }
     // Every registered node, object and creature is placeable — not a curated
     // handful. Known ids get a friendly label; the rest are prettified from the
     // def id, so a brand-new content def turns up in the editor automatically.

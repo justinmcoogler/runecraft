@@ -1151,10 +1151,7 @@ function villageHomeStamps(seed: number, cx: number, cz: number): { x: number; z
   if (cached !== undefined) return cached;
   let res: { x: number; z: number } | null = null;
   gate: {
-    const pick = cellHash(cx * 6367, cz * 12007, salt(seed, 55));
-    const asset = getStructure(WILD_HOUSES[Math.floor(pick * WILD_HOUSES.length)]);
-    if (!asset) break gate;
-    const w = asset.sx, d = asset.sz;
+    const { w, d } = wildHouseSize(seed, cx, cz);
     if (w + 4 >= ECHUNK || d + 4 >= ECHUNK) break gate;
     const ox = 2 + Math.floor(cellHash(cx, cz, salt(seed, 56)) * (ECHUNK - 4 - w));
     const oz = 2 + Math.floor(cellHash(cz * 13, cx * 29, salt(seed, 57)) * (ECHUNK - 4 - d));
@@ -1202,25 +1199,16 @@ function onVillageLane(seed: number, x: number, z: number): boolean {
   return false;
 }
 
-/** The interiored-house library scattered as wild homesteads across habitable
- *  country — every furnished design (and its recolors) turns up as a
- *  discovery. Ids follow the pack's folder naming (a1..af8, each with five
- *  _recolored variants); missing ids simply fail the getStructure lookup and
- *  are skipped. Big footprints are self-rarefying: they only land where a
- *  level, dry pad happens to be wide enough. */
-const WILD_HOUSES: string[] = (() => {
-  const prefixes: string[] = [];
-  for (let c = 97; c <= 122; c++) prefixes.push(String.fromCharCode(c)); // a..z
-  for (const c of ["a", "b", "c", "d", "e", "f"]) prefixes.push(`a${c}`); // aa..af
-  const ids: string[] = [];
-  for (const p of prefixes) {
-    for (let n = 1; n <= 8; n++) {
-      ids.push(`ihouse.${p}${n}`);
-      for (let r = 1; r <= 5; r++) ids.push(`ihouse.${p}${n}_recolored_${r}`);
-    }
-  }
-  return ids;
-})();
+/** Wild homes are our own code-drawn buildings (object.house.small / .big —
+ *  procedural timber-frame cottages and inns), not the imported voxel-house
+ *  pack. Size is picked deterministically per chunk so the placement gate and
+ *  its lane-routing predictor stay in lockstep. */
+function wildHouseSize(seed: number, cx: number, cz: number): { defId: string; w: number; d: number } {
+  const pick = cellHash(cx * 6367, cz * 12007, salt(seed, 55));
+  return pick < 0.28
+    ? { defId: "object.house.big", w: 6, d: 5 }
+    : { defId: "object.house.small", w: 5, d: 4 };
+}
 
 /** A chunk-local rectangle, used to keep natural features out of a stamped
  *  building's footprint. */
@@ -1409,6 +1397,114 @@ function villagePathAt(seed: number, x: number, z: number): BlockType | null {
 }
 
 /**
+ * Skill-themed homesteads: each wild home is dressed as a recognizable
+ * skill landmark — a workstation, a matching resource node, a couple of props,
+ * and a resident who talks their trade — so a lone cabin (or a cluster that
+ * forms a village) reads as a forester's lodge, a smithy, a fisher's shack,
+ * and so on. Themes are biome-gated; the exact home is picked per chunk. Every
+ * id/def referenced here already exists — this only composes them.
+ */
+interface SkillHomeTheme {
+  id: string;
+  /** Eligible biome ids; empty = anywhere. */
+  biomes: number[];
+  /** Workstations placed in the yard (anvil, furnace, campfire, …). */
+  stations: string[];
+  /** A skill resource node placed beside the home (tree, rock, herb, plot, …). */
+  node?: string;
+  /** Scenery props that flavour the trade. */
+  props: string[];
+  npcName: string;
+  lines: string[];
+}
+const SKILL_HOME_THEMES: SkillHomeTheme[] = [
+  { id: "woodcutting", biomes: [1, 8, 9, 13, 22, 24], stations: [], node: "resource.tree.basic",
+    props: ["object.log.fallen", "object.crate.wood", "object.storage_chest.basic"],
+    npcName: "Forester", lines: ["The best timber's deeper in the wood.", "Mind the axe — she bites."] },
+  { id: "hunting", biomes: [2, 7, 12, 24], stations: [], node: "resource.trail.rabbit",
+    props: ["object.log.fallen", "object.crate.wood"],
+    npcName: "Trapper", lines: ["Set your snares at dusk.", "Fur fetches a fair price in town."] },
+  { id: "mining", biomes: [2, 12, 20, 14, 30], stations: ["object.furnace.basic"], node: "resource.rock.iron",
+    props: ["object.crate.wood", "object.lamp.post"],
+    npcName: "Prospector", lines: ["There's iron in these hills.", "Bring me ore and I'll smelt it."] },
+  { id: "smithing", biomes: [0, 6, 12], stations: ["object.anvil.basic", "object.furnace.basic"],
+    props: ["object.crate.wood", "object.barrel.wood"],
+    npcName: "Blacksmith", lines: ["Steel doesn't forge itself.", "Fresh bars? I'll hammer you a blade."] },
+  { id: "fishing", biomes: [4, 27, 35], stations: [], node: "resource.fishing.pond",
+    props: ["object.barrel.wood", "object.reeds.water"],
+    npcName: "Angler", lines: ["The pond's biting today.", "Patience lands the big ones."] },
+  { id: "cooking", biomes: [0, 6, 21], stations: ["object.campfire.basic"],
+    props: ["object.barrel.wood", "object.crate.wood"],
+    npcName: "Cook", lines: ["Something's always on the fire here.", "A hot meal mends more than potions."] },
+  { id: "farming", biomes: [0, 6, 23], stations: [], node: "resource.plot.wheat",
+    props: ["object.fence.wood", "object.crate.wood"],
+    npcName: "Farmer", lines: ["Good soil, this.", "Seeds in spring, bread by harvest."] },
+  { id: "herblore", biomes: [4, 7, 35, 25], stations: ["object.cauldron.basic"], node: "resource.herb.sage",
+    props: ["object.barrel.wood"],
+    npcName: "Herbalist", lines: ["Every weed's a cure to the wise.", "Mind the duskcap — it bites back."] },
+  { id: "magic", biomes: [13, 25, 20], stations: ["object.altar.rune"],
+    props: ["object.lamp.post"],
+    npcName: "Scholar", lines: ["The runes hum louder out here.", "Essence binds best under a still sky."] },
+  { id: "construction", biomes: [0, 1, 8], stations: ["object.buildbench.basic"],
+    props: ["object.crate.wood", "object.log.fallen"],
+    npcName: "Carpenter", lines: ["Bring planks and I'll teach you the joints.", "A sawhorse and patience — that's the trade."] },
+  { id: "crafting", biomes: [], stations: ["object.workbench.basic"],
+    props: ["object.crate.wood"],
+    npcName: "Crafter", lines: ["Idle hands, wasted hides.", "I can turn near anything to use."] },
+];
+
+/** Pick a biome-appropriate skill theme for a homestead (deterministic). */
+function pickSkillHomeTheme(seed: number, cx: number, cz: number, biome: number): SkillHomeTheme {
+  const eligible = SKILL_HOME_THEMES.filter((t) => t.biomes.length === 0 || t.biomes.includes(biome));
+  const pool = eligible.length ? eligible : SKILL_HOME_THEMES;
+  return pool[Math.floor(cellHash(cx * 6151 + 7, cz * 3079 + 3, salt(seed, 118)) * pool.length) % pool.length];
+}
+
+/** Dress a placed homestead's yard with its skill theme: station(s), a node,
+ *  props, and a resident. Best-effort — each fixture only lands on a dry,
+ *  gentle cell just outside the house footprint, flattened level. */
+function dressSkillHome(
+  seed: number, cx: number, cz: number, ox: number, oz: number, w: number, d: number,
+  anchor: number, heights: Int16Array, blocks: Uint8Array, biomes: Uint8Array, x0: number, z0: number,
+  nodes: NodePlacement[], objects: ObjectPlacement[], npcs: NpcPlacement[],
+): void {
+  const theme = pickSkillHomeTheme(seed, cx, cz, biomes[(oz + (d >> 1)) * ECHUNK + (ox + (w >> 1))]);
+  // Candidate yard cells ring the footprint (never on it, never the border).
+  const ring: Array<[number, number]> = [
+    [ox - 2, oz + 1], [ox - 2, oz + d - 2], [ox + w + 1, oz + 1], [ox + w + 1, oz + d - 2],
+    [ox + 1, oz + d + 1], [ox + w - 2, oz + d + 1], [ox + 1, oz - 2], [ox + w - 2, oz - 2],
+  ];
+  const spots = ring.filter(([sx, sz]) => {
+    if (sx < 1 || sz < 1 || sx >= ECHUNK - 1 || sz >= ECHUNK - 1) return false;
+    if (sx >= ox && sx < ox + w && sz >= oz && sz < oz + d) return false; // on the house
+    const b = BLOCK_LIST[blocks[sz * ECHUNK + sx]];
+    if (b === "water" || b === "ice") return false;
+    if (Math.abs(heights[sz * ECHUNK + sx] - anchor) > 2) return false;
+    if (inStarterTown(seed, x0 + sx, z0 + sz)) return false;
+    return true;
+  });
+  if (spots.length === 0) return;
+  const fixtures: Array<{ kind: "node" | "obj"; defId: string }> = [
+    ...theme.stations.map((s) => ({ kind: "obj" as const, defId: s })),
+    ...(theme.node ? [{ kind: "node" as const, defId: theme.node }] : []),
+    ...theme.props.map((p) => ({ kind: "obj" as const, defId: p })),
+  ];
+  let si = 0;
+  for (const fx of fixtures) {
+    if (si >= spots.length) break;
+    const [sx, sz] = spots[si++];
+    heights[sz * ECHUNK + sx] = anchor; // sit level with the yard
+    const cell = { x: x0 + sx, z: z0 + sz };
+    if (fx.kind === "node") nodes.push({ instanceId: `end.${cx}.${cz}.sk${si}`, defId: fx.defId, cell });
+    else objects.push({ instanceId: `end.${cx}.${cz}.sk${si}`, defId: fx.defId, cell });
+  }
+  // The resident stands in the yard (a spare spot, else the first).
+  const [nx, nz] = spots[Math.min(si, spots.length - 1)];
+  heights[nz * ECHUNK + nx] = anchor;
+  npcs.push({ instanceId: `end.${cx}.${cz}.res`, name: theme.npcName, cell: { x: x0 + nx, z: z0 + nz }, wanderRadius: 2, lines: theme.lines });
+}
+
+/**
  * Try to drop a wild homestead into this chunk: pick a house, find a level,
  * dry, habitable pad clear of the starter town, flatten it, and record the
  * placement. Flattening stays inside the chunk (never the border cells) so
@@ -1426,12 +1522,10 @@ function tryStampHouse(
   structures: StructurePlacement[],
   objects: ObjectPlacement[],
   houseBoxes: Box[],
+  nodes: NodePlacement[],
+  npcs: NpcPlacement[],
 ): boolean {
-  const pick = cellHash(cx * 6367, cz * 12007, salt(seed, 55));
-  const asset = getStructure(WILD_HOUSES[Math.floor(pick * WILD_HOUSES.length)]);
-  if (!asset) return false;
-  const w = asset.sx;
-  const d = asset.sz;
+  const { defId, w, d } = wildHouseSize(seed, cx, cz);
   if (w + 4 >= ECHUNK || d + 4 >= ECHUNK) return false;
   const ox = 2 + Math.floor(cellHash(cx, cz, salt(seed, 56)) * (ECHUNK - 4 - w));
   const oz = 2 + Math.floor(cellHash(cz * 13, cx * 29, salt(seed, 57)) * (ECHUNK - 4 - d));
@@ -1457,15 +1551,21 @@ function tryStampHouse(
   for (let dz = 0; dz < d; dz++) {
     for (let dx = 0; dx < w; dx++) heights[(oz + dz) * ECHUNK + (ox + dx)] = anchor;
   }
-  // A solid landmark you enter by clicking it (walk to the yard, step inside) —
-  // no door object hung on the wall.
-  structures.push({
-    instanceId: `end.${cx}.${cz}.h`,
-    structureId: WILD_HOUSES[Math.floor(pick * WILD_HOUSES.length)],
-    cell: { x: x0 + ox, z: z0 + oz },
-    solid: true,
-  });
+  // Our own code-drawn cottage/inn (a procedural timber-frame building), placed
+  // as a multi-cell object with a footprint over the flattened pad. The yard
+  // beside it holds the skill workshop the player actually uses.
+  const footprint: Array<{ x: number; z: number }> = [];
+  for (let dx = 0; dx < w; dx++) {
+    for (let dz = 0; dz < d; dz++) {
+      if (dx === 0 && dz === 0) continue;
+      footprint.push({ x: x0 + ox + dx, z: z0 + oz + dz });
+    }
+  }
+  objects.push({ instanceId: `end.${cx}.${cz}.h`, defId, cell: { x: x0 + ox, z: z0 + oz }, footprint });
   houseBoxes.push({ x0: ox, z0: oz, x1: ox + w - 1, z1: oz + d - 1 });
+  // Dress the yard as a skill workshop (station + node + props + a resident),
+  // so every wild home reads as a purposeful landmark, not an empty cabin.
+  dressSkillHome(seed, cx, cz, ox, oz, w, d, anchor, heights, blocks, biomes, x0, z0, nodes, objects, npcs);
   return true;
 }
 
@@ -2045,7 +2145,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   // Wild homesteads: the interiored homes, found out in the world. The roll is
   // boosted around a village anchor so several cluster into a settlement.
   if (!stamped && cellHash(cx * 40987, cz * 90001, salt(seed, 58)) < (village ? 0.6 : 0.05)) {
-    stamped = tryStampHouse(seed, cx, cz, heights, blocks, biomes, x0, z0, structures, objects, houseBoxes);
+    stamped = tryStampHouse(seed, cx, cz, heights, blocks, biomes, x0, z0, structures, objects, houseBoxes, nodes, npcs);
   }
 
   // Dungeon gates: a rare crimson portal-arch on a flattened pad that drops
