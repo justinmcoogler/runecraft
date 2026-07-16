@@ -60,6 +60,39 @@ export function dangerTier(x: number, z: number): number {
   return Math.min(5, Math.floor(remoteness01(x, z) * 6));
 }
 
+// Gathering skill ladders scattered across the endless world (SKILL_PLANS.md):
+// Foraging berry bushes, Hunting game trails, Archaeology dig sites. Each is
+// ordered low->high; higher tiers unlock only farther from the anchor, so these
+// skills richen with distance the same way ore and foes do. The tutorial and
+// the L1-8 wild nodes (bush.berry, trail.rabbit/moor, digsite.basic/old) cover
+// the very bottom; this fills L8/L15+ onward out in the world.
+const FORAGE_LADDER = [
+  "resource.bush.redberry", "resource.bush.cadava", "resource.bush.dwellberry",
+  "resource.bush.cloudberry", "resource.bush.jangerberry", "resource.bush.prickly",
+  "resource.bush.whiteberry", "resource.bush.poisonivy", "resource.bush.everlight",
+];
+const HUNT_LADDER = [
+  "resource.trail.fowl", "resource.trail.kebbit", "resource.trail.boar",
+  "resource.trail.chinchompa", "resource.trail.polar", "resource.trail.sabre",
+  "resource.trail.grenwall", "resource.trail.antelope",
+];
+const ARCH_LADDER = [
+  "resource.digsite.barrow", "resource.digsite.ruin", "resource.digsite.kiln",
+  "resource.digsite.temple", "resource.digsite.citadel", "resource.digsite.warforge",
+  "resource.digsite.everlight", "resource.digsite.senntisten",
+];
+/** Share of empty ground cells that sprout a ladder node (see generateChunk). */
+const LADDER_DENSITY = 0.12;
+/** Pick a distance-gated gathering-ladder node for an open ground cell. */
+function pickLadderNode(x: number, z: number, seed: number): string {
+  const which = cellHash(x * 3 + 1, z * 5 + 2, salt(seed, 74));
+  const ladder = which < 0.5 ? FORAGE_LADDER : which < 0.78 ? HUNT_LADDER : ARCH_LADDER;
+  const remote = remoteness01(x, z);
+  const unlocked = Math.max(1, Math.min(ladder.length, 1 + Math.floor(remote * ladder.length)));
+  const idx = Math.min(unlocked - 1, Math.floor(cellHash(z * 7 + 3, x * 11 + 4, salt(seed, 75)) * unlocked));
+  return ladder[idx];
+}
+
 // Wild beasts by danger tier: placid/weak near home, elites and horrors far
 // out. Tier 5 fields true bosses. (Every id exists in ENEMIES.)
 export const DANGER_MOBS: string[][] = [
@@ -2054,6 +2087,9 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
       if (slopeAt(seed, wx, wz, h, cache) > 2) continue; // cliffs stay bare
       const r = cellHash(wx, wz, salt(seed, 23));
       const cell = { x: wx, z: wz };
+      // Snapshot so the ladder scatter below only fills cells the biome
+      // dressing left completely empty (no node, object, or spawn).
+      const placed0 = nodes.length + objects.length + enemies.length;
       // Alpine treeline: above it only the rock features further down
       // (scree and ore) survive.
       if (h <= 44) switch (biomes[i]) {
@@ -2380,6 +2416,8 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           // so Farming is trainable out in the world, not just in a town.
           else if (r < 0.2) nodes.push({ instanceId: id(), defId: "resource.plot.wheat", cell });
           else if (r < 0.205) nodes.push({ instanceId: id(), defId: "resource.plot.carrot", cell });
+          else if (r < 0.209) nodes.push({ instanceId: id(), defId: "resource.plot.corn", cell });
+          else if (r < 0.212) nodes.push({ instanceId: id(), defId: "resource.plot.sunfruit", cell });
           break;
       }
       // Palms shade the warm-country beaches.
@@ -2417,6 +2455,15 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
         // Rune essence surfaces here and there on bare rock — the raw stone
         // Runecrafting binds into runes at an altar.
         if (!defId && cellHash(wx, wz, salt(seed, 83)) > 0.9) defId = "resource.rock.essence";
+        // The high-tier metal veins (mithril L30 -> adamant L45 -> runite L58)
+        // surface only as you press outward, feeding the new armor/arrow bars.
+        if (!defId) {
+          const rm = cellHash(wz, wx, salt(seed, 88));
+          const remote = remoteness01(wx, wz);
+          if (remote > 0.62 && rm > 0.90) defId = "resource.rock.runite";
+          else if (remote > 0.42 && rm > 0.86) defId = "resource.rock.adamant";
+          else if (remote > 0.24 && rm > 0.82) defId = "resource.rock.mithril";
+        }
         if (!defId) {
           const rr = cellHash(wx, wz, salt(seed, 81));
           if (h > 44) {
@@ -2440,6 +2487,19 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           : rv > 0.96 ? "resource.rock.quartz"
             : rv > 0.93 ? "resource.rock.redstone" : null;
         if (defId) nodes.push({ instanceId: id(), defId, cell });
+      }
+      // Gathering-ladder scatter: on open, undressed ground, sprout one
+      // distance-gated Foraging/Hunting/Archaeology node so those ladders are
+      // trainable across the whole endless world (their L1-8 anchors and the
+      // tutorial cover the very bottom). Only fires where the biome dressing
+      // placed nothing, so it never overwrites trees, ore, farms, or spawns.
+      if (h <= 44 && nodes.length + objects.length + enemies.length === placed0) {
+        const g = BLOCK_LIST[blocks[i]];
+        if (g === "grass" || g === "drygrass" || g === "dirt" || g === "coarsedirt" || g === "podzol" || g === "moss") {
+          if (cellHash(wx, wz, salt(seed, 71)) < LADDER_DENSITY) {
+            nodes.push({ instanceId: id(), defId: pickLadderNode(wx, wz, seed), cell });
+          }
+        }
       }
     }
   }
