@@ -862,6 +862,12 @@ function valeGroundHeight(seed: number, x: number, z: number, naturalH: number):
   const d = Math.sqrt(dx * dx + dz * dz);
   const fl = valeFeather(seed, Math.atan2(dz, dx));
   if (d > TOWN_RADIUS + fl) return null;
+  // Tutorial island: a hand-flat grass plain — no random rolling terrain inside
+  // the wall. (Endless keeps its natural starter-town shape below.)
+  if (VALE_ACTIVE) {
+    if (d <= TOWN_RADIUS) return a.h;
+    return Math.round(lerp(a.h, naturalH, (d - TOWN_RADIUS) / fl));
+  }
   if (d <= WILD_R) return naturalH;                                   // wild interior keeps its shape
   if (d <= WALL_INNER) return Math.round(lerp(naturalH, a.h, (d - WILD_R) / (WALL_INNER - WILD_R)));
   if (d <= TOWN_RADIUS) return a.h;                                   // level footing under the wall
@@ -1015,7 +1021,9 @@ function valeWall(seed: number, x: number, z: number): { h: number; block: Block
   const dx = x - a.x, dz = z - a.z;
   const d2 = dx * dx + dz * dz;
   if (d2 < WALL_INNER * WALL_INNER || d2 > WALL_OUTER * WALL_OUTER) return null;
-  if (valePathAt(seed, x, z)) return null; // a gateway where the path goes through
+  // The tutorial island is fully sealed (you leave only through the graduation
+  // gateway); the endless starter town keeps its arched gate openings.
+  if (!VALE_ACTIVE && valePathAt(seed, x, z)) return null;
   const ang = Math.atan2(dz, dx);
   const seg = Math.floor(((ang + Math.PI) / (Math.PI * 2)) * 520);
   const merlon = seg % 2 === 0;           // crenellations: raised course, gapped
