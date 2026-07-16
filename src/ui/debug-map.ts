@@ -4,6 +4,7 @@
 // cycle modes with the on-panel button or `[`/`]`. Pure presentation.
 
 import { ECHUNK, remoteness01, roadDist, terrainAt } from "../sim/worldgen/endless";
+import { biomeName } from "../sim/worldgen/biomes";
 import type { GameSimulation } from "../sim/simulation";
 
 type Mode = "biome" | "height" | "danger" | "features";
@@ -124,7 +125,7 @@ export class DebugMap {
     ctx.strokeStyle = "#ffdc55"; ctx.strokeRect(size / 2 - 3, size / 2 - 3, 6, 6);
 
     (this.panel.querySelector(".dbg-mode") as HTMLElement).textContent =
-      `debug: ${this.mode}  (danger ${(remoteness01(p.x, p.z) * 100 | 0)}%, biome ${terrainAt(seed, p.x, p.z).biome})`;
+      `debug: ${this.mode}  (danger ${(remoteness01(p.x, p.z) * 100 | 0)}%, ${biomeName(seed, p.x, p.z, terrainAt(seed, p.x, p.z).biome)})`;
     (this.panel.querySelector(".dbg-legend") as HTMLElement).textContent =
       this.mode === "danger" ? "green = safe · red = deadly"
         : this.mode === "features" ? "blue water · brown roads · grey peaks · red dungeons"
