@@ -95,7 +95,7 @@ export class FactionsPanel {
     s.textContent = `
       .fac-panel { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
         width:300px; max-height:66vh; flex-direction:column; background:rgba(18,20,26,0.96);
-        border:1px solid #3a4150; border-radius:8px; color:#e8eef4; font:13px/1.4 system-ui,sans-serif;
+        border:1px solid #3a4150; border-radius:8px; color:#e8eef4; font:16px/1.4 var(--font-body, "VT323", monospace);
         box-shadow:0 8px 32px rgba(0,0,0,0.5); z-index:40; overflow:hidden; }
       .fac-bar { display:flex; justify-content:space-between; align-items:center; padding:8px 12px;
         background:#232936; border-bottom:1px solid #3a4150; font-weight:600; }

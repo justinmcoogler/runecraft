@@ -188,7 +188,7 @@ export class MiniMap {
       .mm-panel { display:flex; flex-direction:column; background:rgba(18,20,26,0.97);
         border:1px solid #3a4150; border-radius:10px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.6); }
       .mm-bar { display:flex; justify-content:space-between; align-items:center; padding:8px 12px;
-        background:#232936; border-bottom:1px solid #3a4150; color:#e8eef4; font:13px/1.4 system-ui,sans-serif; font-weight:600; }
+        background:#232936; border-bottom:1px solid #3a4150; color:#e8eef4; font:16px/1.4 var(--font-body, "VT323", monospace); font-weight:600; }
       .mm-x { background:none; border:none; color:#9aa4b2; cursor:pointer; font-size:15px; }
       .mm-x:hover { color:#e8eef4; }
       .mm-big { display:block; cursor:crosshair; image-rendering:pixelated; width:min(84vw,84vh,560px); height:min(84vw,84vh,560px); }

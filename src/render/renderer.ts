@@ -1470,6 +1470,11 @@ export class GameRenderer {
     const cap = this.tiledBox(1, 1, 1, mat);
     cap.position.set(0, 1.5, 0);
     g.add(cap);
+    // The 2×2 base would otherwise overhang into the four neighbouring cells,
+    // which stay walkable (only the vein's own cell blocks nav) — so the player
+    // appears to walk through the ore. Shrink the whole vein to sit within its
+    // one tile; the 1×1 blocks keep their per-face texture mapping under scale.
+    g.scale.setScalar(0.5);
     return g;
   }
 
