@@ -138,7 +138,7 @@ export class ActionController {
     const p = this.pipeline;
     if (!p || (this.phase !== "active" && this.phase !== "waitingForNextCycle")) return null;
     switch (p.kind) {
-      case "enemy": return "attack";
+      case "enemy": return this.deps.weaponRange() > 1 ? "shoot" : "attack";
       case "build": return "hammer";
       case "plant": return "gather";
       case "craft": return p.recipeId ? animForSkill(RECIPES[p.recipeId].skillId) : "hammer";

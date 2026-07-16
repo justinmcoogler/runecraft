@@ -37,7 +37,7 @@ export type AttackStyle = "accurate" | "aggressive" | "defensive" | "controlled"
 
 /** The visible action animation the player rig should play while working. */
 export type ActionAnim =
-  | "chop" | "mine" | "fish" | "attack" | "hammer" | "gather" | "dig" | "stir" | "cast";
+  | "chop" | "mine" | "fish" | "attack" | "shoot" | "hammer" | "gather" | "dig" | "stir" | "cast";
 
 export type RejectReason =
   | "no_target"

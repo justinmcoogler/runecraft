@@ -119,7 +119,7 @@ export class CharacterView {
     const { head, armR, armL, legR, legL } = p;
     // Per-action tempo, then a shared phase clock.
     const tempo: Record<ActionAnim, number> = {
-      chop: 8, mine: 9, fish: 2.2, attack: 11, hammer: 12,
+      chop: 8, mine: 9, fish: 2.2, attack: 11, shoot: 3.1, hammer: 12,
       gather: 6, dig: 8, stir: 7, cast: 3,
     };
     this.actPhase += dt * tempo[action];
@@ -141,6 +141,18 @@ export class CharacterView {
         const jab = Math.max(0, Math.sin(t));
         armR.rotation.x = 1.5 - jab * 1.7;
         armR.rotation.z = jab * 0.2;
+        break;
+      }
+      case "shoot": { // bow arm out level, draw hand pulls to the cheek, release
+        // Slow pull (rising sine) that snaps forward on release, timed near the
+        // 2s shot cadence so the loose lines up with the arrow leaving.
+        const cyc = (t % (Math.PI * 2)) / (Math.PI * 2); // 0..1 per shot
+        const draw = cyc < 0.75 ? cyc / 0.75 : Math.max(0, 1 - (cyc - 0.75) / 0.08);
+        armL.rotation.x = 1.55; // bow arm holds steady at the target
+        armL.rotation.z = 0.05;
+        armR.rotation.x = 1.45 - draw * 0.25; // string hand eases back...
+        armR.rotation.z = -0.1 - draw * 0.4;  // ...toward the cheek, then snaps
+        head.rotation.x = -0.03; // sighting down the shaft, not at the ground
         break;
       }
       case "hammer": // short, rapid downward taps at the anvil
