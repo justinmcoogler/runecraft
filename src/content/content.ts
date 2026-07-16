@@ -4981,6 +4981,81 @@ export const QUESTS: Record<string, QuestDef> = {
   },
 };
 
+// ---------- tutorial island: one master per skill (33) ----------
+// Every skill has a master NPC on the tutorial island who teaches it and gives
+// a short lesson-quest; a training station stands beside those whose craft
+// needs one. The masters + stations are placed by tutorialRegion (endless.ts)
+// from this same table, so the two never drift.
+export interface SkillMaster {
+  skill: string;
+  title: string;
+  name: string;
+  /** A node/object defId placed beside the master, when the skill trains at one. */
+  station?: string;
+}
+
+export const SKILL_MASTERS: SkillMaster[] = [
+  { skill: "skill.woodcutting", title: "Woodcutter", name: "Finn", station: "resource.tree.basic" },
+  { skill: "skill.mining", title: "Miner", name: "Dara", station: "resource.rock.copper" },
+  { skill: "skill.fishing", title: "Angler", name: "Pike", station: "resource.fishing.pond" },
+  { skill: "skill.foraging", title: "Forager", name: "Bramble", station: "resource.bush.berry" },
+  { skill: "skill.herblore", title: "Herbalist", name: "Sage", station: "resource.herb.sage" },
+  { skill: "skill.hunting", title: "Hunter", name: "Roe", station: "resource.trail.rabbit" },
+  { skill: "skill.farming", title: "Farmer", name: "Bessie", station: "resource.plot.wheat" },
+  { skill: "skill.archaeology", title: "Curator", name: "Fenwick", station: "resource.digsite.basic" },
+  { skill: "skill.thieving", title: "Rogue", name: "Sly", station: "resource.stall.market" },
+  { skill: "skill.cooking", title: "Cook", name: "Marjoram", station: "object.campfire.basic" },
+  { skill: "skill.smithing", title: "Smith", name: "Bran", station: "object.anvil.basic" },
+  { skill: "skill.smelting", title: "Smelter", name: "Cinder", station: "object.furnace.basic" },
+  { skill: "skill.crafting", title: "Crafter", name: "Tilda", station: "object.workbench.basic" },
+  { skill: "skill.construction", title: "Builder", name: "Mortar", station: "object.buildsite.ramp" },
+  { skill: "skill.runecrafting", title: "Runemaster", name: "Ansel", station: "object.altar.rune" },
+  { skill: "skill.brewing", title: "Brewer", name: "Hops", station: "object.cauldron.basic" },
+  { skill: "skill.fletching", title: "Fletcher", name: "Ash" },
+  { skill: "skill.firemaking", title: "Firewarden", name: "Ember" },
+  { skill: "skill.attack", title: "Swordmaster", name: "Gareth" },
+  { skill: "skill.strength", title: "Strongarm", name: "Bruno" },
+  { skill: "skill.defense", title: "Shieldbearer", name: "Isolde" },
+  { skill: "skill.archery", title: "Bowyer", name: "Robin" },
+  { skill: "skill.magic", title: "Mage", name: "Merla" },
+  { skill: "skill.prayer", title: "Priest", name: "Alban" },
+  { skill: "skill.summoning", title: "Summoner", name: "Vex" },
+  { skill: "skill.necromancy", title: "Necromancer", name: "Mort" },
+  { skill: "skill.enchanting", title: "Enchanter", name: "Lumen" },
+  { skill: "skill.agility", title: "Freerunner", name: "Sprint" },
+  { skill: "skill.boating", title: "Mariner", name: "Nautica" },
+  { skill: "skill.dungeoneering", title: "Delver", name: "Grit" },
+  { skill: "skill.invention", title: "Inventor", name: "Cogsworth" },
+  { skill: "skill.slaying", title: "Slayer", name: "Kull" },
+  { skill: "skill.constitution", title: "Healer", name: "Vita" },
+];
+
+/** The NPC instance id of a skill's master (matches the region-placed NPC). */
+export function masterNpcId(skill: string): string {
+  return `tutorial.master.${skill.slice("skill.".length)}`;
+}
+
+// Generate the 33 lesson-quests from the table and fold them into QUESTS. Each
+// is a talk-to-the-master lesson granting a little starting XP in that skill;
+// the station beside them lets the newcomer try it straight away.
+for (const m of SKILL_MASTERS) {
+  const short = m.skill.slice("skill.".length);
+  const npc = masterNpcId(m.skill);
+  const skillName = SKILLS[m.skill]?.name ?? short;
+  QUESTS[`quest.tut_${short}`] = {
+    id: `quest.tut_${short}`,
+    name: `The ${m.title}`,
+    giverNpcId: npc,
+    intro: `${m.name}: "Well met. I keep the ${skillName} craft here in the vale. Have a word and I'll set you on the path."`,
+    reminder: `Speak with ${m.name} the ${m.title} to learn ${skillName}.`,
+    outro: `"There — that's the first of it. The rest you'll learn by doing. The station's right here whenever you like."`,
+    objectives: [
+      { id: "talk", label: `Learn ${skillName} from ${m.name}`, type: "talk", npcId: npc },
+    ],
+    rewards: { xp: [{ skillId: m.skill, amount: 40 }], items: [] },
+  };
+}
+
 // ---------- combat ----------
 
 /** Player combat parameters (original formulas; all values are data). */

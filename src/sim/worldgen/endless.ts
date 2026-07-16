@@ -11,6 +11,7 @@ import type { StructurePlacement, StructureAsset } from "../../structures/types"
 import { effectiveSink, blockedColumns, solidColumns } from "../../structures/types";
 import { houseInteriorArrival, houseInteriorId } from "../world";
 import { getStructure } from "../../content/structures/index";
+import { SKILL_MASTERS, masterNpcId, SKILLS } from "../../content/content";
 import { cellHash, fbm, vnoise } from "./noise";
 import { WILD_SCHEMATICS, schematicFits, stampSchematic } from "./schematics";
 import { DUNGEON_SPAWN, type DungeonStyle, dynDungeonId } from "./dungeons";
@@ -2854,5 +2855,40 @@ export function tutorialRegion(seed: number, spawn: Cell): RegionSpec {
     { instanceId: "tutorial.undead", defId: "enemy.skeleton", cell: { x: spawn.x - 4, z: spawn.z + 20 } },
     { instanceId: "tutorial.boss", defId: "enemy.pig", cell: { x: spawn.x + 1, z: spawn.z + 28 } },
   ];
+
+  // A master for every skill (33), spread across the flat island on a
+  // phyllotaxis spiral so the newcomer tours the whole grounds meeting them.
+  // Each teaches its skill (a lesson-quest in QUESTS) and stands beside the
+  // station its craft trains at. All sit well inside the wall (max r ~99 < 121).
+  const GA = Math.PI * (3 - Math.sqrt(5)); // golden angle
+  const masterNpcs: NpcPlacement[] = [];
+  const masterNodes: NodePlacement[] = [];
+  const masterObjects: ObjectPlacement[] = [];
+  SKILL_MASTERS.forEach((m, i) => {
+    const ang = i * GA;
+    const r = 26 + i * 2.3;
+    const cx = Math.round(spawn.x + Math.cos(ang) * r);
+    const cz = Math.round(spawn.z + Math.sin(ang) * r);
+    const short = m.skill.slice("skill.".length);
+    const skillName = SKILLS[m.skill]?.name ?? short;
+    masterNpcs.push({
+      instanceId: masterNpcId(m.skill),
+      name: `${m.name} the ${m.title}`,
+      cell: { x: cx, z: cz },
+      wanderRadius: 0,
+      model: "mob.villager",
+      lines: [`I keep the ${skillName} craft here.`, `The ${skillName} station's right beside me — try it when you like.`],
+    });
+    if (m.station) {
+      const sid = `tutorial.mstation.${short}`;
+      const scell = { x: cx + 2, z: cz };
+      if (m.station.startsWith("resource.")) masterNodes.push({ instanceId: sid, defId: m.station, cell: scell });
+      else masterObjects.push({ instanceId: sid, defId: m.station, cell: scell });
+    }
+  });
+  region.npcs = [...region.npcs, ...masterNpcs];
+  region.nodes = [...region.nodes, ...masterNodes];
+  region.objects = [...region.objects, ...masterObjects];
+
   return region;
 }
