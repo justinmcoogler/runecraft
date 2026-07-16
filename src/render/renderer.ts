@@ -22,7 +22,6 @@ import { TREES_BY_SPECIES, hash01, pickTreeModel, treeGeometry } from "./tree-mo
 import { ROCK_MATERIAL_TILES, ROCK_MATERIAL_TINTS, ROCK_MODELS_ALL, pickBoulderModel, pickMiningRock, rockGeometry } from "./rock-models";
 import { buildBBModel } from "./bb-models";
 import { isModelEnabled } from "./model-prefs";
-import { PROPS_BY_CAT, pickProp, propGeometry, propMat, type PropModel } from "./voxel-props";
 import { itemIconUrl } from "../ui/icons";
 
 // Lower ambient relative to sun so faces facing away from the sun read as
@@ -3132,45 +3131,72 @@ export class GameRenderer {
         }
         case "object.rock.outcrop":
         case "object.rock.mesa":
-        case "object.rock.tidal":
-        case "object.mushroom.giant":
-        case "object.flowers.showy":
-        case "object.plant.tropic":
+        case "object.rock.tidal": {
+          // Code-drawn rocky outcrop: a small cluster of stone blocks of
+          // varied height (replaces the retired voxel-prop packs). Tinted per
+          // kind — mesa red rock, tidal wet grey, outcrop plain stone.
+          const color = obj.defId === "object.rock.mesa" ? "#9a5a3a"
+            : obj.defId === "object.rock.tidal" ? "#6f7a80" : "#8a8d90";
+          const mat = new THREE.MeshLambertMaterial({ color });
+          const blocks = 3 + Math.floor(hash01(obj.instanceId) * 3); // 3..5
+          for (let b = 0; b < blocks; b++) {
+            const s = 0.45 + hash01(`${obj.instanceId}s${b}`) * 0.45;
+            const h = 0.4 + hash01(`${obj.instanceId}h${b}`) * 0.9;
+            const box = new THREE.Mesh(new THREE.BoxGeometry(s, h, s), mat);
+            box.position.set(
+              (hash01(`${obj.instanceId}x${b}`) - 0.5) * 0.8,
+              h / 2 - 0.15,
+              (hash01(`${obj.instanceId}z${b}`) - 0.5) * 0.8,
+            );
+            group.add(box);
+          }
+          group.add(makeBlobShadow(1.2));
+          break;
+        }
+        case "object.mushroom.giant": {
+          // Stem + domed cap, code-drawn (red toadstool or tan cap).
+          const cap = hash01(obj.instanceId) < 0.55 ? "#b5402f" : "#c98a3a";
+          const capMat = new THREE.MeshLambertMaterial({ color: cap });
+          const stem = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.72, 0.3), new THREE.MeshLambertMaterial({ color: "#e8e0cf" }));
+          stem.position.y = 0.36;
+          const cap1 = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.34, 0.95), capMat);
+          cap1.position.y = 0.8;
+          const cap2 = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.24, 0.62), capMat);
+          cap2.position.y = 1.02;
+          group.add(stem, cap1, cap2, makeBlobShadow(0.7));
+          break;
+        }
+        case "object.plant.tropic": {
+          // A leafy tropical clump: fanned green blades.
+          const green = new THREE.MeshLambertMaterial({ color: "#3f8f36", side: THREE.DoubleSide });
+          for (let a = 0; a < 5; a++) {
+            const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.9, 0.05), green);
+            const ang = (a / 5) * Math.PI * 2 + hash01(obj.instanceId) * Math.PI;
+            blade.position.set(Math.cos(ang) * 0.18, 0.44, Math.sin(ang) * 0.18);
+            blade.rotation.set(a % 2 ? 0.35 : -0.35, ang, a % 2 ? 0.25 : -0.25);
+            group.add(blade);
+          }
+          group.add(makeBlobShadow(0.5));
+          break;
+        }
+        case "object.flowers.showy": {
+          const bloom = this.crossSprite("sprite.flowers.wild");
+          bloom.group.rotation.y = hash01(obj.instanceId) * Math.PI;
+          bloom.group.scale.setScalar(1.1);
+          group.add(bloom.group);
+          break;
+        }
         case "object.flora.wild": {
-          // Voxel props from the asset packs, picked per instance. Outcrops
-          // mix the overworld and brown rock sets; undergrowth pulls the
-          // flora/foliage families out of the town-detail set.
-          const roll = hash01(obj.instanceId);
-          let model: PropModel | null = null;
-          switch (obj.defId) {
-            case "object.rock.outcrop":
-              model = pickProp(roll < 0.5 ? "rock_over" : "rock_brown", roll, { maxN: 2400 });
-              break;
-            case "object.rock.mesa":
-              model = pickProp("rock_mesa", roll, { maxN: 2000 });
-              break;
-            case "object.rock.tidal":
-              model = pickProp("rock_ocean", roll, { maxN: 1600 });
-              break;
-            case "object.mushroom.giant":
-              model = pickProp("mushrooms", roll, { minN: 40, maxN: 1200 });
-              break;
-            case "object.flowers.showy":
-              model = pickProp("flowers", roll, { maxN: 700 });
-              break;
-            case "object.plant.tropic":
-              model = pickProp("plants", roll, { maxN: 320 });
-              break;
-            case "object.flora.wild":
-              model = pickProp("details", roll, { prefix: roll < 0.5 ? "flora_" : "foliage_", maxN: 260 });
-              break;
+          // Low undergrowth: a small green tuft.
+          const green = new THREE.MeshLambertMaterial({ color: "#4a7a34", side: THREE.DoubleSide });
+          for (let a = 0; a < 3; a++) {
+            const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.42, 0.04), green);
+            const ang = (a / 3) * Math.PI * 2 + hash01(obj.instanceId) * Math.PI;
+            blade.position.set(Math.cos(ang) * 0.12, 0.21, Math.sin(ang) * 0.12);
+            blade.rotation.y = ang;
+            group.add(blade);
           }
-          if (model) {
-            const mesh = new THREE.Mesh(propGeometry(model), propMat());
-            // Rocks settle deep so uneven bases bed into the terrain.
-            mesh.position.y = obj.defId.startsWith("object.rock") ? -0.45 : -0.12;
-            group.add(mesh, makeBlobShadow(Math.min(4, 0.5 + model.r * 0.3)));
-          }
+          group.add(makeBlobShadow(0.35));
           break;
         }
         case "object.boulder.stone": {
@@ -5488,9 +5514,6 @@ export class GameRenderer {
         g.add(new THREE.Mesh(geo.leaf, this.lambert(LEAF_TILES[species] ?? "resource.tree.leaves")));
         obj = g;
       }
-    } else if (kind === "prop") {
-      const model = [...Object.values(PROPS_BY_CAT)].flat().find((m) => m.id === id);
-      if (model) obj = new THREE.Mesh(propGeometry(model), propMat());
     } else if (kind === "boulder") {
       const model = ROCK_MODELS_ALL.find((m) => m.id === id);
       if (model) {
