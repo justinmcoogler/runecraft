@@ -1,9 +1,10 @@
 // Tutor's Trail: a hand-built finite region (its own heightfield, NOT the
-// endless generator) shaped as ONE broad, gently winding trail. The island is a
-// flat grassy field raised two blocks; a wide dirt path is sunk one step into
-// it and meanders from the camp down to the gate. The two-block bank on either
-// side is all that keeps you on the path — no walls of props, nothing to hide
-// the tutors behind. Every master stands in a wide clearing right on the trail.
+// endless generator). A broad grassy field, raised two blocks; a dirt path is
+// sunk one step into it and flows in a gentle meander (no switchbacks) from the
+// camp down to the gate, opening into a roomy clearing at every master. The
+// two-block bank is all that keeps you on the path — no prop walls. The field
+// beyond the path is dressed with scattered trees, boulders and flowers so it
+// reads as living countryside, never a barren plain.
 //
 // Nothing here is random: no endless POIs, villages, dungeons, roaming mobs or
 // stray minimap markers ever appear.
@@ -13,20 +14,20 @@ import { SKILL_MASTERS, masterNpcId, SKILLS } from "../../content/content";
 import type { Cell } from "../types";
 import type { EnemyPlacement, NodePlacement, NpcPlacement, ObjectPlacement, RegionSpec } from "../world";
 
-const W = 112;
-const D = 276;
-const BASE = 6; // walk-surface of the sunken trail
+const W = 150;
+const D = 350;
+const BASE = 6; // walk-surface of the sunken path
 const BANK = BASE + 2; // the field on either side — two blocks up, so unwalkable
-const HALF = 3; // trail half-width (=> a 7-wide path, twice the old width)
-const CLEAR_R = 5; // clearing radius at each stop (a wide 11-cell opening)
+const HALF = 3; // path half-width (7-wide connecting path)
+const CLEAR_R = 6; // clearing radius at each master (a roomy 13-cell area)
 const STOPS = 32; // camp + 30 tutors + gate
-const Z_TOP = 18;
-const Z_STEP = 8;
+const Z_TOP = 20;
+const Z_STEP = 10; // generous spacing so each area is distinct, joined by a path
 
-/** The trail centreline: a smooth left-right meander down the island (two
- *  gentle sine waves, no switchbacks). x stays well inside the banks. */
+/** The path centreline: a smooth left-right meander down the island (two gentle
+ *  sine waves, no switchbacks). x stays well inside the banks. */
 const centerX = (z: number): number =>
-  56 + 24 * Math.sin((z - Z_TOP) * 0.026) + 10 * Math.sin((z - Z_TOP) * 0.011 + 2.1);
+  75 + 42 * Math.sin((z - Z_TOP) * 0.028) + 12 * Math.sin((z - Z_TOP) * 0.013 + 1.7);
 
 interface Tutor {
   skill: string;
@@ -39,8 +40,6 @@ interface Tutor {
   boss?: boolean;
 }
 
-// The teaching order down the trail (Attack folds Strength/Defence/Constitution
-// into one Combat Instructor).
 const TUTORS: Tutor[] = [
   { skill: "skill.woodcutting", skin: "lumberjack", ground: "grass", station: "resource.tree.basic" },
   { skill: "skill.mining", skin: "miner", ground: "stone", station: "resource.rock.copper" },
@@ -89,43 +88,47 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
   const set = (x: number, z: number, block: BlockType, h: number) => {
     if (inB(x, z)) { blocks[at(x, z)] = block; heights[at(x, z)] = h; }
   };
-  // Carve a filled disc down to the trail (BASE) — overlapping discs make a
-  // smooth, rounded path with no stair-stepped edges.
+  const trail = new Uint8Array(W * D);
   const disc = (cx: number, cz: number, r: number, block: BlockType) => {
     for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
-      if (dx * dx + dz * dz <= r * r + 1) set(cx + dx, cz + dz, block, BASE);
+      if (dx * dx + dz * dz <= r * r + 1 && inB(cx + dx, cz + dz)) {
+        blocks[at(cx + dx, cz + dz)] = block;
+        heights[at(cx + dx, cz + dz)] = BASE;
+        trail[at(cx + dx, cz + dz)] = 1;
+      }
     }
   };
 
-  // 1) The trail: sweep the meandering centreline and carve a wide dirt ribbon.
-  for (let z = Z_TOP - 2; z <= stopZ(STOPS - 1) + 2; z++) {
-    disc(Math.round(centerX(z)), z, HALF, "dirt");
-  }
-  // 2) A broad clearing at every stop, floored in the tutor's own ground.
+  // 1) The connecting path — a wide dirt ribbon along the meandering centreline.
+  for (let z = Z_TOP - 2; z <= stopZ(STOPS - 1) + 2; z++) disc(Math.round(centerX(z)), z, HALF, "dirt");
+  // 2) A roomy clearing at every stop, floored in the master's own ground.
   const stops = Array.from({ length: STOPS }, (_, i) => stopCell(i));
   stops.forEach((s, i) => {
     const ground = i === 0 || i === STOPS - 1 ? "coarsedirt" : TUTORS[i - 1].ground;
     disc(s.x, s.z, CLEAR_R, ground);
   });
-  // 3) A thin water moat around the rim so it reads as an island.
+  // 3) A water moat round the rim so it reads as an island.
   for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
-    if (Math.min(x, z, W - 1 - x, D - 1 - z) < 3) set(x, z, "water", BASE);
+    if (Math.min(x, z, W - 1 - x, D - 1 - z) < 3) { set(x, z, "water", BASE); trail[at(x, z)] = 1; }
   }
+
+  // 4) Dress the field: scattered trees/boulders/flowers on the raised grass,
+  //    kept clear of the path so the tutors are never hidden. Distance-from-path
+  //    (multi-source BFS) drives how far out the taller scenery sits.
+  decorateField(blocks, heights, trail, objects, nodes);
 
   // --- camp (stop 0) ---
   const camp = stops[0];
-  const off = (i: number) => (i % 2 === 0 ? -1 : 1); // alternate the side dressing sits on
   objects.push(
     {
       instanceId: "tutorial.camp.chest",
       defId: "object.storage_chest.basic",
-      cell: { x: camp.x - 3, z: camp.z },
-      // Just provisions — every master hands over the tool their lesson needs.
+      cell: { x: camp.x - 4, z: camp.z },
       initialItems: [{ itemId: "item.pork.cooked", qty: 5 }, { itemId: "item.coin", qty: 20 }],
     },
-    { instanceId: "tutorial.camp.bed", defId: "object.bed.basic", cell: { x: camp.x - 3, z: camp.z + 2 } },
-    { instanceId: "tutorial.camp.fire", defId: "object.campfire.basic", cell: { x: camp.x + 3, z: camp.z } },
-    { instanceId: "tutorial.camp.sign", defId: "object.signpost", cell: { x: camp.x, z: camp.z - 3 } },
+    { instanceId: "tutorial.camp.bed", defId: "object.bed.basic", cell: { x: camp.x - 4, z: camp.z + 2 } },
+    { instanceId: "tutorial.camp.fire", defId: "object.campfire.basic", cell: { x: camp.x + 4, z: camp.z } },
+    { instanceId: "tutorial.camp.sign", defId: "object.signpost", cell: { x: camp.x, z: camp.z - 4 } },
   );
   npcs.push({
     instanceId: "tutorial.guide",
@@ -148,9 +151,8 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
     const skillName = SKILLS[t.skill]?.name ?? short;
     const title = master?.title ?? "Master";
     const tutorName = master?.name ?? "Tutor";
-    const side = off(idx) as 1 | -1;
+    const side = (idx % 2 === 0 ? -1 : 1) as 1 | -1;
 
-    // The tutor stands in the open middle of the clearing.
     npcs.push({
       instanceId: masterNpcId(t.skill),
       name: t.combat ? "Sergeant Gareth, Combat Instructor" : `${tutorName} the ${title}`,
@@ -170,7 +172,7 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
     });
     objects.push({ instanceId: `tut.lamp.${short}`, defId: "object.lamp.post", cell: { x: stop.x, z: stop.z - CLEAR_R } });
 
-    // A pond beside the clearing for the anglers/mariners.
+    // A pond off to one side of the clearing for the anglers/mariners.
     if (t.water) {
       for (let dz = -2; dz <= 2; dz++) for (let dx = 0; dx <= 3; dx++) {
         set(stop.x + side * (CLEAR_R - 1 + dx), stop.z + dz, "water", BASE);
@@ -178,10 +180,10 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
       objects.push({ instanceId: `tut.reeds.${short}`, defId: "object.reeds.water", cell: { x: stop.x + side * (CLEAR_R - 1), z: stop.z } });
     }
 
-    // Station beside the tutor, inside the clearing.
+    // Station out toward the edge of the roomy clearing.
     if (t.station) {
-      const scell = { x: stop.x + side * 3, z: stop.z + (t.water ? -2 : 0) };
-      set(scell.x, scell.z, "coarsedirt", BASE); // make sure it sits on the floor
+      const scell = { x: stop.x + side * 4, z: stop.z + (t.water ? -3 : 0) };
+      set(scell.x, scell.z, "coarsedirt", BASE);
       if (t.station.startsWith("resource.")) {
         nodes.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell });
       } else if (t.station === "object.shortcut.log") {
@@ -191,10 +193,8 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
       }
     }
 
-    // Fenced practice pen, carved as a small alcove off the far side.
-    if (t.pen) {
-      buildPen(set, enemies, stop.x - side * (CLEAR_R + 1), stop.z, side, short, t.pen, !!t.combat, !!t.boss);
-    }
+    // Fenced pen as an alcove off the far side.
+    if (t.pen) buildPen(set, enemies, stop.x - side * (CLEAR_R + 1), stop.z, side, short, t.pen, !!t.combat, !!t.boss);
   });
 
   // --- gateway (last stop) ---
@@ -220,7 +220,6 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
       "Speak with me and the gateway will open. Beyond it lies your own world.",
     ],
   });
-  // The overworld skill-coverage test keys Slaying off this classic warden id.
   npcs.push({
     instanceId: "village.npc.brusk",
     name: "Warden Brusk",
@@ -245,8 +244,60 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
   };
 }
 
-/** A compact fenced pen carved as a floor alcove, gated toward the trail, with
- *  two (or three) weak practice beasts that stay penned. */
+/** Scatter scenery across the raised field so it looks alive — dense flat
+ *  flowers/tufts near the verge, boulders and the odd tree further out, all kept
+ *  a few cells clear of the path so nothing crowds or hides a tutor. */
+function decorateField(
+  blocks: BlockType[],
+  heights: number[],
+  trail: Uint8Array,
+  objects: ObjectPlacement[],
+  nodes: NodePlacement[],
+): void {
+  const at = (x: number, z: number) => z * W + x;
+  // Distance from the nearest path/clearing cell (multi-source BFS).
+  const dist = new Int16Array(W * D).fill(-1);
+  let q: number[] = [];
+  for (let i = 0; i < trail.length; i++) if (trail[i]) { dist[i] = 0; q.push(i); }
+  while (q.length) {
+    const nq: number[] = [];
+    for (const idx of q) {
+      const x = idx % W, z = (idx / W) | 0, d = dist[idx];
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = x + dx, nz = z + dz;
+        if (nx < 0 || nz < 0 || nx >= W || nz >= D) continue;
+        const ni = at(nx, nz);
+        if (dist[ni] === -1) { dist[ni] = d + 1; nq.push(ni); }
+      }
+    }
+    q = nq;
+  }
+
+  let n = 0;
+  const put = (x: number, z: number, defId: string, isNode: boolean) => {
+    if (isNode) nodes.push({ instanceId: `dec.${n++}`, defId, cell: { x, z } });
+    else objects.push({ instanceId: `dec.${n++}`, defId, cell: { x, z } });
+  };
+  // Deliberately restrained: low flat cover (grass tufts, small wildflowers)
+  // near the verge, a rare grey boulder, and the odd tree kept well back so its
+  // canopy never reaches the path. No giant mushrooms / tall colourful voxels.
+  for (let z = 5; z < D - 5; z += 3) {
+    for (let x = 5; x < W - 5; x += 3) {
+      const i = at(x, z);
+      if (trail[i] || blocks[i] === "water") continue;
+      const d = dist[i];
+      if (d < 4) continue; // a clean grass verge frames the path
+      const h = ((x * 73856093) ^ (z * 19349663)) >>> 0;
+      const r = h % 100;
+      if (d >= 10 && r < 3) put(x, z, "resource.tree.basic", true); // sparse, far-back trees
+      else if (r < 4) put(x, z, "object.boulder.stone"); // occasional grey rock
+      else if (r < 16) put(x, z, "object.flowers.wild"); // small wildflowers
+      else if (r < 34) put(x, z, "object.grass.tuft"); // low grass tufts
+    }
+  }
+}
+
+/** A compact fenced pen carved as a floor alcove, gated toward the clearing. */
 function buildPen(
   set: (x: number, z: number, block: BlockType, h: number) => void,
   enemies: EnemyPlacement[],
@@ -260,8 +311,7 @@ function buildPen(
 ): void {
   const x0 = cx - 2, x1 = cx + 2, z0 = cz - 2, z1 = cz + 2;
   for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) set(x, z, "coarsedirt", BASE);
-  // Fence the perimeter, leaving a one-cell gate on the trail-facing side.
-  const gateX = cx + side * 2; // the side nearest the clearing
+  const gateX = cx + side * 2; // the side nearest the clearing carries the gate
   for (let z = z0; z <= z1; z++) {
     if (!(z === cz && x1 === gateX)) set(x1, z, "oak_fence", BASE);
     if (!(z === cz && x0 === gateX)) set(x0, z, "oak_fence", BASE);
