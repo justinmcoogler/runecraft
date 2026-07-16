@@ -152,6 +152,10 @@ async function boot(): Promise<void> {
   loadModelPrefs();
   // Disabled dragons (Models settings) never stream into endless chunks.
   sim.spawnFilter = (defId) => isModelEnabled(defId);
+  // Default respawn: the surface world's spawn, so blacking out in a cave sends
+  // you home to the overworld (not back to the cave mouth) until you sleep in a
+  // bed to set your own point.
+  ensureSurfaceHome();
   const renderer = new GameRenderer(canvas, sim);
   setPackIconProvider((materialId) => renderer.materials.iconDataUrl(materialId));
   const hud = new Hud(hudRoot, sim, renderer);
@@ -287,6 +291,15 @@ async function boot(): Promise<void> {
   };
 
   /** Travel through a portal: park this region's state, wake the target's. */
+  // Set a default home at the current surface spawn when none is set, so a
+  // cave death returns to the overworld rather than the dungeon entrance.
+  function ensureSurfaceHome(): void {
+    const onSurface = currentRegionId === "region.endless" || currentRegionId === "region.tutorial";
+    if (onSurface && !sim.homePoint) {
+      sim.homePoint = { regionId: currentRegionId, cell: { ...sim.world.region.spawn } };
+    }
+  }
+
   function enterRegion(targetRegionId: string, targetCell: { x: number; z: number }): void {
     const shared = captureSharedState(sim);
     // Graduation: stepping from the tutorial vale into the wild finishes the
@@ -316,6 +329,7 @@ async function boot(): Promise<void> {
     // Every fresh sim needs the model-preference spawn veto re-attached.
     sim.spawnFilter = (defId) => isModelEnabled(defId);
     applySharedState(sim, shared);
+    ensureSurfaceHome();
     const snapshot = targetRegionId === "region.endless" ? undefined : regionStore[targetRegionId];
     if (snapshot) applyRegionState(sim, snapshot);
     // Graduating: the tutorial's cell has no meaning in the new random world \u2014
