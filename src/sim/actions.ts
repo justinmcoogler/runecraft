@@ -4,7 +4,7 @@
 
 import { ENEMIES, ITEMS, MINING_GEM_CHANCE, MINING_GEMS, NODES, OBJECTS, PLAYER_COMBAT, RECIPES, type RecipeDef } from "../content/content";
 import type { EnemySystem } from "./enemies";
-import type { Cell, RejectReason, SimEventBus, SimRng } from "./types";
+import type { ActionAnim, Cell, RejectReason, SimEventBus, SimRng } from "./types";
 import { chebyshev, secondsToTicks } from "./types";
 import { findPath } from "./pathfinding";
 import { getStructure } from "../content/structures";
@@ -39,6 +39,34 @@ interface Pipeline {
    *  land on inside. The yard we walk to becomes the return cell. */
   enterRegionId?: string;
   enterArrival?: Cell;
+}
+
+/** Map a skill to the rig animation that best reads for its gathering/crafting. */
+const SKILL_ANIM: Record<string, ActionAnim> = {
+  "skill.woodcutting": "chop",
+  "skill.mining": "mine",
+  "skill.fishing": "fish",
+  "skill.foraging": "gather",
+  "skill.herblore": "gather",
+  "skill.farming": "gather",
+  "skill.hunting": "gather",
+  "skill.archaeology": "dig",
+  "skill.smithing": "hammer",
+  "skill.smelting": "hammer",
+  "skill.crafting": "hammer",
+  "skill.fletching": "gather",
+  "skill.construction": "hammer",
+  "skill.cooking": "stir",
+  "skill.firemaking": "gather",
+  "skill.magic": "cast",
+  "skill.prayer": "cast",
+  "skill.runecrafting": "cast",
+  "skill.summoning": "cast",
+  "skill.necromancy": "cast",
+  "skill.enchanting": "cast",
+};
+function animForSkill(skillId: string): ActionAnim {
+  return SKILL_ANIM[skillId] ?? "gather";
 }
 
 export interface ActionDeps {
@@ -92,6 +120,24 @@ export class ActionController {
 
   currentTargetId(): string | null {
     return this.pipeline?.targetId ?? null;
+  }
+
+  /** The animation the player rig should play for the live action, or null when
+   *  idle/moving. Derived from the pipeline kind and (for gather/craft) skill. */
+  currentActionAnim(): ActionAnim | null {
+    const p = this.pipeline;
+    if (!p || (this.phase !== "active" && this.phase !== "waitingForNextCycle")) return null;
+    switch (p.kind) {
+      case "enemy": return "attack";
+      case "build": return "hammer";
+      case "plant": return "gather";
+      case "craft": return p.recipeId ? animForSkill(RECIPES[p.recipeId].skillId) : "hammer";
+      case "node": {
+        const node = this.deps.nodes.get(p.targetId);
+        return node ? animForSkill(NODES[node.defId]?.skillId ?? "") : "gather";
+      }
+      default: return null; // portals, doors, npcs, sleep, shortcuts: no work loop
+    }
   }
 
   /** Progress of the current gather cycle in [0,1], for presentation. */

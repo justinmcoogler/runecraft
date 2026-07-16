@@ -2,6 +2,7 @@
 // Purely presentational: driven by simulation state each frame.
 
 import * as THREE from "three";
+import type { ActionAnim } from "../sim/types";
 import { applyBoxUVs, partSpecs, skinTexture, PX, type LoadedSkin } from "./skin";
 
 const OVERLAY_INFLATE_PX = 0.55;
@@ -12,7 +13,8 @@ export interface CharacterPose {
   targetY: number;
   facing: number;
   moving: boolean;
-  chopping: boolean;
+  /** Which working animation to play, or null when idle/just walking. */
+  action: ActionAnim | null;
 }
 
 export class CharacterView {
@@ -20,7 +22,7 @@ export class CharacterView {
   private parts = new Map<string, THREE.Group>();
   private displayY: number | null = null;
   private walkPhase = 0;
-  private chopPhase = 0;
+  private actPhase = 0;
   private heldItem: THREE.Group | null = null;
   private armorMeshes: THREE.Mesh[] = [];
   private disposables: Array<{ dispose(): void }> = [];
@@ -75,6 +77,7 @@ export class CharacterView {
     const legR = this.parts.get("legR")!;
     const legL = this.parts.get("legL")!;
 
+    const acting = pose.action !== null;
     // Sign convention for this rig: positive rotation.x swings a hanging limb
     // toward the model's FRONT; negative swings it behind.
     if (pose.moving) {
@@ -83,28 +86,104 @@ export class CharacterView {
       legR.rotation.x = swing;
       legL.rotation.x = -swing;
       armL.rotation.x = swing * 0.8;
-      if (!pose.chopping) armR.rotation.x = -swing * 0.8;
+      if (!acting) armR.rotation.x = -swing * 0.8;
     } else {
       const settle = Math.min(1, dt * 12);
       legR.rotation.x += -legR.rotation.x * settle;
       legL.rotation.x += -legL.rotation.x * settle;
       armL.rotation.x += -armL.rotation.x * settle;
-      if (!pose.chopping) {
+      if (!acting) {
         const idle = Math.sin(performance.now() / 900) * 0.04;
         armR.rotation.x += (idle - armR.rotation.x) * settle;
         armL.rotation.z = -idle * 0.5;
       }
     }
 
-    if (pose.chopping) {
-      this.chopPhase += dt * 8;
-      // Wind up overhead (forward-up), strike down toward the target in front.
-      armR.rotation.x = 2.5 - Math.max(0, Math.sin(this.chopPhase)) * 1.5;
-      head.rotation.x = -0.12; // look down at the work
+    if (acting) {
+      this.animateAction(pose.action!, dt, { head, armR, armL, legR, legL });
     } else {
-      this.chopPhase = 0;
+      this.actPhase = 0;
       head.rotation.x += -head.rotation.x * Math.min(1, dt * 10);
-      if (!pose.moving) armR.rotation.z = 0;
+      head.rotation.z += -head.rotation.z * Math.min(1, dt * 10);
+      if (!pose.moving) { armR.rotation.z = 0; armL.rotation.z = 0; }
+    }
+  }
+
+  /** Distinct working animations so mining, fishing, fighting, digging,
+   *  hammering, stirring and spellcasting each read differently. */
+  private animateAction(
+    action: ActionAnim,
+    dt: number,
+    p: { head: THREE.Group; armR: THREE.Group; armL: THREE.Group; legR: THREE.Group; legL: THREE.Group },
+  ): void {
+    const { head, armR, armL, legR, legL } = p;
+    // Per-action tempo, then a shared phase clock.
+    const tempo: Record<ActionAnim, number> = {
+      chop: 8, mine: 9, fish: 2.2, attack: 11, hammer: 12,
+      gather: 6, dig: 8, stir: 7, cast: 3,
+    };
+    this.actPhase += dt * tempo[action];
+    const t = this.actPhase;
+    // A rising strike wave in [0,1] for swing-type actions.
+    const strike = Math.max(0, Math.sin(t));
+    head.rotation.x = -0.12; // most work is looked down upon
+    head.rotation.z = 0;
+
+    switch (action) {
+      case "chop": // overhead axe swing, deep follow-through
+        armR.rotation.x = 2.5 - strike * 1.5;
+        break;
+      case "mine": // quicker, shallower pick swing at an angle
+        armR.rotation.x = 2.2 - strike * 1.2;
+        armR.rotation.z = 0.15;
+        break;
+      case "attack": { // fast forward jab from the shoulder
+        const jab = Math.max(0, Math.sin(t));
+        armR.rotation.x = 1.5 - jab * 1.7;
+        armR.rotation.z = jab * 0.2;
+        break;
+      }
+      case "hammer": // short, rapid downward taps at the anvil
+        armR.rotation.x = 1.7 - strike * 0.75;
+        break;
+      case "fish": { // rod held out front, gentle bob with an occasional tug
+        const tug = Math.max(0, Math.sin(t * 0.5) - 0.85) * 6;
+        armR.rotation.x = 1.28 + Math.sin(t) * 0.06 - tug * 0.3;
+        armL.rotation.x = 1.15 + Math.sin(t) * 0.05; // second hand steadies the rod
+        head.rotation.x = -0.05;
+        break;
+      }
+      case "stir": { // circular stirring/tending motion at waist height
+        armR.rotation.x = 1.35 + Math.sin(t) * 0.22;
+        armR.rotation.z = -0.25 + Math.cos(t) * 0.28;
+        break;
+      }
+      case "gather": { // crouch and pluck with both hands
+        const pick = Math.sin(t * 1.4);
+        armR.rotation.x = 1.7 + pick * 0.25;
+        armL.rotation.x = 1.6 - pick * 0.25;
+        legR.rotation.x = 0.35;
+        legL.rotation.x = 0.35;
+        head.rotation.x = -0.32;
+        break;
+      }
+      case "dig": { // two-handed scoop-and-toss
+        const scoop = Math.max(0, Math.sin(t));
+        armR.rotation.x = 1.9 - scoop * 0.9;
+        armL.rotation.x = 1.85 - scoop * 0.9;
+        legR.rotation.x = 0.28;
+        legL.rotation.x = 0.28;
+        head.rotation.x = -0.35;
+        break;
+      }
+      case "cast": { // arms raised, channelling, with a slow sway
+        armR.rotation.x = 2.85 + Math.sin(t) * 0.12;
+        armL.rotation.x = 2.85 + Math.sin(t + 0.5) * 0.12;
+        armR.rotation.z = -0.2;
+        armL.rotation.z = 0.2;
+        head.rotation.x = 0.08; // look up at the work
+        break;
+      }
     }
   }
 

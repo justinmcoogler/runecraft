@@ -4980,14 +4980,13 @@ export class GameRenderer {
     const boating = onWater && this.sim.bestBoat() !== null;
     // On the water the player rides at the flat surface, not down on the bed.
     const cellH = onWater ? this.waterSurfaceY(this.sim.movement.currentCell()) + (boating ? 0.18 : 0) : this.sim.world.surfaceY(this.sim.movement.currentCell());
-    const acting = this.sim.actions.phase === "active" || this.sim.actions.phase === "waitingForNextCycle";
     this.playerView.update(dt, {
       x: pos.x,
       z: pos.z,
       targetY: cellH,
       facing: this.sim.movement.facing,
       moving: this.sim.movement.isMoving() && !boating, // sitting, not walking
-      chopping: acting,
+      action: this.sim.actions.currentActionAnim(),
     });
     this.updatePlayerBoat(boating ? this.sim.bestBoat()!.itemId : null, pos, this.playerView.group.position.y);
 
@@ -5017,7 +5016,7 @@ export class GameRenderer {
         targetY: this.sim.world.surfaceY(npc.movement.currentCell()),
         facing: npc.movement.facing,
         moving: npc.movement.isMoving(),
-        chopping: false,
+        action: null,
       });
       const mark = this.sim.quests.markFor(id);
       const bob = 2.15 + Math.sin(this.elapsed * 3) * 0.08;

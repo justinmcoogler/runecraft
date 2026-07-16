@@ -34,6 +34,10 @@ export type ArmorSlot = "head" | "body" | "legs" | "feet";
 /** RuneScape-style melee attack style — decides which combat skill the XP feeds. */
 export type AttackStyle = "accurate" | "aggressive" | "defensive" | "controlled";
 
+/** The visible action animation the player rig should play while working. */
+export type ActionAnim =
+  | "chop" | "mine" | "fish" | "attack" | "hammer" | "gather" | "dig" | "stir" | "cast";
+
 export type RejectReason =
   | "no_target"
   | "node_unavailable"

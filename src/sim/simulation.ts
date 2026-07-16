@@ -33,6 +33,15 @@ export const WEATHER_SPELL_S = 240;
 /** How long a door stays open after it's clicked before swinging shut. */
 const DOOR_OPEN_S = 12;
 
+// Stamina/run tuning. Full stamina buys ~8s of sprinting; a rest refills it in
+// ~13s. After bottoming out you must recover to STAMINA_RECOVER before running.
+const STAMINA_MAX = 100;
+const STAMINA_DRAIN = 12; // per second while running
+const STAMINA_REGEN = 8; // per second while walking/idle
+const STAMINA_RECOVER = 25; // must climb back to this after exhaustion
+const WALK_SPEED = 3.5;
+const RUN_SPEED = 5.6;
+
 export type WeatherKind = "clear" | "overcast" | "rain" | "storm";
 
 /** In-game days per season; four seasons make a twelve-day year. */
@@ -117,6 +126,15 @@ export class GameSimulation {
   /** RuneScape-style melee attack style: routes combat XP to Attack / Strength
    *  / Defense (Controlled splits three ways). Persisted. */
   attackStyle: AttackStyle = "accurate";
+  /** Run/walk toggle (persisted). When running and stamina remains, the player
+   *  moves faster and stamina drains; otherwise it regenerates. */
+  running = true;
+  /** Current stamina 0..maxStamina (transient — refills on load). */
+  stamina = STAMINA_MAX;
+  readonly maxStamina = STAMINA_MAX;
+  /** True once stamina bottoms out, until it recovers past a threshold (a short
+   *  "catch your breath" before you can sprint again). */
+  private exhausted = false;
   /** Tutorial lesson driver (present only in the tutorial region). */
   tutorial: TutorialDriver | null = null;
   /** Timed potion effects: kind -> seconds remaining. */
@@ -279,6 +297,21 @@ export class GameSimulation {
     const order: AttackStyle[] = ["accurate", "aggressive", "defensive", "controlled"];
     this.attackStyle = order[(order.indexOf(this.attackStyle) + 1) % order.length];
     return this.attackStyle;
+  }
+
+  private regenStamina(): void {
+    this.stamina = Math.min(this.maxStamina, this.stamina + STAMINA_REGEN * TICK_DT);
+  }
+
+  /** Fraction of stamina remaining (0..1) for the HUD bar. */
+  staminaFrac(): number {
+    return this.maxStamina > 0 ? this.stamina / this.maxStamina : 0;
+  }
+
+  /** Flip the run/walk toggle; returns the new running state. */
+  toggleRun(): boolean {
+    this.running = !this.running;
+    return this.running;
   }
 
   /** The best boat the player can currently handle (carried or equipped),
@@ -740,8 +773,21 @@ export class GameSimulation {
     // Stride: swiftness on land; on water the boat's hull speed rules.
     const boat = this.bestBoat();
     const onWater = this.world.blockAt(this.movement.currentCell()) === "water";
-    this.movement.speedCellsPerS =
-      boat && onWater ? boat.speed : this.buffs["speed"] > 0 ? 4.55 : 3.5;
+    if (boat && onWater) {
+      this.movement.speedCellsPerS = boat.speed;
+      // Rowing rests the legs — stamina recovers on the water.
+      this.regenStamina();
+    } else {
+      const base = this.buffs["speed"] > 0 ? 4.55 : WALK_SPEED;
+      // Sprint only while the toggle is on, there's breath left, and you're
+      // actually travelling; drain then, recover otherwise.
+      if (this.stamina <= 0) this.exhausted = true;
+      if (this.stamina >= STAMINA_RECOVER) this.exhausted = false;
+      const sprinting = this.running && !this.exhausted && this.stamina > 0 && this.movement.isMoving();
+      this.movement.speedCellsPerS = sprinting ? Math.max(base, RUN_SPEED) : base;
+      if (sprinting) this.stamina = Math.max(0, this.stamina - STAMINA_DRAIN * TICK_DT);
+      else this.regenStamina();
+    }
 
     const beforeMove = this.movement.currentCell();
     this.movement.tick(TICK_DT);

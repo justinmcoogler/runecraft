@@ -166,6 +166,8 @@ export class Hud {
     this.refreshSkill();
     this.refreshInventory();
     this.refreshHealth(sim.hp, sim.maxHp());
+    this.refreshStamina();
+    this.setRunning(sim.running, false);
     this.setPackStatus(null);
   }
 
@@ -194,15 +196,6 @@ export class Hud {
       <div class="hud-top-left">
         <div><span class="save-dot" title="Saved">●</span> <span class="game-title">Runecraft</span></div>
         <div class="clock-chip" data-testid="clock"><span class="clock-text"></span></div>
-        <div class="health-chip" data-testid="health-chip">
-          <span class="hp-heart">${uiIconHtml("heart", 18)}</span>
-          <div class="hp-bar"><div class="hp-fill"></div></div>
-          <span class="hp-text">20/20</span>
-        </div>
-        <div class="combat-style-chip hidden" data-cmd="cycleStyle" data-testid="attack-style"
-             title="Attack style — tap to choose which combat skill your blows train">
-          <span class="cs-icon">⚔</span><span class="cs-text"></span><span class="cs-trains"></span>
-        </div>
         <div class="quest-tracker hidden" data-cmd="questlog" data-testid="quest-tracker" title="Quest log (J)">
           <span class="quest-mark">${uiIconHtml("quest", 14)}</span>
           <span class="quest-name"></span>
@@ -215,15 +208,35 @@ export class Hud {
         <div class="action-progress"><div class="action-fill"></div></div>
         <button class="btn cancel-btn" data-testid="cancel">✕ Cancel</button>
       </div>
-      <div class="hud-bottom-left"></div>
-      <div class="hud-bottom-right">
+      <div class="camera-pop hidden" data-testid="camera-pop">
         <button class="btn" data-cmd="rotl" title="Rotate left (Q)">${uiIconHtml("rotl")}</button>
         <button class="btn" data-cmd="rotr" title="Rotate right (E)">${uiIconHtml("rotr")}</button>
         <button class="btn" data-cmd="center" title="Center camera (Space)">${uiIconHtml("center")}</button>
-        <button class="btn" data-cmd="settings" title="Settings" data-testid="settings-toggle">⚙</button>
-        <button class="btn" data-cmd="questlog" title="Quest log (J)" data-testid="questlog-toggle">${uiIconHtml("quest")}</button>
-        <button class="btn" data-cmd="skills" title="Skills (K)" data-testid="skills-toggle">${uiIconHtml("skills")}</button>
-        <button class="btn" data-cmd="inv" title="Inventory (I)" data-testid="inv-toggle">${uiIconHtml("inv")}</button>
+      </div>
+      <div class="hud-bar" data-testid="hud-bar">
+        <div class="bar-vitals">
+          <div class="health-chip" data-testid="health-chip">
+            <span class="hp-heart">${uiIconHtml("heart", 16)}</span>
+            <div class="hp-bar"><div class="hp-fill"></div></div>
+            <span class="hp-text">20/20</span>
+          </div>
+          <div class="stamina-chip" data-testid="stamina-chip">
+            <span class="sp-icon">⚡</span>
+            <div class="sp-bar"><div class="sp-fill"></div></div>
+          </div>
+          <div class="combat-style-chip hidden" data-cmd="cycleStyle" data-testid="attack-style"
+               title="Attack style — tap to choose which combat skill your blows train">
+            <span class="cs-icon">⚔</span><span class="cs-text"></span><span class="cs-trains"></span>
+          </div>
+        </div>
+        <div class="bar-buttons">
+          <button class="btn" data-cmd="run" title="Toggle run/walk (R)" data-testid="run-toggle">🏃</button>
+          <button class="btn" data-cmd="camera" title="Camera controls" data-testid="camera-btn">${uiIconHtml("center")}</button>
+          <button class="btn" data-cmd="settings" title="Settings" data-testid="settings-toggle">⚙</button>
+          <button class="btn" data-cmd="questlog" title="Quest log (J)" data-testid="questlog-toggle">${uiIconHtml("quest")}</button>
+          <button class="btn" data-cmd="skills" title="Skills (K)" data-testid="skills-toggle">${uiIconHtml("skills")}</button>
+          <button class="btn" data-cmd="inv" title="Inventory (I)" data-testid="inv-toggle">${uiIconHtml("inv")}</button>
+        </div>
       </div>
       <div class="questlog-panel hidden" data-testid="questlog-panel">
         <div class="panel-header">Quests <button class="btn small" data-cmd="questlog">✕</button></div>
@@ -299,7 +312,6 @@ export class Hud {
         <div class="panel-header">Inventory <button class="btn small" data-cmd="inv">✕</button></div>
         <div class="equip-row"></div>
         <div class="inv-grid"></div>
-        <div class="item-info hidden" data-testid="item-info"></div>
       </div>
       <div class="recipe-panel hidden" data-testid="recipe-panel">
         <div class="panel-header"><span class="station-name">Workstation</span>
@@ -348,12 +360,11 @@ export class Hud {
         case "rotl": this.renderer.rig.rotate(-1); break;
         case "rotr": this.renderer.rig.rotate(1); break;
         case "center": this.renderer.rig.center(); break;
-        case "inv": this.inventoryPanelEl.classList.toggle("hidden"); break;
-        case "settings": this.q(".settings-panel").classList.toggle("hidden"); break;
-        case "debug":
-          this.q(".debug-panel").classList.toggle("hidden");
-          this.q(".settings-panel").classList.add("hidden");
-          break;
+        case "inv": this.toggleMenu(".inventory-panel", () => this.refreshInventory()); break;
+        case "settings": this.toggleMenu(".settings-panel"); break;
+        case "camera": this.toggleMenu(".camera-pop"); break;
+        case "run": this.setRunning(this.sim.toggleRun()); break;
+        case "debug": this.toggleMenu(".debug-panel"); break;
         case "dbgTime": {
           const h = Number(btn.dataset.h ?? "12");
           const day = Math.floor(this.sim.timeS / DAY_LENGTH_S);
@@ -387,24 +398,11 @@ export class Hud {
           this.renderer.setHoldTorch(on);
           break;
         }
-        case "questlog": {
-          const panel = this.q(".questlog-panel");
-          panel.classList.toggle("hidden");
-          if (!panel.classList.contains("hidden")) this.refreshQuestLog();
-          break;
-        }
+        case "questlog": this.toggleMenu(".questlog-panel", () => this.refreshQuestLog()); break;
         case "depositAll": this.sim.enqueue({ type: "depositAll" }); break;
         case "closeChest": this.sim.enqueue({ type: "closeContainer" }); break;
-        case "skin":
-          this.q(".skin-panel").classList.toggle("hidden");
-          this.q(".settings-panel").classList.add("hidden");
-          break;
-        case "skills": {
-          const panel = this.q(".skills-panel");
-          panel.classList.toggle("hidden");
-          if (!panel.classList.contains("hidden")) this.refreshSkillsPanel();
-          break;
-        }
+        case "skin": this.toggleMenu(".skin-panel"); break;
+        case "skills": this.toggleMenu(".skills-panel", () => this.refreshSkillsPanel()); break;
         case "cycleStyle": {
           const style = this.sim.cycleAttackStyle();
           this.refreshCombatStyle();
@@ -429,10 +427,7 @@ export class Hud {
           this.callbacks.onSkinReset?.();
           this.q(".skin-panel").classList.add("hidden");
           break;
-        case "packs":
-          this.q(".pack-panel").classList.toggle("hidden");
-          this.q(".settings-panel").classList.add("hidden");
-          break;
+        case "packs": this.toggleMenu(".pack-panel"); break;
         case "packUpload": (this.q(".pack-file") as HTMLInputElement).click(); break;
         case "packDefault": this.callbacks.onPackReset?.(); break;
       }
@@ -452,21 +447,76 @@ export class Hud {
     });
     this.q(".cancel-btn").addEventListener("click", () => this.sim.enqueue({ type: "cancel" }));
     window.addEventListener("keydown", (e) => {
-      if (e.key === "i" || e.key === "I") this.inventoryPanelEl.classList.toggle("hidden");
-      else if (e.key === "j" || e.key === "J") {
-        const panel = this.q(".questlog-panel");
-        panel.classList.toggle("hidden");
-        if (!panel.classList.contains("hidden")) this.refreshQuestLog();
-      } else if (e.key === "k" || e.key === "K") {
-        const panel = this.q(".skills-panel");
-        panel.classList.toggle("hidden");
-        if (!panel.classList.contains("hidden")) this.refreshSkillsPanel();
-      }
+      if (e.repeat) return;
+      if (e.key === "i" || e.key === "I") this.toggleMenu(".inventory-panel", () => this.refreshInventory());
+      else if (e.key === "j" || e.key === "J") this.toggleMenu(".questlog-panel", () => this.refreshQuestLog());
+      else if (e.key === "k" || e.key === "K") this.toggleMenu(".skills-panel", () => this.refreshSkillsPanel());
+      else if (e.key === "r" || e.key === "R") this.setRunning(this.sim.toggleRun());
     });
   }
 
   private q(selector: string): HTMLElement {
     return this.root.querySelector(selector) as HTMLElement;
+  }
+
+  /** Every mutually-exclusive overlay menu (only one open at a time). */
+  private static MENUS = [
+    ".inventory-panel", ".skills-panel", ".questlog-panel", ".settings-panel",
+    ".debug-panel", ".skin-panel", ".pack-panel", ".camera-pop",
+  ];
+
+  /** Open one menu, closing every other; tapping the same one closes it. The
+   *  active menu carries `.menu-top` so CSS floats it above everything. */
+  private toggleMenu(sel: string, onOpen?: () => void): void {
+    const el = this.root.querySelector(sel) as HTMLElement | null;
+    if (!el) return;
+    const willOpen = el.classList.contains("hidden");
+    for (const s of Hud.MENUS) {
+      const m = this.root.querySelector(s) as HTMLElement | null;
+      if (m) { m.classList.add("hidden"); m.classList.remove("menu-top"); }
+    }
+    this.q(".skill-detail")?.classList.add("hidden");
+    this.clearItemPop(); // any inventory card closes with its panel
+    if (willOpen) {
+      el.classList.remove("hidden");
+      el.classList.add("menu-top");
+      onOpen?.();
+    }
+    this.syncMenuButtons();
+  }
+
+  /** Highlight the bar button whose menu is currently open. */
+  private syncMenuButtons(): void {
+    const map: Record<string, string> = {
+      inv: ".inventory-panel", skills: ".skills-panel", questlog: ".questlog-panel",
+      settings: ".settings-panel", camera: ".camera-pop",
+    };
+    for (const [cmd, sel] of Object.entries(map)) {
+      const btn = this.root.querySelector(`.bar-buttons [data-cmd="${cmd}"]`) as HTMLElement | null;
+      const open = !this.root.querySelector(sel)?.classList.contains("hidden");
+      btn?.classList.toggle("btn-active", !!open);
+    }
+  }
+
+  /** Reflect the run/walk toggle on its button and (optionally) toast it. */
+  private setRunning(running: boolean, announce = true): void {
+    const btn = this.root.querySelector('[data-cmd="run"]') as HTMLElement | null;
+    if (btn) {
+      btn.classList.toggle("btn-active", running);
+      btn.textContent = running ? "🏃" : "🚶";
+      btn.title = running ? "Running — tap to walk (R)" : "Walking — tap to run (R)";
+    }
+    if (announce) this.toast(running ? "Running" : "Walking", "info");
+  }
+
+  /** The stamina bar fill + low-stamina warning colour. */
+  private refreshStamina(): void {
+    const frac = this.sim.staminaFrac();
+    const fill = this.root.querySelector(".sp-fill") as HTMLElement | null;
+    if (fill) {
+      fill.style.width = `${Math.round(frac * 100)}%`;
+      fill.classList.toggle("low", frac <= 0.25);
+    }
   }
 
   /** Show/update the persistent tutorial objective banner. */
@@ -1000,6 +1050,7 @@ export class Hud {
     this.updateQuestTracker();
     this.updateClock();
     this.refreshCombatStyle();
+    this.refreshStamina();
     const pipelineLive = this.sim.actions.phase !== "idle";
     this.targetPlateEl.classList.toggle("hidden", !pipelineLive);
     if (pipelineLive) {
@@ -1110,9 +1161,11 @@ export class Hud {
     if (this.selectedSlot !== null && !this.sim.inventory.slots[this.selectedSlot]) {
       this.selectedSlot = null;
     }
+    const slotEls: HTMLElement[] = [];
     this.sim.inventory.slots.forEach((s, i) => {
       const el = document.createElement("div");
       el.className = "slot" + (this.selectedSlot === i ? " selected" : "");
+      slotEls[i] = el;
       if (s) {
         const item = ITEMS[s.itemId];
         el.innerHTML = `${itemIconHtml(s.itemId, item.icon, 28)}${s.qty > 1 ? `<span class="qty">${s.qty}</span>` : ""}`;
@@ -1139,18 +1192,25 @@ export class Hud {
       }
       this.inventoryGridEl.appendChild(el);
     });
-    this.refreshItemInfo();
+    // Inline info + action popover, anchored right at the selected slot.
+    this.clearItemPop();
+    const invOpen = !this.inventoryPanelEl.classList.contains("hidden");
+    if (invOpen && this.selectedSlot !== null && slotEls[this.selectedSlot]) {
+      this.buildItemPopover(slotEls[this.selectedSlot], this.selectedSlot);
+    }
   }
 
-  /** Info strip under the pack grid: name, what it does, and its action. */
-  private refreshItemInfo(): void {
-    const info = this.q(".item-info");
-    const slot = this.selectedSlot !== null ? this.sim.inventory.slots[this.selectedSlot] : null;
-    if (this.selectedSlot === null || !slot) {
-      info.classList.add("hidden");
-      info.innerHTML = "";
-      return;
-    }
+  private itemPopEl: HTMLElement | null = null;
+  private clearItemPop(): void {
+    this.itemPopEl?.remove();
+    this.itemPopEl = null;
+  }
+
+  /** A small card floating at the tapped slot: name, what it does, and a Use/
+   *  Equip/Wear/… button — right there, not down in a separate strip. */
+  private buildItemPopover(slotEl: HTMLElement, index: number): void {
+    const slot = this.sim.inventory.slots[index];
+    if (!slot) return;
     const item = ITEMS[slot.itemId];
     let action: { label: string; run: () => void } | null = null;
     if (item.buff) {
@@ -1206,19 +1266,37 @@ export class Hud {
         },
       };
     }
-    info.innerHTML = `
-      ${itemIconHtml(slot.itemId, item.icon, 30)}
-      <span class="item-info-text">
-        <span class="item-info-name">${item.name}${slot.qty > 1 ? ` ×${slot.qty}` : ""}</span>
-        <span class="item-info-desc">${describeItem(item)}</span>
-      </span>
-      ${action ? `<button class="btn small item-action" data-testid="item-action"></button>` : ""}`;
+    const pop = document.createElement("div");
+    pop.className = "item-pop";
+    pop.setAttribute("data-testid", "item-info");
+    pop.innerHTML = `
+      <div class="item-pop-head">
+        ${itemIconHtml(slot.itemId, item.icon, 26)}
+        <span class="item-info-text">
+          <span class="item-info-name">${item.name}${slot.qty > 1 ? ` ×${slot.qty}` : ""}</span>
+          <span class="item-info-desc">${describeItem(item)}</span>
+        </span>
+      </div>
+      ${action ? `<div class="item-pop-actions"><button class="btn small item-action" data-testid="item-action"></button></div>` : ""}`;
+    // Clicking inside the card must not bubble up and re-toggle the slot.
+    pop.addEventListener("click", (e) => e.stopPropagation());
     if (action) {
-      const btn = info.querySelector(".item-action") as HTMLButtonElement;
+      const btn = pop.querySelector(".item-action") as HTMLButtonElement;
       btn.textContent = action.label;
       btn.addEventListener("click", action.run);
     }
-    info.classList.remove("hidden");
+    // Fixed-positioned so a scrolling/clipping panel can never hide it. Anchor
+    // just below the slot, flipping above when there's no room, and clamp on x.
+    this.root.appendChild(pop);
+    this.itemPopEl = pop;
+    const r = slotEl.getBoundingClientRect();
+    const pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = index % 5 >= 3 ? r.right - pw : r.left;
+    left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+    const below = r.bottom + 6;
+    const top = below + ph > window.innerHeight - 8 ? r.top - ph - 6 : below;
+    pop.style.left = `${Math.round(left)}px`;
+    pop.style.top = `${Math.round(Math.max(8, top))}px`;
   }
 
   /** Populate the store: coin balance and the buy list. */

@@ -47,6 +47,8 @@ interface SaveDataV1 {
   trackedQuestId?: string | null;
   /** Chosen melee attack style (accurate/aggressive/defensive/controlled). */
   attackStyle?: string;
+  /** Run/walk preference. */
+  running?: boolean;
 }
 
 /** A discovered endless-world landmark, saved so it can be revisited. */
@@ -89,6 +91,8 @@ export interface SharedState {
   trackedQuestId?: string | null;
   /** Chosen melee attack style. */
   attackStyle?: string;
+  /** Run/walk preference. */
+  running?: boolean;
 }
 
 // Items renamed by content updates: keep old saves' stacks meaningful.
@@ -162,6 +166,7 @@ export function captureSharedState(sim: GameSimulation): SharedState {
     discoveredBiomes: [...sim.discoveredBiomes],
     trackedQuestId: sim.trackedQuestId,
     attackStyle: sim.attackStyle,
+    running: sim.running,
   };
 }
 
@@ -185,6 +190,7 @@ export function applySharedState(sim: GameSimulation, shared: SharedState): void
   if (shared.discoveredBiomes) for (const b of shared.discoveredBiomes) sim.discoveredBiomes.add(b);
   if (shared.trackedQuestId !== undefined) sim.trackedQuestId = shared.trackedQuestId;
   if (isAttackStyle(shared.attackStyle)) sim.attackStyle = shared.attackStyle;
+  if (typeof shared.running === "boolean") sim.running = shared.running;
   if (shared.homePoint !== undefined) {
     sim.homePoint = shared.homePoint
       ? { regionId: shared.homePoint.regionId, cell: { ...shared.homePoint.cell } }
@@ -249,6 +255,7 @@ export function serialize(
     discoveredBiomes: [...sim.discoveredBiomes],
     trackedQuestId: sim.trackedQuestId,
     attackStyle: sim.attackStyle,
+    running: sim.running,
   };
 }
 
@@ -279,6 +286,7 @@ export function applySave(sim: GameSimulation, data: SaveDataV1): void {
   if (data.discoveredBiomes) for (const b of data.discoveredBiomes) sim.discoveredBiomes.add(b);
   if (data.trackedQuestId !== undefined) sim.trackedQuestId = data.trackedQuestId;
   if (isAttackStyle(data.attackStyle)) sim.attackStyle = data.attackStyle;
+  if (typeof data.running === "boolean") sim.running = data.running;
   for (const [skillId, xp] of Object.entries(data.skills)) {
     if (skillId in sim.skills.xp) sim.skills.xp[skillId] = xp;
   }

@@ -12,6 +12,9 @@
   /* Minimap edge length (drives its size AND the top-right chip offset so the
      two never overlap). Shrinks on small screens via the media queries below. */
   --mm-size: 148px;
+  /* Consolidated bottom-bar height; panels open above it. Single row in
+     landscape; the portrait media query stacks vitals over buttons. */
+  --bar-h: 58px;
 }
 
 * { box-sizing: border-box; }
@@ -220,7 +223,7 @@ html, body {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 68px);
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--bar-h) + 12px);
   padding: 10px 12px;
   display: flex;
   align-items: center;
@@ -269,25 +272,113 @@ html, body {
 }
 .cancel-btn { font-size: 17px; }
 
-.hud-bottom-right {
+/* Consolidated bottom bar: vitals on the left, action buttons on the right,
+   over a gradient that fades the world out beneath the controls. The bar strip
+   itself never blocks taps — only its chips and buttons do. */
+.hud-bar {
   position: absolute;
-  right: max(12px, env(safe-area-inset-right));
-  bottom: max(12px, env(safe-area-inset-bottom));
+  /* Full-bleed: cancel #hud's safe-area padding, then re-pad inside so the bar
+     hugs the screen edge with the controls kept clear of notches/home bars. */
+  left: calc(-1 * max(8px, env(safe-area-inset-left)));
+  right: calc(-1 * max(8px, env(safe-area-inset-right)));
+  bottom: calc(-1 * max(8px, env(safe-area-inset-bottom)));
+  padding: 6px max(12px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(16, 20, 26, 0) 0%, rgba(16, 20, 26, 0.72) 38%, rgba(16, 20, 26, 0.94) 100%);
+  pointer-events: none;
+  z-index: 12;
+}
+.hud-bar .bar-vitals, .hud-bar .bar-buttons { pointer-events: auto; }
+.bar-vitals {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bar-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.btn-active {
+  background: #27384d;
+  border-color: #5d86b5;
+  color: #e2eefc;
 }
 
-/* Map / Camera / Edit share one compact row in the opposite corner. */
-.hud-bottom-left {
-  position: absolute;
-  left: max(12px, env(safe-area-inset-left));
-  bottom: max(12px, env(safe-area-inset-bottom));
+/* Stamina bar sits with the health bar in the vitals cluster. */
+.stamina-chip {
   display: flex;
+  align-items: center;
   gap: 8px;
+  padding: 3px 12px;
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
+  border-radius: 4px;
+  box-shadow: inset 0 2px 0 var(--panel-light), inset 0 -2px 0 rgba(0, 0, 0, 0.35), 0 0 0 2px var(--panel-edge);
 }
-.hud-bottom-left .map-toggle { order: 0; }
-.hud-bottom-left .camera-toggle { order: 1; }
-.hud-bottom-left .editor-toggle { order: 2; }
+.sp-icon { color: #ffe27d; font-size: 14px; text-shadow: 1px 1px 0 #10151b; }
+.sp-bar {
+  width: 90px;
+  height: 8px;
+  background: #10151b;
+  border: 1px solid var(--panel-border);
+  overflow: hidden;
+  image-rendering: pixelated;
+}
+.sp-fill {
+  height: 100%;
+  width: 100%;
+  background: repeating-linear-gradient(90deg, #3fb56b 0 6px, #58d488 6px 8px);
+  transition: width 0.2s linear;
+}
+.sp-fill.low { background: repeating-linear-gradient(90deg, #c98a2e 0 6px, #e0a94a 6px 8px); }
+
+/* Small camera-controls popup, opened by the bar's camera button. */
+.camera-pop {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--bar-h) + 8px);
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  background: var(--panel-bg);
+  border: 2px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  z-index: 40;
+  pointer-events: auto;
+}
+
+/* The one open menu floats above the world, minimap and bar. */
+.menu-top { z-index: 60; }
+
+/* Inventory item card: floats at the tapped slot with Use/Equip right there. */
+.item-pop {
+  position: fixed;
+  z-index: 65;
+  width: max-content;
+  min-width: 150px;
+  max-width: min(260px, 88vw);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--panel-bg);
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+}
+.item-pop-head { display: flex; align-items: center; gap: 8px; }
+.item-pop-actions { display: flex; gap: 6px; }
+.item-pop-actions .item-action { width: 100%; }
 
 .inventory-panel, .chest-panel {
   position: absolute;
@@ -296,7 +387,7 @@ html, body {
 }
 .inventory-panel {
   right: max(12px, env(safe-area-inset-right));
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 64px);
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--bar-h) + 8px);
   width: 302px;
 }
 .chest-panel {
@@ -455,19 +546,23 @@ html, body {
   .toast-level { font-size: 16px; }
   .quest-tracker { max-width: 52vw; font-size: 14px; padding: 4px 8px; }
   .btn { min-width: 42px; min-height: 42px; }
-  .hud-bottom-right { gap: 5px; }
-  /* Portrait phones: the toggle row lifts above the action row so all
-     nine controls stay visible without sharing one narrow line. */
-  .hud-bottom-left {
-    gap: 5px;
-    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 54px);
+  /* Portrait: stack the bar — vitals row on top, buttons row below — so all
+     controls stay on-screen without crowding one narrow line. */
+  :root { --bar-h: 100px; }
+  .hud-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
   }
+  .bar-vitals { justify-content: center; }
+  .bar-buttons { justify-content: center; gap: 5px; }
+  .sp-bar { width: 60px; }
   .target-plate {
     flex-wrap: wrap;
     justify-content: center;
     font-size: 15px;
     padding: 7px 9px;
-    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 108px);
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--bar-h) + 52px);
   }
   /* Side panels become centered sheets above the button row. */
   .inventory-panel, .skin-panel, .pack-panel, .settings-panel, .questlog-panel, .models-panel {
@@ -475,7 +570,7 @@ html, body {
     right: auto;
     transform: translateX(-50%);
     width: min(94vw, 330px);
-    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 58px);
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--bar-h) + 8px);
     max-height: calc(100vh - 140px);
     overflow-y: auto;
   }
@@ -487,7 +582,7 @@ html, body {
     right: auto;
     top: auto;
     transform: translateX(-50%);
-    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 58px);
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--bar-h) + 8px);
     width: min(94vw, 360px);
     max-height: calc(100vh - 150px);
     overflow-y: auto;
@@ -520,7 +615,7 @@ html, body {
 .skin-panel {
   position: absolute;
   right: max(12px, env(safe-area-inset-right));
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 64px);
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--bar-h) + 8px);
   width: 300px;
   padding: 10px;
   font-size: 18px;
@@ -529,7 +624,7 @@ html, body {
 .settings-panel, .debug-panel {
   position: absolute;
   right: max(12px, env(safe-area-inset-right));
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 64px);
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--bar-h) + 8px);
   width: 260px;
   padding: 10px;
   font-size: 18px;
@@ -576,7 +671,7 @@ html, body {
 .questlog-panel {
   position: absolute;
   right: max(12px, env(safe-area-inset-right));
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 64px);
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--bar-h) + 8px);
   width: 360px;
   max-width: 92vw;
   max-height: min(70vh, 520px);
@@ -621,7 +716,7 @@ html, body {
 .pack-panel {
   position: absolute;
   right: max(12px, env(safe-area-inset-right));
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 64px);
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--bar-h) + 8px);
   width: 320px;
   max-width: 92vw;
   padding: 10px;
