@@ -16,7 +16,8 @@ import { NpcSystem } from "./npc";
 import { QuestService } from "./quests";
 import { SkillService } from "./skills";
 import { ChunkManager } from "./chunk-manager";
-import { DANGER_MOBS, dangerTier, EndlessTerrain, remoteness01, setValeActive, starterTownRegion, tutorialRegion } from "./worldgen/endless";
+import { DANGER_MOBS, dangerTier, EndlessTerrain, remoteness01, setValeActive, starterTownRegion, terrainAt, tutorialRegion } from "./worldgen/endless";
+import { biomeName } from "./worldgen/biomes";
 import { DUNGEON_ID_RE, type DungeonStyle, dungeonSpecFor } from "./worldgen/dungeons";
 import { CuratorService, SlayerService } from "./taskmasters";
 import type { ArmorSlot, Cell, Command, SimEvent } from "./types";
@@ -106,6 +107,10 @@ export class GameSimulation {
   treasureHunt: { x: number; z: number } | null = null;
   /** Renown with each great faction (see FACTIONS). Persisted. */
   readonly reputation: Record<string, number> = { order: 0, guild: 0, grove: 0 };
+  /** Named biomes the player has ever set foot in (persisted catalogue). */
+  readonly discoveredBiomes = new Set<string>();
+  /** The named biome the player currently stands in (transient). */
+  private currentBiomeName = "";
   /** Tutorial lesson driver (present only in the tutorial region). */
   tutorial: TutorialDriver | null = null;
   /** Timed potion effects: kind -> seconds remaining. */
@@ -737,6 +742,9 @@ export class GameSimulation {
       // spot unearths the prize (and sometimes the next map — a chain).
       if (!this.treasureHunt && this.inventory.count("item.treasure_map") > 0) this.beginTreasureHunt();
       if (this.treasureHunt && chebyshev(movedCell, this.treasureHunt) <= 1) this.unearthTreasure();
+      // Crossing into a new named biome announces it; the first time you set
+      // foot in one pays a small explorer's bounty and adds it to your codex.
+      if (!cellsMatch(beforeMove, movedCell)) this.noteBiome(movedCell);
     }
 
     // Crossing into a named zone announces it (world map only).
@@ -987,6 +995,22 @@ export class GameSimulation {
         reward,
       });
     }
+  }
+
+  /** Announce the named biome at a cell; the first visit adds it to the codex
+   *  and pays a small bounty. Cheap: only called when the player changes cell. */
+  private noteBiome(cell: Cell): void {
+    const base = terrainAt(this.seed, cell.x, cell.z).biome;
+    const name = biomeName(this.seed, cell.x, cell.z, base);
+    if (name === this.currentBiomeName) return;
+    this.currentBiomeName = name;
+    const firstTime = !this.discoveredBiomes.has(name);
+    if (firstTime) {
+      this.discoveredBiomes.add(name);
+      this.inventory.add("item.coin", 20);
+      this.events.emit({ type: "itemGained", itemId: "item.coin", qty: 20 });
+    }
+    this.events.emit({ type: "biomeEntered", name, firstTime, total: this.discoveredBiomes.size });
   }
 
   /** How many endless-world dungeons the player has ever conquered (persisted). */

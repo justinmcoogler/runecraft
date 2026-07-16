@@ -91,6 +91,7 @@ export type SimEvent =
   | { type: "treasureHuntBegan"; hint: string; x: number; z: number }
   | { type: "treasureFound"; reward: number; chain: boolean }
   | { type: "factionRankUp"; faction: string; name: string; rank: number; rankName: string; reward: number }
+  | { type: "biomeEntered"; name: string; firstTime: boolean; total: number }
   | { type: "tutorialObjective"; index: number; total: number; title: string; blurb: string }
   | { type: "tutorialLessonDone"; index: number; title: string; optional?: boolean; skillId?: string }
   | { type: "tutorialComplete" }

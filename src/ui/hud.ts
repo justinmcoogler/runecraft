@@ -519,6 +519,10 @@ export class Hud {
         case "factionRankUp":
           this.toast(`${ev.name}: ${ev.rankName}! +${ev.reward} coins`, "level", uiIconHtml("quest", 20));
           break;
+        case "biomeEntered":
+          if (ev.firstTime) this.toast(`Discovered ${ev.name}! +20 coins · ${ev.total} biomes seen`, "level", uiIconHtml("quest", 20));
+          else this.floatText(ev.name, 15);
+          break;
         case "itemGained":
           this.floatText(
             `+${ev.qty} ${ITEMS[ev.itemId].name} ${itemIconHtml(ev.itemId, ITEMS[ev.itemId].icon, 18)}`,

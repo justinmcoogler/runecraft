@@ -41,6 +41,8 @@ interface SaveDataV1 {
   treasureHunt?: { x: number; z: number } | null;
   /** Renown with each great faction. */
   reputation?: Record<string, number>;
+  /** Named biomes the player has ever entered. */
+  discoveredBiomes?: string[];
 }
 
 /** A discovered endless-world landmark, saved so it can be revisited. */
@@ -77,6 +79,8 @@ export interface SharedState {
   treasureHunt?: { x: number; z: number } | null;
   /** Renown with each great faction. */
   reputation?: Record<string, number>;
+  /** Named biomes the player has ever entered. */
+  discoveredBiomes?: string[];
 }
 
 // Items renamed by content updates: keep old saves' stacks meaningful.
@@ -147,6 +151,7 @@ export function captureSharedState(sim: GameSimulation): SharedState {
     waypoints: sim.waypoints.map((w) => ({ ...w })),
     treasureHunt: sim.treasureHunt ? { ...sim.treasureHunt } : null,
     reputation: { ...sim.reputation },
+    discoveredBiomes: [...sim.discoveredBiomes],
   };
 }
 
@@ -167,6 +172,7 @@ export function applySharedState(sim: GameSimulation, shared: SharedState): void
   if (shared.waypoints) sim.restoreWaypoints(shared.waypoints);
   if (shared.treasureHunt !== undefined) sim.treasureHunt = shared.treasureHunt ? { ...shared.treasureHunt } : null;
   if (shared.reputation) for (const [k, v] of Object.entries(shared.reputation)) if (k in sim.reputation) sim.reputation[k] = v;
+  if (shared.discoveredBiomes) for (const b of shared.discoveredBiomes) sim.discoveredBiomes.add(b);
   if (shared.homePoint !== undefined) {
     sim.homePoint = shared.homePoint
       ? { regionId: shared.homePoint.regionId, cell: { ...shared.homePoint.cell } }
@@ -228,6 +234,7 @@ export function serialize(
     waypoints: sim.waypoints.map((w) => ({ ...w })),
     treasureHunt: sim.treasureHunt ? { ...sim.treasureHunt } : null,
     reputation: { ...sim.reputation },
+    discoveredBiomes: [...sim.discoveredBiomes],
   };
 }
 
@@ -250,6 +257,7 @@ export function applySave(sim: GameSimulation, data: SaveDataV1): void {
   if (data.waypoints) sim.restoreWaypoints(data.waypoints);
   if (data.treasureHunt !== undefined) sim.treasureHunt = data.treasureHunt ? { ...data.treasureHunt } : null;
   if (data.reputation) for (const [k, v] of Object.entries(data.reputation)) if (k in sim.reputation) sim.reputation[k] = v;
+  if (data.discoveredBiomes) for (const b of data.discoveredBiomes) sim.discoveredBiomes.add(b);
   for (const [skillId, xp] of Object.entries(data.skills)) {
     if (skillId in sim.skills.xp) sim.skills.xp[skillId] = xp;
   }
