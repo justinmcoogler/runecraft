@@ -471,7 +471,10 @@ async function boot(): Promise<void> {
         "worldstate.jetty_built": "The jetty stands — new waters to fish!",
         "worldstate.footbridge_built": "The footbridge is rebuilt — a shortcut over the river!",
       };
-      hud.toast(FLAG_TOASTS[ev.flag] ?? "The world has changed.", "info");
+      // Only announce the handful of player-facing world changes. Internal
+      // bookkeeping flags (dungeon depth, discoveries, cleared/looted markers)
+      // rebuild the scene silently — no "the world has changed" spam.
+      if (FLAG_TOASTS[ev.flag]) hud.toast(FLAG_TOASTS[ev.flag], "info");
       doSave();
     }
     frameEvents.length = 0;
