@@ -89,12 +89,16 @@ describe("Tutor's Trail", () => {
           sim.equippedTool = toolForTag[obj.toolTag!] ?? "tool.sword.bronze";
           feed({ type: "equipmentChanged" } as SimEvent);
         } else if (obj.type === "gather") {
+          // Gathering really adds to the pack, so the hand-back step can spend it.
+          sim.inventory.add(obj.itemId!, obj.qty ?? 1);
           feed({ type: "itemGained", itemId: obj.itemId!, qty: obj.qty ?? 1 } as SimEvent);
         } else if (obj.type === "slay") {
           feed({ type: "enemyDied", instanceId: enemyId(obj.enemyDefId!) } as SimEvent);
         } else if (obj.type === "train") {
           feed({ type: "xpGained", skillId: obj.skillId!, amount: 1 } as SimEvent);
-        } else if (obj.type === "talk") {
+        } else if (obj.type === "talk" || obj.type === "deliver") {
+          // Both the report-in and hand-back closers complete by talking to the
+          // master (deliver also spends the items already in the pack).
           feed({ type: "npcChat", instanceId: npc, name: "" } as SimEvent);
         }
       }

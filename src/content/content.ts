@@ -5063,6 +5063,14 @@ TUTORIAL_ORDER.forEach((skill, i) => {
   // Sequential unlock: the first lesson follows the welcome; the rest each
   // follow the previous master down the trail.
   const prereq = i === 0 ? "quest.tut_welcome" : `quest.tut_${TUTORIAL_ORDER[i - 1].slice("skill.".length)}`;
+  const giverName = combat ? "Sergeant Gareth" : m.name;
+  // Every lesson ends back at the master: gatherers hand the goods over, the
+  // rest report in — so the quest completes with the NPC who set it, not on the
+  // action itself.
+  const gathered = action.find((o) => o.type === "gather");
+  const closer: QuestObjectiveDef = gathered
+    ? { id: "hand", label: `Bring the ${ITEMS[gathered.itemId!]?.name ?? "goods"} back to ${giverName}`, type: "deliver", npcId: npc, itemId: gathered.itemId, qty: gathered.qty }
+    : { id: "report", label: `Report back to ${giverName}`, type: "talk", npcId: npc };
   QUESTS[`quest.tut_${short}`] = {
     id: `quest.tut_${short}`,
     name: combat ? "The Combat Instructor" : `The ${m.title}`,
@@ -5070,21 +5078,24 @@ TUTORIAL_ORDER.forEach((skill, i) => {
     prereqQuestIds: [prereq],
     startItems: gift?.items,
     intro: combat
-      ? `Sergeant Gareth: "One instructor, all of melee. Here's a bronze sword — equip it. The attack-style toggle picks which skill grows: Accurate for Attack, Aggressive for Strength, Defensive for Defence, and Constitution grows no matter what. Cull the three pigs, switching styles as you go."`
+      ? `Sergeant Gareth: "One instructor, all of melee. Here's a bronze sword — equip it. The attack-style toggle picks which skill grows: Accurate for Attack, Aggressive for Strength, Defensive for Defence, and Constitution grows no matter what. Cull the three pigs, then report back to me."`
       : lesson.note
-        ? `${m.name}: "Well met. ${lesson.note} Then I'll sign your ${skillName} lesson off."`
-        : `${m.name}: "Well met. Words won't teach you ${skillName} — give it a try right here, then I'll sign your lesson off."`,
+        ? `${m.name}: "Well met. ${lesson.note} Then come back to me and I'll sign your ${skillName} lesson off."`
+        : `${m.name}: "Well met. Words won't teach you ${skillName} — give it a try right here, then come back to me."`,
     reminder: combat
-      ? `Speak with Sergeant Gareth, then cull 3 pigs — switch attack styles to feel each combat skill grow.`
-      : action.length
-        ? `Train ${skillName} at ${m.name}'s station on the trail.`
-        : `Speak with ${m.name} the ${m.title} to learn ${skillName}.`,
+      ? `Cull 3 pigs (switch attack styles), then report back to Sergeant Gareth.`
+      : gathered
+        ? `Train ${skillName}, then bring the ${ITEMS[gathered.itemId!]?.name ?? "goods"} back to ${m.name}.`
+        : action.length
+          ? `Train ${skillName} at the station, then report back to ${m.name}.`
+          : `Speak with ${m.name} the ${m.title} to learn ${skillName}.`,
     outro: combat
       ? `"Good. Accurate for Attack, Aggressive for Strength, Defensive for Defence, Controlled to split them — and every blow feeds Constitution. Now on down the trail."`
       : `"There — that's the first of it. The next master's waiting further down the trail."`,
     objectives: [
       { id: "talk", label: combat ? "Meet the Combat Instructor" : `Learn ${skillName} from ${m.name}`, type: "talk", npcId: npc },
       ...action,
+      closer,
     ],
     rewards: { xp: [{ skillId: skill, amount: 40 }], items: [] },
   };

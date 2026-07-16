@@ -37,7 +37,7 @@ function runUntil(sim: GameSimulation, predicate: (e: SimEvent) => boolean, maxT
 }
 
 describe("Woodcutter lesson quest", () => {
-  it("plays start to finish: talk -> (axe already equipped) -> gather 2 logs -> rewards", () => {
+  it("plays start to finish: talk -> gather 2 logs -> hand them back -> rewards", () => {
     const sim = questSim();
 
     // Talk to the NPC: quest starts, talk objective completes, the gather begins.
@@ -46,14 +46,16 @@ describe("Woodcutter lesson quest", () => {
     expect(sim.quests.states[QUEST].status).toBe("active");
     expect(sim.quests.activeObjective(QUEST)?.id).toBe("do");
 
-    // Chop until the gather completes; that's the final objective, so the lesson
-    // completes and the woodcutting reward lands.
+    // Chop until the gather is done; the lesson now ends by handing the logs back.
     const xpBefore = sim.skills.xp["skill.woodcutting"];
     sim.enqueue({ type: "interact", targetId: TREE });
-    runUntil(sim, (e) => e.type === "questCompleted", 6000);
+    runUntil(sim, (e) => e.type === "questAdvanced" && e.label.includes("Bring"), 6000);
+    expect(sim.quests.activeObjective(QUEST)?.id).toBe("hand");
+    expect(sim.inventory.count("item.log.basic")).toBeGreaterThanOrEqual(2);
 
-    // Chopping grants woodcutting XP too, so the total includes the 40-XP
-    // reward plus whatever the two logs earned.
+    // Return to the master: the logs leave the pack and the reward lands.
+    sim.enqueue({ type: "interact", targetId: NPC });
+    runUntil(sim, (e) => e.type === "questCompleted");
     expect(sim.skills.xp["skill.woodcutting"]).toBeGreaterThanOrEqual(xpBefore + 40);
     expect(sim.quests.states[QUEST].status).toBe("completed");
     expect(sim.quests.markFor(NPC)).toBeNull();

@@ -1,7 +1,7 @@
 // GameSimulation: owns all authoritative state, consumes Commands once per fixed
 // tick, emits SimEvents. No engine or DOM imports — fully testable headless.
 
-import { ALCHEMY, ALCH_VALUES, ITEMS, OBJECTS, PLAYER_COMBAT, QUESTS, SHOPS, ZONES, type ShopDef } from "../content/content";
+import { ALCHEMY, ALCH_VALUES, ITEMS, OBJECTS, PLAYER_COMBAT, QUESTS, SHOPS, TUTORIAL_ORDER, ZONES, type ShopDef } from "../content/content";
 import { getStructure } from "../content/structures";
 import { effectiveSink, walkableSurfaces, solidColumns } from "../structures/types";
 import { lobbyWalk, LOBBY_W, LOBBY_D, LOBBY_SINK, LOBBY_TILE } from "../content/structures/lobby";
@@ -888,8 +888,26 @@ export class GameSimulation {
       if (ev.type !== "questCompleted") continue;
       const flag = QUESTS[ev.questId]?.completionFlag;
       if (flag && !this.worldFlags.has(flag)) this.setWorldFlag(flag);
+      // On the tutorial trail, finishing one lesson auto-tracks the next so the
+      // guidance line/marker leads straight on to the following master.
+      this.trackNextTutorialQuest(ev.questId);
     }
     return [...events, ...questEvents, ...this.events.drain()];
+  }
+
+  /** After a tutorial lesson completes, pin the next quest in the trail chain
+   *  (welcome → each lesson → graduation) so the guidance beacon and map marker
+   *  lead straight on to the following master. */
+  private trackNextTutorialQuest(completedId: string): void {
+    const chain = [
+      "quest.tut_welcome",
+      ...TUTORIAL_ORDER.map((s) => `quest.tut_${s.slice("skill.".length)}`),
+      "quest.tut_graduation",
+    ];
+    const idx = chain.indexOf(completedId);
+    if (idx < 0) return; // not a tutorial-chain quest
+    const next = chain[idx + 1];
+    this.trackedQuestId = next && this.quests.states[next]?.status !== "completed" ? next : null;
   }
 
   /** Set a persistent world flag and apply its terrain repair immediately. */

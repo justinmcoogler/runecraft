@@ -85,6 +85,9 @@ describe("the Combat Instructor lesson", () => {
     sim.quests.process([{ type: "enemyDied", instanceId: PIG }, { type: "enemyDied", instanceId: PIG }] as SimEvent[]);
     expect(sim.quests.states["quest.tut_attack"].progress).toBe(2);
     sim.quests.process([{ type: "enemyDied", instanceId: PIG }] as SimEvent[]);
+    // The lesson now ends by reporting back to the instructor.
+    expect(sim.quests.activeObjective("quest.tut_attack")?.id).toBe("report");
+    talk(sim);
     expect(sim.quests.states["quest.tut_attack"].status).toBe("completed");
   });
 });

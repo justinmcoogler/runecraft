@@ -1,34 +1,33 @@
 // Tutor's Trail: a hand-built finite region (its own heightfield, NOT the
-// endless generator) shaped as ONE long winding corridor. The whole island is
-// raised, varied terrain — forest banks, rocky crags, wetland lakes, mires,
-// highland — and the ONLY walkable ground is a 3-wide trail carved down through
-// it. You cannot cut across to another tutor: the banks step up more than a
-// block on either side, so the path is single-file from the camp to the gate.
+// endless generator) shaped as ONE broad, gently winding trail. The island is a
+// flat grassy field raised two blocks; a wide dirt path is sunk one step into
+// it and meanders from the camp down to the gate. The two-block bank on either
+// side is all that keeps you on the path — no walls of props, nothing to hide
+// the tutors behind. Every master stands in a wide clearing right on the trail.
 //
 // Nothing here is random: no endless POIs, villages, dungeons, roaming mobs or
-// stray minimap markers ever appear. Tutors carry themed skins and each stands
-// in a small clearing on the trail beside a matching station or fenced pen.
+// stray minimap markers ever appear.
 
 import type { BlockType } from "../../content/blocks";
 import { SKILL_MASTERS, masterNpcId, SKILLS } from "../../content/content";
 import type { Cell } from "../types";
 import type { EnemyPlacement, NodePlacement, NpcPlacement, ObjectPlacement, RegionSpec } from "../world";
 
-const W = 132;
-const D = 196;
-const BASE = 6; // walk-surface height of the trail
-const PER_ROW = 4;
-const ROWS = 8; // 32 stops: camp + 30 tutors + gate
-const ROW_GAP = 22;
-const X_L = 26;
-const X_R = W - 26;
-const Z_START = 24;
-const HALF = 1; // trail half-width (=> 3-wide corridor)
-const CLEAR_R = 4; // clearing radius at each stop
+const W = 112;
+const D = 276;
+const BASE = 6; // walk-surface of the sunken trail
+const BANK = BASE + 2; // the field on either side — two blocks up, so unwalkable
+const HALF = 3; // trail half-width (=> a 7-wide path, twice the old width)
+const CLEAR_R = 5; // clearing radius at each stop (a wide 11-cell opening)
+const STOPS = 32; // camp + 30 tutors + gate
+const Z_TOP = 18;
+const Z_STEP = 8;
 
-/** A tutor stop: skill, the tutor's themed skin, the clearing ground, and how
- *  its training ground is dressed. `station` sits beside the tutor; `pen`
- *  fences a weak practice mob in. */
+/** The trail centreline: a smooth left-right meander down the island (two
+ *  gentle sine waves, no switchbacks). x stays well inside the banks. */
+const centerX = (z: number): number =>
+  56 + 24 * Math.sin((z - Z_TOP) * 0.026) + 10 * Math.sin((z - Z_TOP) * 0.011 + 2.1);
+
 interface Tutor {
   skill: string;
   skin: string;
@@ -36,14 +35,12 @@ interface Tutor {
   station?: string;
   pen?: string;
   water?: boolean;
-  /** One instructor teaches all of melee (Attack/Strength/Defence/Constitution)
-   *  and the attack-style toggle. */
   combat?: boolean;
-  /** The pen's beast is a ".boss" (its kill grants Dungeoneering XP). */
   boss?: boolean;
 }
 
-// The teaching order down the trail, each with its look and training ground.
+// The teaching order down the trail (Attack folds Strength/Defence/Constitution
+// into one Combat Instructor).
 const TUTORS: Tutor[] = [
   { skill: "skill.woodcutting", skin: "lumberjack", ground: "grass", station: "resource.tree.basic" },
   { skill: "skill.mining", skin: "miner", ground: "stone", station: "resource.rock.copper" },
@@ -52,7 +49,6 @@ const TUTORS: Tutor[] = [
   { skill: "skill.cooking", skin: "cook", ground: "coarsedirt", station: "object.campfire.basic" },
   { skill: "skill.smelting", skin: "smelter", ground: "stonebrick", station: "object.furnace.basic" },
   { skill: "skill.smithing", skin: "smith", ground: "stonebrick", station: "object.anvil.basic" },
-  // One instructor for all of melee, taught through the attack-style toggle.
   { skill: "skill.attack", skin: "warrior", ground: "coarsedirt", pen: "enemy.pig", combat: true },
   { skill: "skill.farming", skin: "farmer", ground: "dirt", station: "resource.plot.wheat" },
   { skill: "skill.herblore", skin: "herbalist", ground: "grass", station: "resource.herb.sage" },
@@ -78,47 +74,11 @@ const TUTORS: Tutor[] = [
   { skill: "skill.invention", skin: "inventor", ground: "stonebrick", station: "object.workbench.basic" },
 ];
 
-/** A terrain band the trail passes through — sets the flanking hills' block,
- *  how steeply they rise, whether lakes pool in the low ground, and the props
- *  scattered on the banks. Each switchback row is a different band, so the walk
- *  changes scenery as it goes. */
-interface Band {
-  bank: BlockType;
-  rise: number; // max bank height above BASE
-  lake?: boolean; // pool water in the far low ground
-  props: string[]; // scenery scattered on the banks
-}
-
-const BANDS: Band[] = [
-  { bank: "grass", rise: 3, props: ["object.log.fallen", "object.flora.wild", "object.grass.tuft"] }, // birchwood
-  { bank: "stone", rise: 6, props: ["object.boulder.stone", "object.rock.outcrop"] }, // quarry crags
-  { bank: "mud", rise: 2, lake: true, props: ["object.reeds.water", "object.grass.tuft"] }, // fen
-  { bank: "drygrass", rise: 2, props: ["object.flowers.showy", "object.flowers.wild"] }, // meadow
-  { bank: "grass", rise: 4, props: ["object.log.fallen", "object.mushroom.giant"] }, // pinewood
-  { bank: "andesite", rise: 6, props: ["object.rock.outcrop", "object.boulder.stone"] }, // highland crag
-  { bank: "podzol", rise: 3, lake: true, props: ["object.mushroom.giant", "object.log.fallen"] }, // mire
-  { bank: "calcite", rise: 4, props: ["object.flowers.wild", "object.grass.tuft"] }, // pale approach
-];
-
-const colX = (c: number): number => Math.round(X_L + ((X_R - X_L) * c) / (PER_ROW - 1));
-const rowZ = (r: number): number => Z_START + r * ROW_GAP;
-const bandForZ = (z: number): Band => BANDS[Math.max(0, Math.min(ROWS - 1, Math.round((z - Z_START) / ROW_GAP))) % BANDS.length];
-
-/** The 32 stop cells in serpentine order: camp, 30 tutors, gate. Consecutive
- *  stops are axis-aligned so the corridor between them is a straight run. */
-function stopCells(): Cell[] {
-  const stops: Cell[] = [];
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < PER_ROW; c++) {
-      const cc = r % 2 === 0 ? c : PER_ROW - 1 - c;
-      stops.push({ x: colX(cc), z: rowZ(r) });
-    }
-  }
-  return stops;
-}
+const stopZ = (i: number): number => Z_TOP + i * Z_STEP;
+const stopCell = (i: number): Cell => ({ x: Math.round(centerX(stopZ(i))), z: stopZ(i) });
 
 export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
-  const heights = new Array<number>(W * D).fill(BASE);
+  const heights = new Array<number>(W * D).fill(BANK);
   const blocks = new Array<BlockType>(W * D).fill("grass");
   const nodes: NodePlacement[] = [];
   const objects: ObjectPlacement[] = [];
@@ -129,103 +89,48 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
   const set = (x: number, z: number, block: BlockType, h: number) => {
     if (inB(x, z)) { blocks[at(x, z)] = block; heights[at(x, z)] = h; }
   };
-
-  // 1) Carve the trail's centreline + widen clearings at each stop. `trail`
-  //    marks every walkable cell so the banks can be raised around it.
-  const trail = new Uint8Array(W * D);
-  const markTrail = (x: number, z: number) => { if (inB(x, z)) trail[at(x, z)] = 1; };
-  const stops = stopCells();
-  const carve = (a: Cell, b: Cell) => {
-    if (a.z === b.z) {
-      const [x0, x1] = a.x < b.x ? [a.x, b.x] : [b.x, a.x];
-      for (let x = x0; x <= x1; x++) for (let w = -HALF; w <= HALF; w++) markTrail(x, a.z + w);
-    } else {
-      const [z0, z1] = a.z < b.z ? [a.z, b.z] : [b.z, a.z];
-      for (let z = z0; z <= z1; z++) for (let w = -HALF; w <= HALF; w++) markTrail(a.x + w, z);
+  // Carve a filled disc down to the trail (BASE) — overlapping discs make a
+  // smooth, rounded path with no stair-stepped edges.
+  const disc = (cx: number, cz: number, r: number, block: BlockType) => {
+    for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dz * dz <= r * r + 1) set(cx + dx, cz + dz, block, BASE);
     }
   };
-  for (let i = 0; i + 1 < stops.length; i++) carve(stops[i], stops[i + 1]);
-  // Clearings: a wider walkable room at every stop.
-  const clearingR = (i: number) => (i === 0 || i === stops.length - 1 ? CLEAR_R : TUTORS[i - 1]?.pen || TUTORS[i - 1]?.water ? CLEAR_R : 3);
+
+  // 1) The trail: sweep the meandering centreline and carve a wide dirt ribbon.
+  for (let z = Z_TOP - 2; z <= stopZ(STOPS - 1) + 2; z++) {
+    disc(Math.round(centerX(z)), z, HALF, "dirt");
+  }
+  // 2) A broad clearing at every stop, floored in the tutor's own ground.
+  const stops = Array.from({ length: STOPS }, (_, i) => stopCell(i));
   stops.forEach((s, i) => {
-    const r = clearingR(i);
-    for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) markTrail(s.x + dx, s.z + dz);
+    const ground = i === 0 || i === STOPS - 1 ? "coarsedirt" : TUTORS[i - 1].ground;
+    disc(s.x, s.z, CLEAR_R, ground);
   });
-
-  // 2) Distance-from-trail (multi-source BFS), to ramp the banks up away from
-  //    the path — a shallow verge by the trail rising to tall hills beyond.
-  const dist = new Int16Array(W * D).fill(-1);
-  let queue: number[] = [];
-  for (let i = 0; i < trail.length; i++) if (trail[i]) { dist[i] = 0; queue.push(i); }
-  while (queue.length) {
-    const next: number[] = [];
-    for (const idx of queue) {
-      const x = idx % W, z = (idx / W) | 0, d = dist[idx];
-      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-        const nx = x + dx, nz = z + dz;
-        if (!inB(nx, nz)) continue;
-        const ni = at(nx, nz);
-        if (dist[ni] === -1) { dist[ni] = d + 1; next.push(ni); }
-      }
-    }
-    queue = next;
+  // 3) A thin water moat around the rim so it reads as an island.
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
+    if (Math.min(x, z, W - 1 - x, D - 1 - z) < 3) set(x, z, "water", BASE);
   }
 
-  // 3) Lay terrain. Trail cells get their per-tutor ground (BASE, walkable);
-  //    off-trail cells rise into diverse banks (unwalkable) or pool into lakes.
-  for (let z = 0; z < D; z++) {
-    for (let x = 0; x < W; x++) {
-      const edge = Math.min(x, z, W - 1 - x, D - 1 - z);
-      if (trail[at(x, z)]) { set(x, z, "grass", BASE); continue; } // ground refined below per-stop
-      const band = bandForZ(z);
-      const d = dist[at(x, z)];
-      if (edge < 3) { set(x, z, "stone", BASE + 8); continue; } // outer cliff rim
-      if (edge < 6) { set(x, z, "water", BASE); continue; } // moat
-      if (band.lake && d > 7) { set(x, z, "water", BASE); continue; } // valley lake
-      const rise = Math.min(band.rise, 1 + Math.floor(d / 2));
-      set(x, z, band.bank, BASE + Math.max(2, rise)); // banks step up >1 => unwalkable
-    }
-  }
-
-  // 4) Scatter scenery on the banks (decorative; the banks are unwalkable), a
-  //    couple of props per band cell chosen deterministically by position.
-  const bankProps: ObjectPlacement[] = [];
-  let propN = 0;
-  for (let z = 8; z < D - 8; z += 2) {
-    for (let x = 8; x < W - 8; x += 2) {
-      if (trail[at(x, z)]) continue;
-      const d = dist[at(x, z)];
-      if (d < 2 || d > 9) continue; // hug the trail, skip deep interior
-      if ((x * 7 + z * 13) % 6 !== 0) continue;
-      const band = bandForZ(z);
-      if (blocks[at(x, z)] === "water") continue;
-      const prop = band.props[(x + z) % band.props.length];
-      bankProps.push({ instanceId: `tut.bank.${propN++}`, defId: prop, cell: { x, z } });
-    }
-  }
-
-  // --- camp (stop 0): starter-gear chest, bed, hearth, signpost, guide ---
+  // --- camp (stop 0) ---
   const camp = stops[0];
-  patchGround(set, camp.x, camp.z, CLEAR_R - 1, "coarsedirt");
+  const off = (i: number) => (i % 2 === 0 ? -1 : 1); // alternate the side dressing sits on
   objects.push(
     {
       instanceId: "tutorial.camp.chest",
       defId: "object.storage_chest.basic",
-      cell: { x: camp.x - 2, z: camp.z - 1 },
-      // Just provisions — every master hands over the tool their own lesson needs.
-      initialItems: [
-        { itemId: "item.pork.cooked", qty: 5 },
-        { itemId: "item.coin", qty: 20 },
-      ],
+      cell: { x: camp.x - 3, z: camp.z },
+      // Just provisions — every master hands over the tool their lesson needs.
+      initialItems: [{ itemId: "item.pork.cooked", qty: 5 }, { itemId: "item.coin", qty: 20 }],
     },
-    { instanceId: "tutorial.camp.bed", defId: "object.bed.basic", cell: { x: camp.x - 3, z: camp.z + 1 } },
-    { instanceId: "tutorial.camp.fire", defId: "object.campfire.basic", cell: { x: camp.x + 2, z: camp.z - 2 } },
-    { instanceId: "tutorial.camp.sign", defId: "object.signpost", cell: { x: camp.x, z: camp.z + 2 } },
+    { instanceId: "tutorial.camp.bed", defId: "object.bed.basic", cell: { x: camp.x - 3, z: camp.z + 2 } },
+    { instanceId: "tutorial.camp.fire", defId: "object.campfire.basic", cell: { x: camp.x + 3, z: camp.z } },
+    { instanceId: "tutorial.camp.sign", defId: "object.signpost", cell: { x: camp.x, z: camp.z - 3 } },
   );
   npcs.push({
     instanceId: "tutorial.guide",
     name: "Rowan the Guide",
-    cell: { x: camp.x + 1, z: camp.z },
+    cell: { x: camp.x + 1, z: camp.z + 1 },
     wanderRadius: 0,
     skin: "guide",
     lines: [
@@ -235,79 +140,74 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
     ],
   });
 
-  // --- tutor stops along the trail ---
-  TUTORS.forEach((t, i) => {
-    const stop = stops[i + 1];
+  // --- tutor stops ---
+  TUTORS.forEach((t, idx) => {
+    const stop = stops[idx + 1];
     const short = t.skill.slice("skill.".length);
     const master = SKILL_MASTERS.find((m) => m.skill === t.skill);
     const skillName = SKILLS[t.skill]?.name ?? short;
     const title = master?.title ?? "Master";
     const tutorName = master?.name ?? "Tutor";
-    // Which side of the corridor the training ground sits on.
-    const side = (i % 2 === 0 ? -1 : 1) as 1 | -1;
+    const side = off(idx) as 1 | -1;
 
-    // Refine the clearing ground to the tutor's theme.
-    patchGround(set, stop.x, stop.z, 3, t.ground);
-
+    // The tutor stands in the open middle of the clearing.
     npcs.push({
       instanceId: masterNpcId(t.skill),
       name: t.combat ? "Sergeant Gareth, Combat Instructor" : `${tutorName} the ${title}`,
-      cell: { x: stop.x + 1, z: stop.z },
+      cell: { x: stop.x, z: stop.z },
       wanderRadius: 0,
       skin: t.skin,
       lines: t.combat
         ? [
             "I teach the whole art of melee — Attack, Strength, Defence and Constitution all at once.",
-            "See the attack-style button on your bar? Accurate trains Attack, Aggressive trains Strength, Defensive trains Defence, Controlled splits all three.",
-            "Constitution always grows as you fight. Switch styles between blows, then cull the pigs in the pen to practise.",
+            "The attack-style button on your bar picks which one grows: Accurate, Aggressive, Defensive, or Controlled to split them.",
+            "Constitution always grows as you fight. Cull the pigs in the pen, then report back to me.",
           ]
         : [
             `I'm ${tutorName}, master of ${skillName}. Speak to me to begin the lesson.`,
-            `Train ${skillName} here in the clearing, then carry on down the trail.`,
+            `Train ${skillName} here, then come back to me and I'll sign it off.`,
           ],
     });
-    objects.push({ instanceId: `tut.lamp.${short}`, defId: "object.lamp.post", cell: { x: stop.x - 2, z: stop.z } });
+    objects.push({ instanceId: `tut.lamp.${short}`, defId: "object.lamp.post", cell: { x: stop.x, z: stop.z - CLEAR_R } });
 
-    // Optional pond beside the stop (fishing / mariner) — carved into the clearing.
+    // A pond beside the clearing for the anglers/mariners.
     if (t.water) {
-      for (let dz = -1; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
-        set(stop.x + dx, stop.z + side * 2 + dz, "water", BASE);
+      for (let dz = -2; dz <= 2; dz++) for (let dx = 0; dx <= 3; dx++) {
+        set(stop.x + side * (CLEAR_R - 1 + dx), stop.z + dz, "water", BASE);
       }
-      objects.push({ instanceId: `tut.reeds.${short}`, defId: "object.reeds.water", cell: { x: stop.x + 3, z: stop.z } });
+      objects.push({ instanceId: `tut.reeds.${short}`, defId: "object.reeds.water", cell: { x: stop.x + side * (CLEAR_R - 1), z: stop.z } });
     }
 
     // Station beside the tutor, inside the clearing.
     if (t.station) {
-      const scell = { x: stop.x - 1, z: stop.z + side * (t.water ? 1 : 2) };
+      const scell = { x: stop.x + side * 3, z: stop.z + (t.water ? -2 : 0) };
+      set(scell.x, scell.z, "coarsedirt", BASE); // make sure it sits on the floor
       if (t.station.startsWith("resource.")) {
         nodes.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell });
       } else if (t.station === "object.shortcut.log") {
-        // The agility shortcut needs a real destination (a nearby clearing cell)
-        // so vaulting it fires and grants Agility XP.
         objects.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell, portal: { targetRegionId: "region.tutorial", targetCell: { x: stop.x, z: stop.z } } });
       } else {
         objects.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell });
       }
     }
 
-    // Fenced practice pen inside the clearing.
+    // Fenced practice pen, carved as a small alcove off the far side.
     if (t.pen) {
-      buildPen(set, objects, enemies, stop.x, stop.z + side * 3, side, short, t.pen, !!t.combat, !!t.boss);
+      buildPen(set, enemies, stop.x - side * (CLEAR_R + 1), stop.z, side, short, t.pen, !!t.combat, !!t.boss);
     }
   });
 
-  // --- gateway (last stop): gatekeeper + graduation portal ---
-  const gate = stops[stops.length - 1];
-  patchGround(set, gate.x, gate.z, CLEAR_R - 1, "stonebrick");
+  // --- gateway (last stop) ---
+  const gate = stops[STOPS - 1];
   objects.push(
     {
       instanceId: "tutorial.graduate",
       defId: "object.portal.graduate",
-      cell: { x: gate.x, z: gate.z - 2 },
+      cell: { x: gate.x, z: gate.z + CLEAR_R - 1 },
       portal: { targetRegionId: "region.endless", targetCell: { x: gate.x, z: gate.z } },
     },
-    { instanceId: "tutorial.gate.lampL", defId: "object.lamp.post", cell: { x: gate.x - 3, z: gate.z } },
-    { instanceId: "tutorial.gate.lampR", defId: "object.lamp.post", cell: { x: gate.x + 3, z: gate.z } },
+    { instanceId: "tutorial.gate.lampL", defId: "object.lamp.post", cell: { x: gate.x - 3, z: gate.z + CLEAR_R - 1 } },
+    { instanceId: "tutorial.gate.lampR", defId: "object.lamp.post", cell: { x: gate.x + 3, z: gate.z + CLEAR_R - 1 } },
   );
   npcs.push({
     instanceId: "tutorial.gatekeeper",
@@ -337,31 +237,18 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
     heights,
     blocks,
     nodes,
-    objects: [...objects, ...bankProps],
+    objects,
     npcs,
     enemies,
-    spawn: { x: camp.x, z: camp.z + 1 },
-    theme: { sky: "#8fc7e8", sun: 1.0, ambient: 0.62 },
+    spawn: { x: camp.x, z: camp.z },
+    theme: { sky: "#8fc7e8", sun: 1.0, ambient: 0.64 },
   };
 }
 
-/** Paint a small square ground patch around a centre (trail cells only stay at
- *  BASE, so this never punches a hole in the enclosing banks). */
-function patchGround(
-  set: (x: number, z: number, block: BlockType, h: number) => void,
-  cx: number,
-  cz: number,
-  rad: number,
-  block: BlockType,
-): void {
-  for (let dz = -rad; dz <= rad; dz++) for (let dx = -rad; dx <= rad; dx++) set(cx + dx, cz + dz, block, BASE);
-}
-
-/** A compact fenced pen on one side of a clearing, gated toward the corridor,
- *  holding two (or three) weak practice mobs that stay penned behind the fence. */
+/** A compact fenced pen carved as a floor alcove, gated toward the trail, with
+ *  two (or three) weak practice beasts that stay penned. */
 function buildPen(
   set: (x: number, z: number, block: BlockType, h: number) => void,
-  objects: ObjectPlacement[],
   enemies: EnemyPlacement[],
   cx: number,
   cz: number,
@@ -371,23 +258,19 @@ function buildPen(
   combat: boolean,
   boss: boolean,
 ): void {
-  const x0 = cx - 2, x1 = cx + 2;
-  const zNear = cz - side; // the fence side toward the corridor (holds the gate)
-  const zFar = cz + side;
-  const zLo = Math.min(zNear, zFar), zHi = Math.max(zNear, zFar);
-  for (let z = zLo; z <= zHi; z++) for (let x = x0; x <= x1; x++) set(x, z, "coarsedirt", BASE);
-  for (let x = x0; x <= x1; x++) {
-    if (x !== cx) set(x, zNear, "oak_fence", BASE); // gate gap at the centre
-    set(x, zFar, "oak_fence", BASE);
+  const x0 = cx - 2, x1 = cx + 2, z0 = cz - 2, z1 = cz + 2;
+  for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) set(x, z, "coarsedirt", BASE);
+  // Fence the perimeter, leaving a one-cell gate on the trail-facing side.
+  const gateX = cx + side * 2; // the side nearest the clearing
+  for (let z = z0; z <= z1; z++) {
+    if (!(z === cz && x1 === gateX)) set(x1, z, "oak_fence", BASE);
+    if (!(z === cz && x0 === gateX)) set(x0, z, "oak_fence", BASE);
   }
-  set(x0, cz, "oak_fence", BASE);
-  set(x1, cz, "oak_fence", BASE);
-  // A ".boss" instance id makes a kill grant Dungeoneering XP (the driver keys
-  // off the suffix), so the delver's pit-beast trains Dungeoneering.
+  for (let x = x0; x <= x1; x++) { set(x, z0, "oak_fence", BASE); set(x, z1, "oak_fence", BASE); }
   const primary = boss ? `tut.pen.${short}.boss` : `tut.pen.${short}.a`;
   enemies.push(
-    { instanceId: primary, defId: enemyDef, cell: { x: cx - 1, z: cz } },
-    { instanceId: `tut.pen.${short}.b`, defId: enemyDef, cell: { x: cx + 1, z: cz } },
+    { instanceId: primary, defId: enemyDef, cell: { x: cx, z: cz - 1 } },
+    { instanceId: `tut.pen.${short}.b`, defId: enemyDef, cell: { x: cx, z: cz + 1 } },
   );
   if (combat) enemies.push({ instanceId: `tut.pen.${short}.c`, defId: enemyDef, cell: { x: cx, z: cz } });
 }
