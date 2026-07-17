@@ -289,6 +289,7 @@ export function makeDungeon(spec: DungeonSpec): () => RegionSpec {
 type Weighted = Array<{ defId: string; weight: number }>;
 
 const CRYPT_FOES: Weighted = [
+  { defId: "enemy.mimic", weight: 1 },
   { defId: "enemy.skeleton", weight: 4 },
   { defId: "enemy.zombie", weight: 4 },
   { defId: "enemy.grave_shambler", weight: 3 },
@@ -308,6 +309,7 @@ const MINE_FOES: Weighted = [
 ];
 // Pillager stronghold — an outpost gone underground: bandits, war-beasts.
 const WARREN_FOES: Weighted = [
+  { defId: "enemy.giant_rat", weight: 4 }, // the warrens crawl with them
   { defId: "enemy.pillager", weight: 4 },
   { defId: "enemy.vindicator", weight: 3 },
   { defId: "enemy.timber_wolf", weight: 3 },
@@ -325,6 +327,7 @@ const HIVE_FOES: Weighted = [
 ];
 // A dwarven treasure vault, its wards still walking: stone and rust constructs.
 const VAULT_FOES: Weighted = [
+  { defId: "enemy.mimic", weight: 1 }, // a treasure chest gone wrong
   { defId: "enemy.stone_sentinel", weight: 4 },
   { defId: "enemy.rust_construct", weight: 4 },
   { defId: "enemy.skeleton", weight: 2 },

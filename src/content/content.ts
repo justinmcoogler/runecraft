@@ -1668,6 +1668,8 @@ export const ITEMS: Record<string, ItemDef> = {
   // ---- the deep-water ladder: shellfish close in, monsters far out ----
   "item.fish.shrimp": { id: "item.fish.shrimp", name: "Shore Shrimp", icon: "🦐", stackable: true, maxStack: 20 },
   "item.shrimp.cooked": { id: "item.shrimp.cooked", name: "Buttered Shrimp", icon: "🍤", stackable: true, maxStack: 20, healAmount: 4 },
+  "item.pelt.fox": { id: "item.pelt.fox", name: "Fox Pelt", icon: "🦊", stackable: true, maxStack: 20 },
+  "item.shell.crab": { id: "item.shell.crab", name: "Crab Shell", icon: "🐚", stackable: true, maxStack: 30 },
   "item.fish.crab": { id: "item.fish.crab", name: "Rock Crab", icon: "🦀", stackable: true, maxStack: 20 },
   "item.crab.cooked": { id: "item.crab.cooked", name: "Boiled Crab", icon: "🦀", stackable: true, maxStack: 20, healAmount: 10 },
   "item.fish.lobster": { id: "item.fish.lobster", name: "Reef Lobster", icon: "🦞", stackable: true, maxStack: 20 },
@@ -6205,6 +6207,17 @@ export type EnemyViewKind =
   | "squid"
   | "ghast"
   | "dummy"
+  // Original animated rigs for the wildlife + gap-filler roster.
+  | "fox"
+  | "rabbit"
+  | "stag"
+  | "crab"
+  | "goat"
+  | "frog"
+  | "squirrel"
+  | "rat"
+  | "wisp"
+  | "mimic"
   // BetaSharp/oafs/CornCraft vanilla mob models (rendered via buildBBModel).
   | "pillager"
   | "vindicator"
@@ -6245,9 +6258,111 @@ export interface EnemyDef {
   /** Never engages, chases, leashes or wanders — a fixed training target.
    *  Being hit can't heal it (no leash reset), so it can actually be felled. */
   stationary?: boolean;
+  /** Wildlife that bolts when the player comes near (never retaliates). */
+  skittish?: boolean;
 }
 
 export const ENEMIES: Record<string, EnemyDef> = {
+  // ── Wildlife: the near-home world breathes (skittish, never fights back) ──
+  "enemy.fox": {
+    id: "enemy.fox", name: "Fox", level: 2, maxHealth: 10,
+    attack: { cadenceS: 3, accuracy: 0.4, dmgMin: 1, dmgMax: 1 },
+    aggroRadiusCells: 0, leashRadiusCells: 8, wanderRadiusCells: 5, respawnS: 70, xpOnDefeat: 24,
+    skittish: true,
+    loot: [{ itemId: "item.pelt.fox", min: 1, max: 1, chance: 0.7 }, { itemId: "item.bone.old", min: 1, max: 1, chance: 0.5 }],
+    view: "fox",
+  },
+  "enemy.rabbit": {
+    id: "enemy.rabbit", name: "Rabbit", level: 1, maxHealth: 4,
+    attack: { cadenceS: 4, accuracy: 0.2, dmgMin: 0, dmgMax: 1 },
+    aggroRadiusCells: 0, leashRadiusCells: 8, wanderRadiusCells: 4, respawnS: 45, xpOnDefeat: 8,
+    skittish: true,
+    loot: [{ itemId: "item.game.rabbit", min: 1, max: 1, chance: 0.9 }, { itemId: "item.fur", min: 1, max: 1, chance: 0.5 }],
+    view: "rabbit",
+  },
+  "enemy.stag": {
+    id: "enemy.stag", name: "Stag", level: 6, maxHealth: 26,
+    attack: { cadenceS: 2.4, accuracy: 0.6, dmgMin: 2, dmgMax: 4 },
+    aggroRadiusCells: 0, leashRadiusCells: 10, wanderRadiusCells: 5, respawnS: 90, xpOnDefeat: 55,
+    skittish: true,
+    loot: [{ itemId: "item.beef.raw", min: 1, max: 2, chance: 0.9 }, { itemId: "item.bone.big", min: 1, max: 1, chance: 0.4 }],
+    view: "stag",
+  },
+  "enemy.doe": {
+    id: "enemy.doe", name: "Doe", level: 3, maxHealth: 16,
+    attack: { cadenceS: 3, accuracy: 0.3, dmgMin: 1, dmgMax: 1 },
+    aggroRadiusCells: 0, leashRadiusCells: 10, wanderRadiusCells: 5, respawnS: 80, xpOnDefeat: 30,
+    skittish: true,
+    loot: [{ itemId: "item.beef.raw", min: 1, max: 1, chance: 0.9 }],
+    view: "stag", viewMaterial: "doe",
+  },
+  "enemy.crab.shore": {
+    id: "enemy.crab.shore", name: "Shore Crab", level: 2, maxHealth: 12,
+    attack: { cadenceS: 2.6, accuracy: 0.5, dmgMin: 1, dmgMax: 2 },
+    aggroRadiusCells: 0, leashRadiusCells: 5, wanderRadiusCells: 3, respawnS: 60, xpOnDefeat: 20,
+    loot: [{ itemId: "item.shell.crab", min: 1, max: 2, chance: 0.8 }, { itemId: "item.fish.crab", min: 1, max: 1, chance: 0.4 }],
+    view: "crab",
+  },
+  "enemy.duck": {
+    id: "enemy.duck", name: "Duck", level: 1, maxHealth: 6,
+    attack: { cadenceS: 4, accuracy: 0.2, dmgMin: 0, dmgMax: 1 },
+    aggroRadiusCells: 0, leashRadiusCells: 6, wanderRadiusCells: 3, respawnS: 50, xpOnDefeat: 10,
+    skittish: true,
+    loot: [{ itemId: "item.chicken.raw", min: 1, max: 1, chance: 0.9 }, { itemId: "item.feather", min: 1, max: 3, chance: 0.8 }],
+    view: "chicken", tint: "#4e7d4e",
+  },
+  "enemy.goat": {
+    id: "enemy.goat", name: "Goat", level: 4, maxHealth: 18,
+    attack: { cadenceS: 2.2, accuracy: 0.6, dmgMin: 2, dmgMax: 3 },
+    aggroRadiusCells: 0, leashRadiusCells: 8, wanderRadiusCells: 4, respawnS: 70, xpOnDefeat: 40,
+    loot: [{ itemId: "item.mutton.raw", min: 1, max: 1, chance: 0.9 }, { itemId: "item.bone.old", min: 1, max: 2, chance: 0.5 }],
+    view: "goat",
+  },
+  "enemy.frog": {
+    id: "enemy.frog", name: "Frog", level: 1, maxHealth: 3,
+    attack: { cadenceS: 4, accuracy: 0.2, dmgMin: 0, dmgMax: 1 },
+    aggroRadiusCells: 0, leashRadiusCells: 5, wanderRadiusCells: 3, respawnS: 40, xpOnDefeat: 6,
+    skittish: true,
+    loot: [],
+    view: "frog",
+  },
+  "enemy.squirrel": {
+    id: "enemy.squirrel", name: "Squirrel", level: 1, maxHealth: 3,
+    attack: { cadenceS: 4, accuracy: 0.2, dmgMin: 0, dmgMax: 1 },
+    aggroRadiusCells: 0, leashRadiusCells: 6, wanderRadiusCells: 5, respawnS: 40, xpOnDefeat: 6,
+    skittish: true,
+    loot: [],
+    view: "squirrel",
+  },
+  // ── Gap-fillers: the hostile roster's missing rungs ──
+  "enemy.giant_rat": {
+    id: "enemy.giant_rat", name: "Giant Rat", level: 8, maxHealth: 30,
+    attack: { cadenceS: 2.2, accuracy: 0.65, dmgMin: 2, dmgMax: 4 },
+    aggroRadiusCells: 3, leashRadiusCells: 8, wanderRadiusCells: 4, respawnS: 60, xpOnDefeat: 70,
+    loot: [{ itemId: "item.bone.old", min: 1, max: 2, chance: 0.8 }],
+    view: "rat",
+  },
+  "enemy.bandit": {
+    id: "enemy.bandit", name: "Bandit", level: 16, maxHealth: 55,
+    attack: { cadenceS: 2.0, accuracy: 0.72, dmgMin: 4, dmgMax: 7 },
+    aggroRadiusCells: 5, leashRadiusCells: 12, wanderRadiusCells: 4, respawnS: 120, xpOnDefeat: 160,
+    loot: [{ itemId: "item.coin", min: 8, max: 30, chance: 1 }, { itemId: "item.arrow.bronze", min: 2, max: 6, chance: 0.4 }],
+    view: "pillager", tint: "#6b5a48",
+  },
+  "enemy.wisp": {
+    id: "enemy.wisp", name: "Will-o'-Wisp", level: 14, maxHealth: 40,
+    attack: { cadenceS: 2.6, accuracy: 0.7, dmgMin: 3, dmgMax: 6 },
+    aggroRadiusCells: 4, leashRadiusCells: 9, wanderRadiusCells: 5, respawnS: 90, xpOnDefeat: 140,
+    loot: [{ itemId: "item.essence.rune", min: 1, max: 3, chance: 0.9 }],
+    view: "wisp",
+  },
+  "enemy.mimic": {
+    id: "enemy.mimic", name: "Mimic", level: 30, maxHealth: 120,
+    attack: { cadenceS: 1.8, accuracy: 0.8, dmgMin: 6, dmgMax: 11 },
+    aggroRadiusCells: 2, leashRadiusCells: 6, wanderRadiusCells: 0, respawnS: 300, xpOnDefeat: 420,
+    loot: [{ itemId: "item.coin", min: 40, max: 120, chance: 1 }, { itemId: "item.gem.sapphire", min: 1, max: 1, chance: 0.35 }, { itemId: "item.gem.ruby", min: 1, max: 1, chance: 0.15 }],
+    view: "mimic",
+  },
   "enemy.cow": {
     id: "enemy.cow",
     name: "Cow",

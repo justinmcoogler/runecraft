@@ -122,7 +122,7 @@ function agilityByDist(x: number, z: number, seed: number): string {
 // out. Tier 5 fields true bosses. (Every id exists in ENEMIES.)
 export const DANGER_MOBS: string[][] = [
   ["enemy.boar", "enemy.timber_wolf", "enemy.spider", "enemy.pig"],
-  ["enemy.cave_spider", "enemy.skeleton", "enemy.zombie", "enemy.thornback"],
+  ["enemy.cave_spider", "enemy.skeleton", "enemy.zombie", "enemy.thornback", "enemy.giant_rat"],
   ["enemy.dire_wolf", "enemy.stray", "enemy.marsh_lurker", "enemy.grave_shambler"],
   ["enemy.moss_golem", "enemy.mire_husk", "enemy.gloom_spinner", "enemy.stone_sentinel"],
   ["enemy.barrow_lord", "enemy.silt_king", "enemy.glacial_wight", "enemy.canyon_construct"],
@@ -2624,7 +2624,10 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.47) nodes.push({ instanceId: id(), defId: "resource.bush.berry", cell });
           else if (r < 0.5) objects.push({ instanceId: id(), defId: "object.flowers.wild", cell });
           else if (r < 0.505) enemies.push({ instanceId: id(), defId: "enemy.timber_wolf", cell });
-          else if (r < 0.515) enemies.push({ instanceId: id(), defId: "enemy.pig", cell });
+          else if (r < 0.509) enemies.push({ instanceId: id(), defId: "enemy.stag", cell });
+          else if (r < 0.512) enemies.push({ instanceId: id(), defId: "enemy.squirrel", cell });
+          else if (r < 0.5145) enemies.push({ instanceId: id(), defId: "enemy.rabbit", cell });
+          else if (r < 0.515) enemies.push({ instanceId: id(), defId: "enemy.fox", cell });
           else if (r < 0.53) nodes.push({ instanceId: id(), defId: "resource.herb.mint", cell });
           else if (r < 0.545) objects.push({ instanceId: id(), defId: "object.log.fallen", cell });
           else if (r < 0.56) objects.push({ instanceId: id(), defId: "object.flora.wild", cell });
@@ -2654,6 +2657,8 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           if (r < 0.1) nodes.push({ instanceId: id(), defId: "resource.tree.jungle", cell });
           else if (r < 0.115) nodes.push({ instanceId: id(), defId: "resource.herb.ember", cell });
           else if (r < 0.122) enemies.push({ instanceId: id(), defId: "enemy.bog_slime", cell });
+          else if (r < 0.128) enemies.push({ instanceId: id(), defId: "enemy.frog", cell });
+          else if (r < 0.131 && remoteness01(wx, wz) > 0.25) enemies.push({ instanceId: id(), defId: "enemy.wisp", cell });
           else if (r < 0.135) nodes.push({ instanceId: id(), defId: "resource.herb.duskcap", cell });
           else if (r < 0.15) nodes.push({ instanceId: id(), defId: "resource.herb.mint", cell });
           else if (r < 0.1512) enemies.push({ instanceId: id(), defId: "enemy.dragon.hydra", cell });
@@ -2669,6 +2674,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           break;
         case 6: // savanna
           if (r < 0.07) nodes.push({ instanceId: id(), defId: "resource.tree.acacia", cell });
+          else if (r < 0.078) enemies.push({ instanceId: id(), defId: "enemy.goat", cell });
           else if (r < 0.085) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
           else if (r < 0.1) nodes.push({ instanceId: id(), defId: "resource.herb.sage", cell });
           else if (r < 0.11) enemies.push({ instanceId: id(), defId: "enemy.cow", cell });
@@ -2934,6 +2940,9 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.164) enemies.push({ instanceId: id(), defId: "enemy.cow", cell });
           else if (r < 0.171) enemies.push({ instanceId: id(), defId: "enemy.sheep", cell });
           else if (r < 0.176) enemies.push({ instanceId: id(), defId: "enemy.chicken", cell });
+          else if (r < 0.1795) enemies.push({ instanceId: id(), defId: "enemy.rabbit", cell });
+          else if (r < 0.181) enemies.push({ instanceId: id(), defId: "enemy.doe", cell });
+          else if (r < 0.1825) enemies.push({ instanceId: id(), defId: "enemy.fox", cell });
           else if (r < 0.184) nodes.push({ instanceId: id(), defId: "resource.trail.rabbit", cell });
           else if (r < 0.188) {
             // Pumpkins grow from turf only — never on sand, dirt or rock.
@@ -3093,8 +3102,15 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
         const touchesWater =
           BLOCK_LIST[blocks[i - 1]] === "water" || BLOCK_LIST[blocks[i + 1]] === "water" ||
           BLOCK_LIST[blocks[i - ECHUNK]] === "water" || BLOCK_LIST[blocks[i + ECHUNK]] === "water";
-        if (touchesWater && cellHash(wx, wz, salt(seed, 44)) < 0.3) {
+        const shoreRoll = cellHash(wx, wz, salt(seed, 44));
+        if (touchesWater && shoreRoll < 0.3) {
           objects.push({ instanceId: id(), defId: "object.reeds.water", cell });
+        } else if (touchesWater && block === "sand" && shoreRoll > 0.965) {
+          // Shore crabs scuttle the sand at the waterline.
+          enemies.push({ instanceId: id(), defId: "enemy.crab.shore", cell });
+        } else if (touchesWater && shoreRoll > 0.955 && shoreRoll <= 0.965) {
+          // A duck paddles at the pond edge.
+          enemies.push({ instanceId: id(), defId: "enemy.duck", cell });
         }
       }
       if (block !== "water") continue;
@@ -3251,6 +3267,18 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
       const pool = DANGER_MOBS[Math.min(5, tier + bump)];
       const defId = pool[Math.floor(cellHash(z0 + hz, x0 + hx, salt(seed, 123 + k)) * pool.length) % pool.length];
       enemies.push({ instanceId: id(), defId, cell: { x: x0 + hx, z: z0 + hz } });
+    }
+    // Bandits work the far roads: a rare ambusher lurking a few cells off the
+    // way, so travelled routes stay tense in the deep country.
+    if (remote > 0.3 && cellHash(cx * 53 + 1, cz * 67 + 9, salt(seed, 135)) < 0.1) {
+      for (let k = 0; k < 24; k++) {
+        const hx = 3 + Math.floor(cellHash(cx * 7 + k, cz * 9 + k * 3, salt(seed, 136)) * (ECHUNK - 6));
+        const hz = 3 + Math.floor(cellHash(cz * 11 + k * 5, cx * 13 + k * 7, salt(seed, 137)) * (ECHUNK - 6));
+        const rd = roadDist(seed, x0 + hx, z0 + hz);
+        if (rd < 3 || rd > 6 || !dryOpen(hx, hz)) continue;
+        enemies.push({ instanceId: id(), defId: "enemy.bandit", cell: { x: x0 + hx, z: z0 + hz } });
+        break;
+      }
     }
     // Rare near-home menace: a mid-tier foe deep in the safe lands, marked by
     // a dead snag so the danger is clearly telegraphed before you stumble in.

@@ -24,6 +24,10 @@ describe("the organized province", () => {
     // These haunt the endless worlds' corrupted biomes (gravemoor and
     // blightwood feature tables in worldgen/endless.ts), not the province.
     const ENDLESS_ONLY = new Set([
+      // The wildlife + gap-filler roster lives in the endless wilds/dungeons.
+      "enemy.fox", "enemy.rabbit", "enemy.stag", "enemy.doe", "enemy.crab.shore",
+      "enemy.duck", "enemy.goat", "enemy.frog", "enemy.squirrel",
+      "enemy.giant_rat", "enemy.bandit", "enemy.wisp", "enemy.mimic",
       "enemy.grave_shambler",
       "enemy.hollow_wight",
       "enemy.dire_wolf",

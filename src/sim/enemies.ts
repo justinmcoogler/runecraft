@@ -274,6 +274,33 @@ export class EnemySystem {
       }
       if (enemy.returningHome && !enemy.movement.isMoving()) enemy.returningHome = false;
       if (enemy.movement.isMoving()) continue;
+      // Skittish wildlife bolts when the player closes in: a fast dash
+      // directly away, then it settles once it has some distance again.
+      if (def.skittish && !enemy.engaged) {
+        const ep = enemy.movement.pos;
+        const d = Math.hypot(ep.x - (playerCell.x + 0.5), ep.z - (playerCell.z + 0.5));
+        const pp = { x: playerCell.x + 0.5, z: playerCell.z + 0.5 };
+        if (d < 4) {
+          enemy.movement.speedCellsPerS = 4.4; // panicked burst
+          const ux = d > 0.01 ? (ep.x - pp.x) / d : 1;
+          const uz = d > 0.01 ? (ep.z - pp.z) / d : 0;
+          for (let reach = 6; reach >= 3; reach--) {
+            const target = {
+              x: Math.round(ep.x + ux * reach + (rng.next() - 0.5) * 2),
+              z: Math.round(ep.z + uz * reach + (rng.next() - 0.5) * 2),
+            };
+            if (!this.deps.world.walkable(target)) continue;
+            const path = findPath(this.deps.world, enemy.movement.currentCell(), target);
+            if (path && path.length > 0) {
+              enemy.movement.setPath(path);
+              enemy.wanderCooldownS = 1.2;
+              break;
+            }
+          }
+          continue;
+        }
+        enemy.movement.speedCellsPerS = 2.6; // calm again
+      }
       enemy.wanderCooldownS -= dtSeconds;
       if (enemy.wanderCooldownS > 0) continue;
       enemy.wanderCooldownS = 3 + rng.next() * 5;

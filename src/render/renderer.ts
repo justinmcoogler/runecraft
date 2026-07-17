@@ -51,6 +51,11 @@ interface EnemyAnim {
   /** Slow idle sway for limbless dangly bits (warden tendrils, tails, spines):
    *  a gentle rock about the rest x/z, always on, so the boss never freezes. */
   sway?: Array<{ obj: THREE.Object3D; baseX: number; baseZ: number; sign: number }>;
+  /** Rabbits and frogs travel in hop arcs: the body lifts on the walk phase
+   *  instead of legs striding. */
+  hopper?: boolean;
+  /** Ghost-lights: the whole rig floats and bobs above the ground, no legs. */
+  floater?: boolean;
 }
 
 const WATER_SURFACE_Y = -0.35;
@@ -5115,6 +5120,304 @@ export class GameRenderer {
         body.add(torso, seam, shoulders, head);
         return { barHeight: 28 * P + 0.22, anim };
       }
+      case "fox": {
+        // Russet fox: lithe wolf-family silhouette with a white muzzle and a
+        // white-tipped brush tail that sways as it trots.
+        const coat = tint ?? "#c25a28";
+        const darkc = "#8a3a18";
+        for (const [sx, sz] of [[-1.4, -3], [1.4, -3], [-1.4, 3], [1.4, 3]] as const) {
+          const leg = box(1.2, 3, 1.2, darkc);
+          leg.geometry.translate(0, -1.5 * P, 0);
+          leg.position.set(sx * P, 3 * P, sz * P);
+          anim.legs.push(leg);
+          body.add(leg);
+        }
+        const trunk = box(4, 4, 9, coat);
+        trunk.position.y = 5 * P;
+        const head = new THREE.Group();
+        head.add(box(4, 3.5, 4, coat));
+        const muzzle = box(2, 1.6, 2.5, "#efe6d5");
+        muzzle.position.set(0, -1 * P, -2.5 * P);
+        head.add(muzzle);
+        for (const sx of [-1.4, 1.4]) {
+          const ear = box(1.2, 1.6, 0.8, darkc);
+          ear.position.set(sx * P, 2.4 * P, 0.5 * P);
+          head.add(ear);
+        }
+        head.position.set(0, 7 * P, -5.5 * P);
+        anim.head = head;
+        anim.headRestZ = -5.5 * P;
+        const tail = box(2.2, 2.2, 6, coat);
+        tail.position.set(0, 6 * P, 7 * P);
+        const tip = box(2.3, 2.3, 1.6, "#efe6d5");
+        tip.position.set(0, 6 * P, 10.2 * P);
+        anim.sway = [{ obj: tail, baseX: 0, baseZ: 0, sign: 1 }, { obj: tip, baseX: 0, baseZ: 0, sign: 1 }];
+        body.add(trunk, head, tail, tip);
+        return { barHeight: 10 * P + 0.2, anim };
+      }
+      case "rabbit": {
+        // Cottontail: round body, tall ears, hop-arc travel (anim.hopper).
+        const fur = tint ?? "#b9977a";
+        const light = "#c4a488";
+        const trunk = box(5, 4, 6, fur);
+        trunk.position.y = 4 * P;
+        const head = new THREE.Group();
+        head.add(box(4, 4, 4, light));
+        for (const sx of [-1.2, 1.2]) {
+          const ear = box(1.2, 4, 1.8, light);
+          ear.position.set(sx * P, 4 * P, 0);
+          head.add(ear);
+        }
+        head.position.set(0, 7 * P, -4 * P);
+        anim.head = head;
+        anim.headRestZ = -4 * P;
+        const tailPuff = box(2, 2, 2, "#efe6d5");
+        tailPuff.position.set(0, 4 * P, 3.6 * P);
+        for (const sx of [-1.5, 1.5]) {
+          const haunch = box(1.5, 2, 2, "#a8876a");
+          haunch.position.set(sx * P, 1 * P, 1.5 * P);
+          body.add(haunch);
+        }
+        anim.hopper = true;
+        body.add(trunk, head, tailPuff);
+        return { barHeight: 9 * P + 0.18, anim };
+      }
+      case "stag": {
+        // Forest stag: slender legs, long neck, pale antlers. The doe shares
+        // the rig (viewMaterial "doe") without antlers, in a softer coat.
+        const isDoe = defId === "enemy.doe";
+        const coat = tint ?? (isDoe ? "#a08258" : "#8a6844");
+        const darkc = "#7a5a3a";
+        for (const [sx, sz] of [[-2, -4], [2, -4], [-2, 4], [2, 4]] as const) {
+          const leg = box(1.5, 6, 1.5, darkc);
+          leg.geometry.translate(0, -3 * P, 0);
+          leg.position.set(sx * P, 6 * P, sz * P);
+          anim.legs.push(leg);
+          body.add(leg);
+        }
+        const trunk = box(6, 6, 12, coat);
+        trunk.position.y = 9 * P;
+        const neck = box(3, 5, 3, coat);
+        neck.position.set(0, 14 * P, -6 * P);
+        const head = new THREE.Group();
+        head.add(box(4, 4, 5, isDoe ? "#ab8d63" : "#94724c"));
+        if (!isDoe) {
+          for (const sx of [-1.8, 1.8]) {
+            const stem = box(0.8, 4, 0.8, "#e8dcc8");
+            stem.position.set(sx * P, 4 * P, 0.5 * P);
+            head.add(stem);
+            const branch = box(3, 0.8, 0.8, "#e8dcc8");
+            branch.position.set(sx * P, 5.5 * P, 0.5 * P);
+            head.add(branch);
+          }
+        }
+        head.position.set(0, 18 * P, -7.5 * P);
+        anim.head = head;
+        anim.headRestZ = -7.5 * P;
+        const tail = box(1.5, 2, 1.2, "#efe6d5");
+        tail.position.set(0, 10 * P, 6.4 * P);
+        body.add(trunk, neck, head, tail);
+        return { barHeight: 22 * P + 0.2, anim };
+      }
+      case "crab": {
+        // Shore crab: low wide shell, claws forward, eye stalks. It scuttles
+        // sideways — the rig is built rotated 90° so walking reads as a
+        // side-step — and raises its claws (sway) as it moves.
+        const shellC = tint ?? "#c0455a";
+        const darkc = "#8a2f3e";
+        const shell = box(8, 3, 6, shellC);
+        shell.position.y = 3 * P;
+        for (const sgn of [-1, 1]) {
+          const arm = box(2.4, 2, 3, "#a83a4c");
+          arm.position.set(sgn * 5.4 * P, 3 * P, -2 * P);
+          const claw = box(3, 2.6, 2, shellC);
+          claw.position.set(sgn * 5.4 * P, 3 * P, -4.4 * P);
+          (anim.sway ??= []).push({ obj: claw, baseX: 0, baseZ: 0, sign: sgn });
+          body.add(arm, claw);
+        }
+        for (let i = 0; i < 3; i++) {
+          for (const sgn of [-1, 1]) {
+            const leg = box(1, 2.2, 1, darkc);
+            leg.geometry.translate(0, -1.1 * P, 0);
+            leg.position.set(sgn * (3 + i * 1.4) * P, 2.2 * P, (1 + i * 1.2) * P);
+            anim.legs.push(leg);
+            body.add(leg);
+          }
+        }
+        for (const sx of [-1.2, 1.2]) {
+          const stalk = box(0.8, 1.6, 0.8, "#2b2b33");
+          stalk.position.set(sx * P, 5.4 * P, -2.6 * P);
+          body.add(stalk);
+        }
+        body.rotation.y = Math.PI / 2; // built sideways: walking = side-scuttle
+        body.add(shell);
+        return { barHeight: 7 * P + 0.18, anim };
+      }
+      case "goat": {
+        // Mountain goat: shaggy sheep-scale body, back-swept horns, chin tuft.
+        const woolC = tint ?? "#d9d2c4";
+        const darkc = "#8a8072";
+        for (const [sx, sz] of [[-2, -3], [2, -3], [-2, 3], [2, 3]] as const) {
+          const leg = box(1.6, 5, 1.6, darkc);
+          leg.geometry.translate(0, -2.5 * P, 0);
+          leg.position.set(sx * P, 5 * P, sz * P);
+          anim.legs.push(leg);
+          body.add(leg);
+        }
+        const trunk = box(6, 6, 10, woolC);
+        trunk.position.y = 8 * P;
+        const head = new THREE.Group();
+        head.add(box(4, 5, 4, woolC));
+        for (const sx of [-1.6, 1.6]) {
+          const horn = box(1, 1, 3.2, "#b9a888");
+          horn.position.set(sx * P, 2.6 * P, 1.4 * P);
+          horn.rotation.x = 0.5;
+          head.add(horn);
+        }
+        const beard = box(1.4, 1.8, 1, "#c9c0ae");
+        beard.position.set(0, -3 * P, -1.4 * P);
+        head.add(beard);
+        head.position.set(0, 11 * P, -6 * P);
+        anim.head = head;
+        anim.headRestZ = -6 * P;
+        body.add(trunk, head);
+        return { barHeight: 14 * P + 0.2, anim };
+      }
+      case "frog": {
+        // Pond frog: squat hopper with bulging eyes and a pale throat.
+        const skinC = tint ?? "#5d8c3a";
+        const trunk = box(4, 2.5, 5, skinC);
+        trunk.position.y = 1.6 * P;
+        for (const sx of [-2.4, 2.4]) {
+          const haunch = box(1.6, 2, 2.4, "#4a7230");
+          haunch.position.set(sx * P, 1.2 * P, 1 * P);
+          body.add(haunch);
+        }
+        for (const sx of [-1.2, 1.2]) {
+          const eye = box(1.2, 1.2, 1.2, "#e8e4c8");
+          eye.position.set(sx * P, 3.2 * P, -1.6 * P);
+          body.add(eye);
+        }
+        const throat = box(2.4, 1, 0.8, "#e8e4c8");
+        throat.position.set(0, 1 * P, -2.6 * P);
+        anim.hopper = true;
+        body.add(trunk, throat);
+        return { barHeight: 5 * P + 0.15, anim };
+      }
+      case "squirrel": {
+        // Tree squirrel: tiny darting body under a huge curled tail.
+        const coat = tint ?? "#9a5a30";
+        const trunk = box(2.4, 2.4, 4, coat);
+        trunk.position.y = 2 * P;
+        const head = new THREE.Group();
+        head.add(box(2.2, 2.2, 2.2, "#a8683c"));
+        for (const sx of [-0.8, 0.8]) {
+          const ear = box(0.7, 1, 0.5, coat);
+          ear.position.set(sx * P, 1.5 * P, 0.3 * P);
+          head.add(ear);
+        }
+        head.position.set(0, 3.2 * P, -2.6 * P);
+        anim.head = head;
+        anim.headRestZ = -2.6 * P;
+        const tailLow = box(1.8, 2.2, 1.6, coat);
+        tailLow.position.set(0, 2.6 * P, 2.6 * P);
+        const tailHigh = box(2, 3.4, 1.8, "#b06a3a");
+        tailHigh.position.set(0, 5 * P, 3 * P);
+        anim.sway = [{ obj: tailHigh, baseX: 0, baseZ: 0, sign: 1 }];
+        body.add(trunk, head, tailLow, tailHigh);
+        return { barHeight: 8 * P + 0.14, anim };
+      }
+      case "rat": {
+        // Giant rat: low grey rodent, naked pink tail, bared teeth.
+        const coat = tint ?? "#6f6a66";
+        for (const [sx, sz] of [[-1.6, -2.5], [1.6, -2.5], [-1.6, 2.5], [1.6, 2.5]] as const) {
+          const leg = box(1, 2, 1, "#57534f");
+          leg.geometry.translate(0, -1 * P, 0);
+          leg.position.set(sx * P, 2 * P, sz * P);
+          anim.legs.push(leg);
+          body.add(leg);
+        }
+        const trunk = box(5, 4, 9, coat);
+        trunk.position.y = 4 * P;
+        const head = new THREE.Group();
+        head.add(box(3.6, 3, 4, coat));
+        const teeth = box(1, 1, 0.6, "#efe6d5");
+        teeth.position.set(0, -1.2 * P, -2.2 * P);
+        head.add(teeth);
+        for (const sx of [-1.4, 1.4]) {
+          const ear = box(1.2, 1.2, 0.5, "#8a7f7a");
+          ear.position.set(sx * P, 1.8 * P, 0.8 * P);
+          head.add(ear);
+        }
+        head.position.set(0, 4.5 * P, -6 * P);
+        anim.head = head;
+        anim.headRestZ = -6 * P;
+        const tail = box(0.8, 0.8, 7, "#c98f96");
+        tail.position.set(0, 3 * P, 7.5 * P);
+        anim.sway = [{ obj: tail, baseX: 0, baseZ: 0, sign: 1 }];
+        body.add(trunk, head, tail);
+        return { barHeight: 8 * P + 0.2, anim };
+      }
+      case "wisp": {
+        // Will-o'-wisp: a floating knot of pale flame — full-bright cores
+        // inside a translucent shroud, bobbing above the mire (anim.floater).
+        const core = new THREE.Mesh(
+          new THREE.BoxGeometry(4 * P, 4 * P, 4 * P),
+          new THREE.MeshBasicMaterial({ color: tint ?? "#bfe8ff" }),
+        );
+        core.position.y = 10 * P;
+        const inner = new THREE.Mesh(
+          new THREE.BoxGeometry(2 * P, 2 * P, 2 * P),
+          new THREE.MeshBasicMaterial({ color: "#ffffff" }),
+        );
+        inner.position.y = 10 * P;
+        const shroud = new THREE.Mesh(
+          new THREE.BoxGeometry(6.5 * P, 6.5 * P, 6.5 * P),
+          new THREE.MeshBasicMaterial({ color: "#7fd0ff", transparent: true, opacity: 0.35, depthWrite: false }),
+        );
+        shroud.position.y = 10 * P;
+        for (const [dx, dy] of [[-4, 7], [4, 8], [0, 14]] as const) {
+          const mote = new THREE.Mesh(
+            new THREE.BoxGeometry(1.2 * P, 1.2 * P, 1.2 * P),
+            new THREE.MeshBasicMaterial({ color: "#dff2ff" }),
+          );
+          mote.position.set(dx * P, dy * P, 0);
+          (anim.sway ??= []).push({ obj: mote, baseX: 0, baseZ: 0, sign: dx >= 0 ? 1 : -1 });
+          body.add(mote);
+        }
+        anim.floater = true;
+        body.add(core, inner, shroud);
+        return { barHeight: 16 * P + 0.2, anim };
+      }
+      case "mimic": {
+        // Mimic: a treasure chest gone wrong — lid agape on fangs, a red eye
+        // in the dark. Sits dead still until something comes close.
+        const wood = this.lambert("terrain.plank");
+        const chest = this.tiledBox(0.9, 0.55, 0.7, wood);
+        chest.position.y = 0.28;
+        const lid = this.tiledBox(0.9, 0.2, 0.7, wood);
+        lid.position.set(0, 0.72, 0.18);
+        lid.rotation.x = 0.7; // yawning open
+        const maw = new THREE.Mesh(
+          new THREE.BoxGeometry(0.8, 0.22, 0.55),
+          new THREE.MeshBasicMaterial({ color: "#1a060a" }),
+        );
+        maw.position.set(0, 0.6, -0.02);
+        for (let i = 0; i < 4; i++) {
+          const fang = box(1, 2, 1, "#efe6d5");
+          fang.position.set((-4.8 + i * 3.2) * P, 0.52, -0.28);
+          body.add(fang);
+        }
+        const eye = new THREE.Mesh(
+          new THREE.BoxGeometry(0.12, 0.12, 0.12),
+          new THREE.MeshBasicMaterial({ color: "#ff3b30" }),
+        );
+        eye.position.set(0, 0.62, 0.05);
+        const clasp = box(1.4, 2, 0.6, "#c8a54a");
+        clasp.position.set(0, 0.42, -0.36);
+        body.add(chest, lid, maw, eye, clasp);
+        return { barHeight: 1.0, anim };
+      }
       case "spider":
       case "gnasher": {
         // Vanilla ModelSpider boxes: 8x8x8 head, 6x6x6 thorax, 10x8x12
@@ -5275,6 +5578,14 @@ export class GameRenderer {
           w.obj.rotation.z = w.baseZ + w.sign * s * 0.18;
           w.obj.rotation.x = w.baseX + Math.sin(this.elapsed * 1.7 + w.sign) * 0.1;
         }
+      }
+      // Rabbits and frogs travel in hop arcs: airborne on the stride beat.
+      if (anim.hopper) {
+        anim.body.position.y = moving ? Math.abs(Math.sin(anim.walkPhase * 1.4)) * 0.28 : 0;
+      }
+      // Ghost-lights drift: a slow bob well above the ground, never walking.
+      if (anim.floater) {
+        anim.body.position.y = 0.35 + Math.sin(this.elapsed * 1.8) * 0.12;
       }
       anim.segments.forEach((seg, i) => {
         seg.position.y = (seg.userData.baseY as number) + Math.sin(this.elapsed * 6 + i * 0.9) * 0.035;
