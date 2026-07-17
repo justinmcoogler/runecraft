@@ -163,12 +163,17 @@ describe("agility shortcuts", () => {
       ],
     );
 
-  it("hops the player across and grants Agility xp", () => {
+  it("hops the player to the FAR side, and back again on re-use", () => {
     const sim = new GameSimulation(shortcutRegion(), 5);
     sim.enqueue({ type: "interact", targetId: "t.log" });
     runUntil(sim, (e) => e.type === "shortcutUsed", 200);
-    expect(sim.movement.currentCell()).toEqual({ x: 10, z: 10 });
+    // Approached from the north-west: the vault lands on the opposite side.
+    expect(sim.movement.currentCell()).toEqual({ x: 5, z: 5 });
     expect(sim.skills.xp["skill.agility"]).toBeGreaterThan(0);
+    // Hop again from the far side: the same log carries you back over.
+    sim.enqueue({ type: "interact", targetId: "t.log" });
+    runUntil(sim, (e) => e.type === "shortcutUsed", 200);
+    expect(sim.movement.currentCell()).toEqual({ x: 3, z: 3 });
   });
 
   it("rejects a shortcut above the player's level", () => {

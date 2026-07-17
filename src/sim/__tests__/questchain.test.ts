@@ -76,10 +76,10 @@ describe("the Combat Instructor lesson", () => {
       if (skill === "skill.attack") break;
       sim.quests.states[lessonId(skill)].status = "completed";
     }
-    const swordsBefore = sim.inventory.count("tool.sword.bronze");
-    sim.equippedTool = "tool.sword.bronze";
+    const swordsBefore = sim.inventory.count("tool.sword.copper");
+    sim.equippedTool = "tool.sword.copper";
     talk(sim); // accept: startItems hands over a sword
-    expect(sim.inventory.count("tool.sword.bronze")).toBe(swordsBefore + 1);
+    expect(sim.inventory.count("tool.sword.copper")).toBe(swordsBefore + 1);
     // First a hit on Accurate (Attack), then a switch to Aggressive (Strength) —
     // the two train steps can't be finished on one style, so you must switch.
     expect(sim.quests.activeObjective("quest.tut_attack")?.type).toBe("train");

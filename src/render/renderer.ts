@@ -8,7 +8,7 @@ import { getStructure } from "../content/structures";
 import type { StructureAsset, StructureBlock } from "../structures/types";
 import { effectiveSink, groundFloorTop } from "../structures/types";
 import type { GameSimulation } from "../sim/simulation";
-import type { SimEvent, Cell } from "../sim/types";
+import type { SimEvent, Cell, ActionAnim } from "../sim/types";
 import { findPath } from "../sim/pathfinding";
 import { activeQuestTarget } from "../ui/quest-helper";
 import type { BlockType, ObjectPlacement as ObjectPlacementView } from "../sim/world";
@@ -410,6 +410,12 @@ export class GameRenderer {
    *  find the next (spread-out) station. */
   private tutorialBeacon: THREE.Mesh | null = null;
   private questDots: THREE.Mesh[] = [];
+  /** The summoned familiar's rig (a spirit-tinted companion beside the player). */
+  private familiarView: { itemId: string; group: THREE.Group } | null = null;
+  /** A short player gesture played for slot rites (bury bones, light a fire). */
+  private oneShotAnim: { kind: ActionAnim; remainS: number } | null = null;
+  /** Fires struck on the spot by Firemaking — burn out after a minute. */
+  private tempFires: Array<{ group: THREE.Group; flame: THREE.Group; remainS: number }> = [];
   private questDotGeo: THREE.PlaneGeometry | null = null;
   private questDotTex: THREE.CanvasTexture | null = null;
 
@@ -532,6 +538,78 @@ export class GameRenderer {
   private guidePathKey = "";
   private guidePath: Cell[] | null = null;
 
+  /** Species rig each spirit pouch calls to the player's side. */
+  private static readonly FAMILIAR_SPECIES: Record<string, string> = {
+    "item.pouch.wolf": "enemy.timber_wolf",
+    "item.pouch.ox": "enemy.prairie_bull",
+    "item.pouch.tortoise": "enemy.armadillo",
+    "item.pouch.lynx": "enemy.dire_wolf",
+    "item.pouch.drake": "enemy.dragon.fire",
+  };
+
+  /** Keep the summoned familiar walking at the player's side: a spirit-blue
+   *  translucent copy of the species rig that follows, hovers and fades out
+   *  when the pouch's minute is up. */
+  private updateFamiliar(dt: number): void {
+    const fam = this.sim.familiar;
+    const defId = fam ? GameRenderer.FAMILIAR_SPECIES[fam.itemId] : undefined;
+    if (!fam || !defId) {
+      if (this.familiarView) {
+        this.scene.remove(this.familiarView.group);
+        this.disposeGroupResources(this.familiarView.group, false);
+        this.familiarView = null;
+      }
+      return;
+    }
+    if (!this.familiarView || this.familiarView.itemId !== fam.itemId) {
+      if (this.familiarView) {
+        this.scene.remove(this.familiarView.group);
+        this.disposeGroupResources(this.familiarView.group, false);
+      }
+      const def = ENEMIES[defId];
+      const group = new THREE.Group();
+      this.buildEnemyBody(group, def.view, def.tint, defId);
+      // Spirit look: translucent moon-blue glow, whatever the species.
+      group.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!(mesh as { isMesh?: boolean }).isMesh) return;
+        const restyle = (m: THREE.Material): THREE.Material => {
+          const c = m.clone();
+          c.transparent = true;
+          c.opacity = 0.7;
+          const lam = c as THREE.MeshLambertMaterial;
+          if (lam.emissive) {
+            lam.emissive = new THREE.Color("#4f74ff");
+            lam.emissiveIntensity = 0.55;
+          }
+          return c;
+        };
+        mesh.material = Array.isArray(mesh.material) ? mesh.material.map(restyle) : restyle(mesh.material);
+      });
+      // Dragons are boss-sized; familiars are knee-high companions.
+      group.scale.setScalar(def.view === "dragon" ? 0.3 : Math.min(def.scale ?? 1, 1) * 0.8);
+      const p = this.sim.movement.pos;
+      group.position.set(p.x + 1.2, this.sim.world.surfaceY(this.sim.movement.currentCell()), p.z + 1.2);
+      this.scene.add(group);
+      this.familiarView = { itemId: fam.itemId, group };
+    }
+    const view = this.familiarView;
+    const p = this.sim.movement.pos;
+    const target = { x: p.x + 0.5 + 1.1, z: p.z + 0.5 + 0.8 };
+    const g = view.group.position;
+    const dx = target.x - g.x, dz = target.z - g.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > 0.02) {
+      const step = Math.min(1, dt * (dist > 3 ? 6 : 3));
+      g.x += dx * step;
+      g.z += dz * step;
+      view.group.rotation.y = Math.atan2(dx, dz);
+    }
+    const cell = { x: Math.floor(g.x), z: Math.floor(g.z) };
+    const groundY = this.sim.world.surfaceY(cell);
+    g.y = groundY + 0.12 + Math.sin(this.elapsed * 3) * 0.07; // spirit hover
+  }
+
   /** The cell itself if walkable, else a walkable neighbour, else null. */
   private walkableNear(cell: { x: number; z: number }): { x: number; z: number } | null {
     if (this.sim.world.walkable(cell)) return cell;
@@ -610,6 +688,24 @@ export class GameRenderer {
     this.sim = sim;
     this.playerView?.dispose();
     for (const view of this.npcViews.values()) view.dispose();
+    // Free the GPU resources of everything the scene.clear() below is about
+    // to orphan. Rebinds happen repeatedly in one session (world repairs,
+    // texture packs, region switches) — without disposal every rebind leaked
+    // the full terrain + entity geometry, which slowly starved WebGL on
+    // low-memory devices until the page died.
+    for (const view of this.enemyViews.values()) {
+      this.disposeGroupResources(view.group, false);
+      this.disposeGroupResources(view.barGroup, true);
+    }
+    for (const group of this.objectViews.values()) this.disposeGroupResources(group, false);
+    for (const view of this.nodeViews.values()) this.disposeGroupResources(view.activeGroup, false);
+    for (const view of this.groundItemViews.values()) this.disposeGroupResources(view.group, false);
+    for (const chunk of this.terrainChunks.values()) {
+      chunk.mesh.geometry.dispose();
+      chunk.water?.geometry.dispose();
+      chunk.trans?.geometry.dispose();
+    }
+    this.groundItemViews.clear();
     this.scene.clear();
     this.nodeViews.clear();
     this.npcViews.clear();
@@ -640,6 +736,9 @@ export class GameRenderer {
     this.guidePath = null;
     this.guideWorld = null;
     this.guideWorldFor = null;
+    this.familiarView = null;
+    this.oneShotAnim = null;
+    this.tempFires = [];
 
     // Region mood: sky + light intensities (dungeons are dim).
     const theme = sim.world.region.theme ?? DEFAULT_THEME;
@@ -1262,7 +1361,7 @@ export class GameRenderer {
           // to the deck — one Minecraft block thick, stacked cubes, matching
           // the wooden deck it carries.
           if (((x * 2 + z * 3) & 3) === 0) {
-            pushBox(x, x + 1, z, z + 1, BED_Y, deckBot, topTile("plank"), x, z);
+            pushBox(x, x + 1, z, z + 1, BED_Y, deckBot, "resource.tree.log.side", x, z);
           }
         } else {
           for (const side of sides) {
@@ -3281,8 +3380,8 @@ export class GameRenderer {
             depthWrite: false,
             blending: THREE.AdditiveBlending,
           });
-          const membrane = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 1.95), glowMat);
-          membrane.position.set(0, 1.0, 0.46);
+          const membrane = new THREE.Mesh(new THREE.BoxGeometry(0.92, 1.95, 0.9), glowMat);
+          membrane.position.set(0, 1.0, 0);
           group.add(membrane);
           this.portalGlows.push({ mat: glowMat, base: 0.6, amp: 0.22, group });
           // A soft light beam rising from the gate — a landmark visible from
@@ -5110,6 +5209,30 @@ export class GameRenderer {
         case "actionRejected":
           this.selectionRing.visible = false;
           break;
+        case "logBurned": {
+          // Kindling gesture + a real fire left burning at your feet.
+          this.oneShotAnim = { kind: "gather", remainS: 1.1 };
+          const at = ev.cell ?? this.sim.movement.currentCell();
+          const fireGroup = new THREE.Group();
+          const logMat = this.lambert("resource.tree.log.side");
+          for (const angle of [Math.PI / 4, -Math.PI / 4]) {
+            const log = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.14, 0.2), logMat);
+            log.rotation.y = angle;
+            log.position.y = 0.07;
+            fireGroup.add(log);
+          }
+          const flame = this.crossSprite("sprite.flame");
+          flame.group.position.y = 0.1;
+          fireGroup.add(flame.group);
+          fireGroup.position.set(at.x + 0.5, this.sim.world.surfaceY(at), at.z + 0.5);
+          this.scene.add(fireGroup);
+          this.flameGroups.push(flame.group);
+          this.tempFires.push({ group: fireGroup, flame: flame.group, remainS: 60 });
+          break;
+        }
+        case "bonesBuried":
+          this.oneShotAnim = { kind: "dig", remainS: 1.1 };
+          break;
         case "doorOpened":
           this.doorTargets.set(ev.instanceId, -Math.PI / 2 + 0.08); // swing inward
           this.selectionRing.visible = false;
@@ -5467,7 +5590,7 @@ export class GameRenderer {
       targetY: cellH,
       facing: this.sim.movement.facing,
       moving: this.sim.movement.isMoving() && !boating, // sitting, not walking
-      action: this.sim.actions.currentActionAnim(),
+      action: this.sim.actions.currentActionAnim() ?? this.oneShotAnim?.kind ?? null,
     });
     this.updatePlayerBoat(boating ? this.sim.bestBoat()!.itemId : null, pos, this.playerView.group.position.y);
 
@@ -5478,6 +5601,23 @@ export class GameRenderer {
     }
 
     this.updateQuestGuidance();
+    this.updateFamiliar(dt);
+    if (this.oneShotAnim) {
+      this.oneShotAnim.remainS -= dt;
+      if (this.oneShotAnim.remainS <= 0) this.oneShotAnim = null;
+    }
+    // Struck fires burn down and wink out.
+    for (let i = this.tempFires.length - 1; i >= 0; i--) {
+      const fire = this.tempFires[i];
+      fire.remainS -= dt;
+      if (fire.remainS < 6) fire.group.scale.setScalar(Math.max(0.25, fire.remainS / 6));
+      if (fire.remainS <= 0) {
+        this.scene.remove(fire.group);
+        this.disposeGroupResources(fire.group, false);
+        this.flameGroups = this.flameGroups.filter((g) => g !== fire.flame);
+        this.tempFires.splice(i, 1);
+      }
+    }
 
     // Doors ease toward their open/closed angle.
     for (const [id, leaf] of this.doorLeaves) {

@@ -155,7 +155,7 @@ async function boot(): Promise<void> {
         markTutorialDone();
         for (const [itemId, qty] of [
           ["tool.axe.copper", 1], ["tool.pickaxe.copper", 1], ["tool.fishingrod.basic", 1],
-          ["tool.hammer.basic", 1], ["tool.hoe.basic", 1], ["tool.sword.bronze", 1],
+          ["tool.hammer.basic", 1], ["tool.hoe.basic", 1], ["tool.sword.copper", 1],
           ["item.seed.wheat", 3], ["item.pork.cooked", 5], ["item.coin", 50],
         ] as const) {
           sim.inventory.add(itemId, qty);

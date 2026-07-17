@@ -665,13 +665,33 @@ export class ActionController {
     if (this.pipeline.kind === "shortcut") {
       const placement = d.world.region.objects.find((o) => o.instanceId === this.pipeline!.targetId);
       const def = placement ? OBJECTS[placement.defId].shortcut : undefined;
-      if (placement?.portal && def && d.world.walkable(placement.portal.targetCell)) {
-        d.movement.setCellPosition(placement.portal.targetCell);
-        // The traversal always works, but each shortcut only pays Agility XP
-        // once per cooldown — hopping the same log in a loop is a commute,
-        // not a training montage.
-        if (d.claimShortcutXp(placement.instanceId)) d.skills.grantXp("skill.agility", def.xp);
-        d.events.emit({ type: "shortcutUsed", instanceId: placement.instanceId });
+      if (placement && def) {
+        // Vault to the OPPOSITE side of the obstacle from where you stand, so
+        // the same log crosses back and forth: mirror the approach direction
+        // through the obstacle and march until landing on walkable ground
+        // (logs span several water cells). The authored portal target stays
+        // as the fallback for odd geometry.
+        const here = d.movement.currentCell();
+        const dx = Math.sign(placement.cell.x - here.x);
+        const dz = Math.sign(placement.cell.z - here.z);
+        let landing: Cell | null = null;
+        if (dx !== 0 || dz !== 0) {
+          for (let k = 1; k <= 5; k++) {
+            const c = { x: placement.cell.x + dx * k, z: placement.cell.z + dz * k };
+            if (d.world.walkable(c)) { landing = c; break; }
+          }
+        }
+        if (!landing && placement.portal && d.world.walkable(placement.portal.targetCell)) {
+          landing = placement.portal.targetCell;
+        }
+        if (landing) {
+          d.movement.setCellPosition(landing);
+          // The traversal always works, but each shortcut only pays Agility XP
+          // once per cooldown — hopping the same log in a loop is a commute,
+          // not a training montage.
+          if (d.claimShortcutXp(placement.instanceId)) d.skills.grantXp("skill.agility", def.xp);
+          d.events.emit({ type: "shortcutUsed", instanceId: placement.instanceId });
+        }
       }
       this.pipeline = null;
       this.phase = "idle";

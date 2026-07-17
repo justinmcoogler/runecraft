@@ -1038,7 +1038,17 @@ export class Hud {
     this.q(".station-name").textContent = def.name;
     const list = this.q(".recipe-list");
     list.innerHTML = "";
-    for (const recipeId of def.workstationRecipeIds ?? []) {
+    // What you can make RIGHT NOW floats to the top of the sheet; within each
+    // band the authored (level) order is kept.
+    const ordered = [...(def.workstationRecipeIds ?? [])].sort((a, b) => {
+      const can = (id: string): number => {
+        const r = RECIPES[id];
+        return this.sim.skills.levelOf(r.skillId) >= r.requiredLevel &&
+          r.inputs.every((i) => this.sim.inventory.count(i.itemId) >= i.qty) ? 0 : 1;
+      };
+      return can(a) - can(b);
+    });
+    for (const recipeId of ordered) {
       const recipe = RECIPES[recipeId];
       const levelOk = this.sim.skills.levelOf(recipe.skillId) >= recipe.requiredLevel;
       const hasIngredients = recipe.inputs.every((i) => this.sim.inventory.count(i.itemId) >= i.qty);

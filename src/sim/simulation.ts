@@ -144,6 +144,11 @@ export class GameSimulation {
   tutorial: TutorialDriver | null = null;
   /** Timed potion effects: kind -> seconds remaining. */
   buffs: Record<string, number> = {};
+  /** The summoned familiar walking beside the player (visual companion for an
+   *  active pouch buff): which pouch called it and how long it stays. */
+  familiar: { itemId: string; remainS: number } | null = null;
+  /** Shared cooldown for the slot rites (burying bones, striking a fire). */
+  private riteCooldownS = 0;
   /** Seconds of wild travel left before the next roaming world event may fire. */
   private worldEventCdS = 90;
   hp: number;
@@ -933,6 +938,11 @@ export class GameSimulation {
       this.buffs[kind] -= TICK_DT;
       if (this.buffs[kind] <= 0) delete this.buffs[kind];
     }
+    if (this.familiar) {
+      this.familiar.remainS -= TICK_DT;
+      if (this.familiar.remainS <= 0) this.familiar = null;
+    }
+    if (this.riteCooldownS > 0) this.riteCooldownS -= TICK_DT;
     // Stride: swiftness on land; on water the boat's hull speed rules.
     const boat = this.bestBoat();
     const onWater = this.world.blockAt(this.movement.currentCell()) === "water";
@@ -1691,6 +1701,10 @@ export class GameSimulation {
           // Drink: the effect refreshes rather than stacking.
           this.inventory.removeFromSlot(c.slot, 1);
           this.buffs[def.buff.kind] = def.buff.durationS;
+          // A spirit pouch calls its familiar to walk beside you.
+          if (s.itemId.startsWith("item.pouch.")) {
+            this.familiar = { itemId: s.itemId, remainS: def.buff.durationS };
+          }
           this.events.emit({ type: "buffApplied", itemId: s.itemId, kind: def.buff.kind });
           this.events.emit({ type: "inventoryChanged" });
           break;
@@ -1712,9 +1726,11 @@ export class GameSimulation {
         const fm = ITEMS[s.itemId].firemaking;
         if (!fm) break;
         if (this.skills.levelOf("skill.firemaking") < fm.level) break;
+        if (this.riteCooldownS > 0) break; // striking a fire takes a moment
+        this.riteCooldownS = 2.4;
         this.inventory.removeFromSlot(c.slot, 1);
         this.skills.grantXp("skill.firemaking", fm.xp);
-        this.events.emit({ type: "logBurned", itemId: s.itemId });
+        this.events.emit({ type: "logBurned", itemId: s.itemId, cell: this.movement.currentCell() });
         this.events.emit({ type: "inventoryChanged" });
         break;
       }
@@ -1724,6 +1740,8 @@ export class GameSimulation {
         const pr = ITEMS[s.itemId].prayer;
         if (!pr) break;
         if (this.skills.levelOf("skill.prayer") < pr.level) break;
+        if (this.riteCooldownS > 0) break; // a burial is a rite, not a spam click
+        this.riteCooldownS = 1.8;
         this.inventory.removeFromSlot(c.slot, 1);
         this.skills.grantXp("skill.prayer", pr.xp);
         this.events.emit({ type: "bonesBuried", itemId: s.itemId });

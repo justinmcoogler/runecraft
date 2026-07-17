@@ -2913,7 +2913,10 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.171) enemies.push({ instanceId: id(), defId: "enemy.sheep", cell });
           else if (r < 0.176) enemies.push({ instanceId: id(), defId: "enemy.chicken", cell });
           else if (r < 0.184) nodes.push({ instanceId: id(), defId: "resource.trail.rabbit", cell });
-          else if (r < 0.188) nodes.push({ instanceId: id(), defId: "resource.crop.pumpkin", cell });
+          else if (r < 0.188) {
+            // Pumpkins grow from turf only — never on sand, dirt or rock.
+            if (BLOCK_LIST[blocks[i]] === "grass") nodes.push({ instanceId: id(), defId: "resource.crop.pumpkin", cell });
+          }
           else if (r < 0.193) objects.push({ instanceId: id(), defId: "object.flowers.showy", cell });
           // Fallow farm plots dot the open country — plantable and seed-dropping,
           // so Farming is trainable out in the world, not just in a town.

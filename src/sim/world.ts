@@ -280,7 +280,24 @@ export class WorldState {
    *  surface is flat, so you glide from the shore onto the water. */
   stepOk(from: Cell, to: Cell, boat = false): boolean {
     if (this.noclip) return true;
-    if (boat && (isLiquid(this.blockAt(from)) || isLiquid(this.blockAt(to)))) return true;
+    if (boat) {
+      const fromLiq = isLiquid(this.blockAt(from));
+      const toLiq = isLiquid(this.blockAt(to));
+      if (fromLiq && toLiq) return true; // open water: the surface is flat
+      if (fromLiq !== toLiq) {
+        // Launching or landing: the shore must sit within one block of the
+        // water's LID (not the bed the height array stores), so a boat can
+        // never be beached up a cliff face. Lid math mirrors the renderer's
+        // water surface: a global waterline just under 0, except elevated
+        // pools which float just beneath their own stored height.
+        const water = fromLiq ? from : to;
+        const land = fromLiq ? to : from;
+        const h = this.heightAt(water);
+        // The lid's BLOCK level (the renderer floats the sheet just under it).
+        const lidLevel = Math.ceil(h > 0.65 ? h - 0.3 : -0.35);
+        return this.surfaceY(land) - lidLevel <= 1.001;
+      }
+    }
     // Compare walk surfaces so a raised slab/stair is a half-step, not a wall.
     return Math.abs(this.surfaceY(from) - this.surfaceY(to)) <= 1;
   }

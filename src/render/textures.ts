@@ -733,6 +733,8 @@ export const TERRAIN_ATLAS_ORDER = [
   ...DYE_COLORS.map((c) => `block.concrete.${c}`),
   // Synthesized tiles (scripts/make-farmland-tile.mjs) — append-only.
   "terrain.farmland",
+  // Bark tile for bridge piers + dock posts (rendered as oak log columns).
+  "resource.tree.log.side",
 ];
 
 /** A resolved entity texture (mob skin / chest atlas) at native size. */

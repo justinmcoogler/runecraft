@@ -61,7 +61,7 @@ export type SimEvent =
   | { type: "itemGained"; itemId: string; qty: number }
   | { type: "itemModded"; itemId: string; label: string }
   | { type: "gemFound"; itemId: string }
-  | { type: "logBurned"; itemId: string }
+  | { type: "logBurned"; itemId: string; cell?: Cell }
   | { type: "bonesBuried"; itemId: string }
   | { type: "tilled"; cell: Cell }
   | { type: "spellCast"; spell: string; coins: number }
