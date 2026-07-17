@@ -798,6 +798,20 @@ export class GameSimulation {
     else this.movement.stop();
   }
 
+  /** Never let the player STAND on a nav-blocked cell (an ore, a tree, a
+   *  fence). Every walk is blocker-checked, but teleport-family arrivals
+   *  (spawn, region switches, respawns) aren't — and a streaming chunk can
+   *  register a node's blocker under a player already standing there. Rather
+   *  than chase every arrival site, this tick-level guard nudges an idle
+   *  player off any blocked cell to the nearest open one. */
+  private unstickFromBlockers(): void {
+    if (this.movement.isMoving() || this.world.noclip) return;
+    const cell = this.movement.currentCell();
+    if (this.world.walkable(cell, this.bestBoat() !== null)) return;
+    const out = this.world.nearestWalkable(cell, 6);
+    if (out) this.movement.setCellPosition(out);
+  }
+
   tick(): SimEvent[] {
     this.tickCount++;
     this.timeS += TICK_DT;
@@ -809,6 +823,7 @@ export class GameSimulation {
     // tick and reroute (or halt before the obstacle) so the player can never
     // walk straight through a newly-streamed tree or rock.
     this.revalidatePath();
+    this.unstickFromBlockers();
     const commands = this.queue;
     this.queue = [];
     for (const c of commands) this.route(c);
