@@ -303,6 +303,23 @@ export class GameRenderer {
   private debugCollisionMesh: THREE.Mesh | null = null;
   private objectViews = new Map<string, THREE.Group>();
   private fenceCells = new Set<string>();
+  /** region.objects length at the last fence-cell sweep (streamed chunks add
+   *  fences after bind; the set refreshes whenever the object count moves). */
+  private fenceCellCount = -1;
+
+  /** Every fence and gate cell — rails reach toward these, and gates read
+   *  them to orient themselves along the fence line they sit in. Kept fresh
+   *  against the live region so streamed-in pens connect up correctly. */
+  private syncFenceCells(): void {
+    const objects = this.sim.world.region.objects;
+    if (objects.length === this.fenceCellCount) return;
+    this.fenceCellCount = objects.length;
+    this.fenceCells = new Set(
+      objects
+        .filter((o) => o.defId === "object.fence.wood" || o.defId === "object.gate.oak")
+        .map((o) => `${o.cell.x},${o.cell.z}`),
+    );
+  }
   private playerView!: CharacterView;
   private npcViews = new Map<string, CharacterView | NpcModelView>();
   private particles: ParticleBursts;
@@ -612,12 +629,9 @@ export class GameRenderer {
       this.precipKind = null;
     }
 
-    // Fence rails only reach toward neighboring fence cells.
-    this.fenceCells = new Set(
-      sim.world.region.objects
-        .filter((o) => o.defId === "object.fence.wood")
-        .map((o) => `${o.cell.x},${o.cell.z}`),
-    );
+    // Fence rails only reach toward neighboring fence (or gate) cells.
+    this.fenceCellCount = -1;
+    this.syncFenceCells();
     this.buildStructures();
     this.buildCharacters();
     this.ensureStreamed(true);
@@ -720,6 +734,9 @@ export class GameRenderer {
       return;
     }
     this.streamCenter = { x: p.x, z: p.z };
+    // Streamed chunks may have added fences/gates since the last pass; the
+    // connection set must be complete before any of this batch builds.
+    this.syncFenceCells();
     const region = this.sim.world.region;
     const pcx = Math.floor(p.x / CHUNK);
     const pcz = Math.floor(p.z / CHUNK);
@@ -2641,12 +2658,12 @@ export class GameRenderer {
           break;
         }
         case "object.gate.oak": {
-          // A Minecraft oak fence gate: just the swinging gate — two rails and
-          // vertical slats spanning the full cell — hung between the posts of
-          // the oak fences on either side (which supply the posts, so we add
-          // none of our own). Same plank wood as the fences, so the line reads
-          // continuous. The leaf is a doorLeaf so click-to-open/close rotates it.
-          const wood = this.lambert("terrain.plank");
+          // A fence gate: the swinging leaf — two rails and vertical slats
+          // spanning the full cell — hung between the posts of the fences on
+          // either side (which supply the posts, so we add none of our own).
+          // Same log wood as object.fence.wood, so the fence line reads as one
+          // build. The leaf is a doorLeaf so click-to-open/close rotates it.
+          const wood = this.lambert("resource.tree.log.side");
           const leaf = new THREE.Group();
           leaf.position.set(-0.5, 0, 0); // hinge at the left fence post
           for (const py of [0.6, 1.15]) {
@@ -2662,10 +2679,19 @@ export class GameRenderer {
           leaf.userData.doorLeaf = true;
           this.doorLeaves.set(obj.instanceId, leaf);
           group.add(leaf, makeBlobShadow(0.5));
-          group.rotation.y = obj.facing === "south" ? Math.PI
-            : obj.facing === "east" ? -Math.PI / 2
-            : obj.facing === "west" ? Math.PI / 2
-            : 0;
+          if (obj.facing) {
+            group.rotation.y = obj.facing === "south" ? Math.PI
+              : obj.facing === "east" ? -Math.PI / 2
+              : obj.facing === "west" ? Math.PI / 2
+              : 0;
+          } else {
+            // No authored facing (worldgen pens): hang the leaf along the
+            // fence line it sits in — fences north/south mean the run goes
+            // that way, so the gate spans z instead of the default x.
+            const ns = fenceCells.has(`${obj.cell.x},${obj.cell.z - 1}`) || fenceCells.has(`${obj.cell.x},${obj.cell.z + 1}`);
+            const ew = fenceCells.has(`${obj.cell.x - 1},${obj.cell.z}`) || fenceCells.has(`${obj.cell.x + 1},${obj.cell.z}`);
+            if (ns && !ew) group.rotation.y = Math.PI / 2;
+          }
           break;
         }
         case "object.stairs.up":
