@@ -1525,6 +1525,109 @@ function dressSkillHome(
   npcs.push({ instanceId: `${pre}.res`, name: theme.npcName, cell: { x: x0 + nx, z: z0 + nz }, wanderRadius: 2, lines: theme.lines });
 }
 
+/** Livestock kinds a pen can hold, and the crops a field can grow. Wheat and
+ *  pumpkin fields mix ready-to-harvest crop nodes among the plantable plots;
+ *  the rest are all Farming plots. */
+const PEN_STOCK = ["enemy.sheep", "enemy.cow", "enemy.pig", "enemy.chicken"];
+const FIELD_CROPS: Array<{ plot: string; crop?: string }> = [
+  { plot: "resource.plot.wheat", crop: "resource.crop.wheat" },
+  { plot: "resource.plot.pumpkin", crop: "resource.crop.pumpkin" },
+  { plot: "resource.plot.carrot" },
+  { plot: "resource.plot.potato" },
+  { plot: "resource.plot.corn" },
+];
+
+/**
+ * Stamp a small farmyard beside a home: a fenced animal pen (gate mid-south,
+ * 2–4 livestock grazing inside) or a tilled crop field (coarse-earth rows of
+ * Farming plots, with ready wheat/pumpkins mixed in). Pads must be dry,
+ * gentle, off the starter town and clear of other buildings — on awkward
+ * ground the farmyard simply doesn't take. Returns true when it landed.
+ */
+function stampFarmyard(
+  seed: number, cx: number, cz: number, px: number, pz: number, k: number,
+  heights: Int16Array, blocks: Uint8Array, biomes: Uint8Array, x0: number, z0: number,
+  objects: ObjectPlacement[], nodes: NodePlacement[], enemies: EnemyPlacement[],
+  houseBoxes: Box[],
+): boolean {
+  const w = 7, d = 6;
+  if (px < 2 || pz < 2 || px + w >= ECHUNK - 2 || pz + d >= ECHUNK - 2) return false;
+  let lo = Infinity, hi = -Infinity;
+  for (let dz = 0; dz < d; dz++) {
+    for (let dx = 0; dx < w; dx++) {
+      const i = (pz + dz) * ECHUNK + (px + dx);
+      const b = BLOCK_LIST[blocks[i]];
+      if (b === "water" || b === "ice") return false;
+      const bi = biomes[i];
+      if (bi === 16 || bi === 17) return false;
+      const wx = x0 + px + dx, wz = z0 + pz + dz;
+      if (inStarterTown(seed, wx, wz)) return false;
+      // Never fence across a road or a village lane — the yard sits beside
+      // the way, not over it.
+      if (roadDist(seed, wx, wz) < 2.5 || onVillageLane(seed, wx, wz)) return false;
+      lo = Math.min(lo, heights[i]); hi = Math.max(hi, heights[i]);
+    }
+  }
+  if (hi - lo > 2) return false;
+  if (houseBoxes.some((b) => px - 1 <= b.x1 && px + w >= b.x0 && pz - 1 <= b.z1 && pz + d >= b.z0)) return false;
+  const anchor = heights[(pz + (d >> 1)) * ECHUNK + (px + (w >> 1))];
+  for (let dz = 0; dz < d; dz++) {
+    for (let dx = 0; dx < w; dx++) heights[(pz + dz) * ECHUNK + (px + dx)] = anchor;
+  }
+  houseBoxes.push({ x0: px, z0: pz, x1: px + w - 1, z1: pz + d - 1 });
+  const pre = `end.${cx}.${cz}.fy${px}.${pz}`;
+  const isPen = cellHash(cx * 3 + k * 7, cz * 5 + k * 11, salt(seed, 122)) < 0.5;
+  if (isPen) {
+    // Fence ring with a click-to-open gate mid-south; the stock grazes inside
+    // (blocksNav fencing keeps them penned without any leash logic).
+    const gateX = px + (w >> 1);
+    let f = 0;
+    for (let dx = 0; dx < w; dx++) {
+      for (const dz of [0, d - 1]) {
+        const isGate = dz === d - 1 && px + dx === gateX;
+        objects.push({
+          instanceId: `${pre}.f${f++}`,
+          defId: isGate ? "object.gate.oak" : "object.fence.wood",
+          cell: { x: x0 + px + dx, z: z0 + pz + dz },
+        });
+      }
+    }
+    for (let dz = 1; dz < d - 1; dz++) {
+      for (const dx of [0, w - 1]) {
+        objects.push({ instanceId: `${pre}.f${f++}`, defId: "object.fence.wood", cell: { x: x0 + px + dx, z: z0 + pz + dz } });
+      }
+    }
+    const stock = PEN_STOCK[Math.floor(cellHash(cx * 13 + k, cz * 17 + k * 3, salt(seed, 123)) * PEN_STOCK.length)];
+    const head = 2 + Math.floor(cellHash(cx + k * 5, cz + k * 9, salt(seed, 124)) * 3);
+    for (let a = 0; a < head; a++) {
+      enemies.push({
+        instanceId: `${pre}.a${a}`,
+        defId: stock,
+        cell: { x: x0 + px + 1 + ((a * 2 + 1) % (w - 2)), z: z0 + pz + 1 + (a % (d - 2)) },
+      });
+    }
+  } else {
+    // A tilled field: coarse-earth rows with plots (and ready crops) planted
+    // every other cell, so it reads as worked farmland from above.
+    const pick = FIELD_CROPS[Math.floor(cellHash(cx * 7 + k, cz * 11 + k * 5, salt(seed, 125)) * FIELD_CROPS.length)];
+    for (let dz = 0; dz < d; dz++) {
+      for (let dx = 0; dx < w; dx++) blocks[(pz + dz) * ECHUNK + (px + dx)] = BLOCK_ID.coarsedirt;
+    }
+    let n = 0;
+    for (let dz = 1; dz < d - 1; dz += 2) {
+      for (let dx = 1; dx < w - 1; dx += 2) {
+        const ready = pick.crop && (n + dz) % 2 === 0;
+        nodes.push({
+          instanceId: `${pre}.c${n++}`,
+          defId: ready ? pick.crop! : pick.plot,
+          cell: { x: x0 + px + dx, z: z0 + pz + dz },
+        });
+      }
+    }
+  }
+  return true;
+}
+
 /**
  * Try to drop a wild homestead into this chunk: pick a house, find a level,
  * dry, habitable pad clear of the starter town, flatten it, and record the
@@ -1545,6 +1648,7 @@ function tryStampHouse(
   houseBoxes: Box[],
   nodes: NodePlacement[],
   npcs: NpcPlacement[],
+  enemies: EnemyPlacement[],
 ): boolean {
   const { defId, w, d } = wildHouseSize(seed, cx, cz);
   if (w + 4 >= ECHUNK || d + 4 >= ECHUNK) return false;
@@ -1587,6 +1691,16 @@ function tryStampHouse(
   // Dress the yard as a skill workshop (station + node + props + a resident),
   // so every wild home reads as a purposeful landmark, not an empty cabin.
   dressSkillHome(seed, cx, cz, ox, oz, w, d, anchor, heights, blocks, biomes, x0, z0, nodes, objects, npcs);
+  // Roughly half the homesteads keep a farmyard — an animal pen or a tilled
+  // field — beside the house. Try each side; awkward ground just skips it.
+  if (cellHash(cx * 23 + 1, cz * 41 + 6, salt(seed, 121)) < 0.55) {
+    const sides: Array<[number, number]> = [
+      [ox + w + 2, oz], [ox - 9, oz], [ox, oz + d + 2], [ox, oz - 8],
+    ];
+    for (const [fx, fz] of sides) {
+      if (stampFarmyard(seed, cx, cz, fx, fz, 0, heights, blocks, biomes, x0, z0, objects, nodes, enemies, houseBoxes)) break;
+    }
+  }
   return true;
 }
 
@@ -1826,6 +1940,7 @@ function stampVillagePlaza(
   objects: ObjectPlacement[],
   nodes: NodePlacement[],
   npcs: NpcPlacement[],
+  enemies: EnemyPlacement[],
   houseBoxes: Box[],
   id: () => string,
 ): boolean {
@@ -1945,6 +2060,17 @@ function stampVillagePlaza(
     const theme = SKILL_HOME_THEMES[(themeBase + k) % SKILL_HOME_THEMES.length];
     dressSkillHome(seed, cx, cz, hx, hz, hw, hd, ha, heights, blocks, biomes, x0, z0,
       nodes, objects, npcs, `end.${cx}.${cz}.pr${k}`, theme);
+  }
+  // The village's working land sits past the homes: up to two farmyards — an
+  // animal pen and/or a tilled field — tried at the ring's outskirts. Slots
+  // that land on water, a slope or a neighbour simply don't take.
+  let farms = 0;
+  for (let k = 0; k < 6 && farms < 2; k++) {
+    const ang = (k / 6) * Math.PI * 2 + 1.1;
+    const rr = 27 + Math.round(cellHash(cx * 7 + k * 3, cz * 9 + k * 5, salt(seed, 126)) * 4);
+    const fx = px + Math.round(Math.cos(ang) * rr) - 3;
+    const fz = pz + Math.round(Math.sin(ang) * rr) - 3;
+    if (stampFarmyard(seed, cx, cz, fx, fz, k + 1, heights, blocks, biomes, x0, z0, objects, nodes, enemies, houseBoxes)) farms++;
   }
   return true;
 }
@@ -2203,7 +2329,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   if (!stamped && village) {
     const alx = village.x - x0, alz = village.z - z0;
     if (alx >= 24 && alx < ECHUNK - 24 && alz >= 24 && alz < ECHUNK - 24) {
-      stamped = stampVillagePlaza(seed, cx, cz, heights, blocks, biomes, x0, z0, alx, alz, objects, nodes, npcs, houseBoxes, id);
+      stamped = stampVillagePlaza(seed, cx, cz, heights, blocks, biomes, x0, z0, alx, alz, objects, nodes, npcs, enemies, houseBoxes, id);
     }
   }
   // Landmarks: standing-stone circles and ruined watchtowers, raised straight
@@ -2214,7 +2340,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   // Wild homesteads: the interiored homes, found out in the world. The roll is
   // boosted around a village anchor so several cluster into a settlement.
   if (!stamped && cellHash(cx * 40987, cz * 90001, salt(seed, 58)) < (village ? VILLAGE_HOME_ROLL : WILD_HOME_ROLL)) {
-    stamped = tryStampHouse(seed, cx, cz, heights, blocks, biomes, x0, z0, structures, objects, houseBoxes, nodes, npcs);
+    stamped = tryStampHouse(seed, cx, cz, heights, blocks, biomes, x0, z0, structures, objects, houseBoxes, nodes, npcs, enemies);
   }
 
   // Dungeon gates: a rare crimson portal-arch on a flattened pad that drops
