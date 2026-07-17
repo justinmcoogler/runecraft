@@ -1,6 +1,7 @@
 // Versioned save/load. Plain data with stable IDs only — never engine objects.
 // Respawn timers persist as remaining seconds (world time pauses while offline).
 
+import { SKILLS } from "../content/content";
 import type { GameSimulation } from "../sim/simulation";
 import type { Slots } from "../sim/inventory";
 
@@ -178,7 +179,12 @@ export function captureSharedState(sim: GameSimulation): SharedState {
 
 export function applySharedState(sim: GameSimulation, shared: SharedState): void {
   for (const [skillId, xp] of Object.entries(shared.skills)) {
-    if (skillId in sim.skills.xp) sim.skills.xp[skillId] = xp;
+    {
+      // XP saved under a since-merged skill folds into its new home.
+      const home = SKILLS[skillId]?.mergedInto;
+      if (home) sim.skills.xp[home] = (sim.skills.xp[home] ?? 0) + xp;
+      else if (skillId in sim.skills.xp) sim.skills.xp[skillId] = xp;
+    }
   }
   sim.inventory.slots = migrateSlots(shared.inventory);
   sim.equippedTool = shared.equippedTool;
@@ -303,7 +309,12 @@ export function applySave(sim: GameSimulation, data: SaveDataV1): void {
   if (isAttackStyle(data.attackStyle)) sim.attackStyle = data.attackStyle;
   if (typeof data.running === "boolean") sim.running = data.running;
   for (const [skillId, xp] of Object.entries(data.skills)) {
-    if (skillId in sim.skills.xp) sim.skills.xp[skillId] = xp;
+    {
+      // XP saved under a since-merged skill folds into its new home.
+      const home = SKILLS[skillId]?.mergedInto;
+      if (home) sim.skills.xp[home] = (sim.skills.xp[home] ?? 0) + xp;
+      else if (skillId in sim.skills.xp) sim.skills.xp[skillId] = xp;
+    }
   }
   // Saves from before the Attack/Defense split carry skill.combat: honor that
   // progress in both new skills (max HP previously came from Combat level).

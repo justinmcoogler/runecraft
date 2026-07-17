@@ -370,3 +370,39 @@ describe("slayer assignments are always completable", () => {
     }
   });
 });
+
+describe("mounts and minions", () => {
+  it("riding reins multiplies stride, trains Summoning, and dismounts on toggle", () => {
+    const sim = new GameSimulation(flatRegion([]), 9);
+    sim.inventory.add("item.pouch.wolf", 1);
+    const slot = sim.inventory.slots.findIndex((s) => s && s.itemId === "item.pouch.wolf");
+    sim.enqueue({ type: "eatSlot", slot });
+    sim.tick();
+    expect(sim.activeMountItemId).toBe("item.pouch.wolf");
+    expect(sim.inventory.count("item.pouch.wolf"), "reins are never consumed").toBe(1);
+    sim.actions.moveTo({ x: 12, z: 2 });
+    for (let i = 0; i < 60; i++) sim.tick();
+    expect(sim.movement.speedCellsPerS).toBeCloseTo(3.5 * 1.25, 1);
+    expect(sim.skills.xp["skill.summoning"], "riding trains Summoning").toBeGreaterThan(0);
+    sim.enqueue({ type: "eatSlot", slot });
+    sim.tick();
+    expect(sim.activeMountItemId).toBeNull();
+  });
+
+  it("a raised minion softens the player's target but never lands the kill", () => {
+    const sim = new GameSimulation(flatRegion([]), 9);
+    sim.enemies.addPlacement({ instanceId: "t.rat", defId: "enemy.pig", cell: { x: 3, z: 2 } }, sim.rng);
+    sim.inventory.add("item.rite.skeleton", 1);
+    const slot = sim.inventory.slots.findIndex((s) => s && s.itemId === "item.rite.skeleton");
+    sim.enqueue({ type: "eatSlot", slot });
+    sim.tick();
+    expect(sim.minion).not.toBeNull();
+    expect(sim.inventory.count("item.rite.skeleton"), "rites are consumed").toBe(0);
+    const pig = sim.enemies.get("t.rat")!;
+    const hpBefore = pig.hp;
+    sim.enqueue({ type: "interact", targetId: "t.rat" });
+    for (let i = 0; i < 80 && pig.hp > 1; i++) sim.tick();
+    expect(pig.hp, "minion strikes chipped the pig").toBeLessThan(hpBefore);
+    expect(sim.skills.xp["skill.necromancy"], "minion strikes train Necromancy").toBeGreaterThan(0);
+  });
+});

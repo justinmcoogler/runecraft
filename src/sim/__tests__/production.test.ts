@@ -77,7 +77,7 @@ describe("smelting at the furnace", () => {
     runUntil(sim, (e) => e.type === "actionEnded");
     expect(sim.inventory.count("item.bar.copper")).toBe(2);
     expect(sim.inventory.count("item.ore.copper")).toBe(1);
-    expect(sim.skills.xp["skill.smelting"]).toBe(60);
+    expect(sim.skills.xp["skill.smithing"]).toBe(60);
   });
 
   it("cancelling mid-cycle never loses ingredients", () => {

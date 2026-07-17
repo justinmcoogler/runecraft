@@ -239,7 +239,7 @@ describe("Magic — alchemy", () => {
     expect(sim.inventory.count("item.rune.law")).toBe(0);
   });
 
-  it("superheat smelts an ore to a bar, training Magic and Smelting", () => {
+  it("superheat smelts an ore to a bar, training Magic and Smithing", () => {
     const sim = new GameSimulation(makeStationRegion(), 1);
     sim.skills.grantXp("skill.magic", xpToReachLevel(CURVES["curve.standard"], 35));
     // Superheat matches the furnace's 2-ore cost — its edge is castability.
@@ -252,6 +252,6 @@ describe("Magic — alchemy", () => {
     expect(sim.inventory.count("item.ore.iron")).toBe(0);
     expect(sim.inventory.count("item.rune.fire")).toBe(0);
     expect(sim.skills.xp["skill.magic"]).toBeGreaterThan(0);
-    expect(sim.skills.xp["skill.smelting"]).toBeGreaterThan(0);
+    expect(sim.skills.xp["skill.smithing"]).toBeGreaterThan(0);
   });
 });

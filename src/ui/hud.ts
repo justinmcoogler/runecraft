@@ -111,7 +111,8 @@ function describeItem(item: (typeof ITEMS)[string]): string {
   if (item.id === "item.essence.rune") return "Arcane essence — bind it into runes at an Arcane Altar";
   if (item.id.startsWith("item.rune.")) return "A rune — spent casting Magic";
   if (item.id.startsWith("item.arrow.")) return "Ammunition — fletched at the workbench";
-  if (item.id.startsWith("item.pouch.")) return `Familiar pouch — call it to ${item.buff?.kind === "gathering" ? "gather faster" : item.buff?.kind === "strength" ? "hit harder" : "shrug off blows"} for ${item.buff?.durationS}s`;
+  if (item.mount) return `Spirit-mount reins — ride to travel ${Math.round((item.mount.speed - 1) * 100)}% faster (Summoning)`;
+  if (item.minion) return `Necromantic rite — raises a ${item.minion.defId.split(".").pop()} to fight beside you for ${item.minion.durationS}s`;
   if (item.id === "item.component.parts") return "Salvaged parts — build gizmos with Invention";
   if (item.id.startsWith("item.gizmo.")) return `Gizmo — activate to ${item.buff?.kind === "speed" ? "move faster" : "aim truer"} for ${item.buff?.durationS}s`;
   if (ALCH_VALUES[item.id] !== undefined) return "Alchemise it (Magic) to turn it to coins";
@@ -773,6 +774,12 @@ export class Hud {
         case "healthChanged":
           this.refreshHealth(ev.hp, ev.maxHp);
           break;
+        case "mountChanged":
+          this.toast(ev.itemId ? `You swing into the saddle — ${ITEMS[ev.itemId].name.replace(" Reins", "")} carries you.` : "You dismount.", "info");
+          break;
+        case "minionRaised":
+          this.toast(`${ITEMS[ev.itemId].name} — your servant claws free of the earth and falls in beside you.`, "info");
+          break;
         case "buffApplied": {
           const BUFF_LINES: Record<string, string> = {
             speed: "Your legs feel light — swiftness flows through you!",
@@ -981,6 +988,7 @@ export class Hud {
     list.classList.remove("hidden");
     list.innerHTML = "";
     for (const skill of Object.values(SKILLS)) {
+      if (skill.mergedInto) continue; // folded skills don't get a row
       const level = this.sim.skills.levelOf(skill.id);
       const xp = this.sim.skills.xp[skill.id] ?? 0;
       const curve = CURVES[skill.curveId];
@@ -1313,9 +1321,18 @@ export class Hud {
     if (!slot) return;
     const item = ITEMS[slot.itemId];
     let action: { label: string; run: () => void } | null = null;
-    if (item.buff) {
-      const label = slot.itemId.startsWith("item.pouch.") ? "Summon"
-        : slot.itemId.startsWith("item.gizmo.") ? "Activate" : "Drink";
+    if (item.mount) {
+      action = {
+        label: this.sim.activeMountItemId === slot.itemId ? "Dismount" : "Ride",
+        run: () => this.sim.enqueue({ type: "eatSlot", slot: this.selectedSlot! }),
+      };
+    } else if (item.minion) {
+      action = {
+        label: "Raise",
+        run: () => this.sim.enqueue({ type: "eatSlot", slot: this.selectedSlot! }),
+      };
+    } else if (item.buff) {
+      const label = slot.itemId.startsWith("item.gizmo.") ? "Activate" : "Drink";
       action = {
         label,
         run: () => this.sim.enqueue({ type: "eatSlot", slot: this.selectedSlot! }),

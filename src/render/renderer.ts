@@ -411,8 +411,10 @@ export class GameRenderer {
    *  find the next (spread-out) station. */
   private tutorialBeacon: THREE.Mesh | null = null;
   private questDots: THREE.Mesh[] = [];
-  /** The summoned familiar's rig (a spirit-tinted companion beside the player). */
+  /** The raised minion's rig (a necrotic-tinted undead beside the player). */
   private familiarView: { itemId: string; group: THREE.Group } | null = null;
+  /** The ridden mount's rig (drawn under the player while riding). */
+  private mountView: { itemId: string; group: THREE.Group } | null = null;
   /** A short player gesture played for slot rites (bury bones, light a fire). */
   private oneShotAnim: { kind: ActionAnim; remainS: number } | null = null;
   /** Fires struck on the spot by Firemaking — burn out after a minute. */
@@ -539,78 +541,6 @@ export class GameRenderer {
   private guidePathKey = "";
   private guidePath: Cell[] | null = null;
 
-  /** Species rig each spirit pouch calls to the player's side. */
-  private static readonly FAMILIAR_SPECIES: Record<string, string> = {
-    "item.pouch.wolf": "enemy.timber_wolf",
-    "item.pouch.ox": "enemy.prairie_bull",
-    "item.pouch.tortoise": "enemy.armadillo",
-    "item.pouch.lynx": "enemy.dire_wolf",
-    "item.pouch.drake": "enemy.dragon.fire",
-  };
-
-  /** Keep the summoned familiar walking at the player's side: a spirit-blue
-   *  translucent copy of the species rig that follows, hovers and fades out
-   *  when the pouch's minute is up. */
-  private updateFamiliar(dt: number): void {
-    const fam = this.sim.familiar;
-    const defId = fam ? GameRenderer.FAMILIAR_SPECIES[fam.itemId] : undefined;
-    if (!fam || !defId) {
-      if (this.familiarView) {
-        this.scene.remove(this.familiarView.group);
-        this.disposeGroupResources(this.familiarView.group, false);
-        this.familiarView = null;
-      }
-      return;
-    }
-    if (!this.familiarView || this.familiarView.itemId !== fam.itemId) {
-      if (this.familiarView) {
-        this.scene.remove(this.familiarView.group);
-        this.disposeGroupResources(this.familiarView.group, false);
-      }
-      const def = ENEMIES[defId];
-      const group = new THREE.Group();
-      this.buildEnemyBody(group, def.view, def.tint, defId);
-      // Spirit look: translucent moon-blue glow, whatever the species.
-      group.traverse((o) => {
-        const mesh = o as THREE.Mesh;
-        if (!(mesh as { isMesh?: boolean }).isMesh) return;
-        const restyle = (m: THREE.Material): THREE.Material => {
-          const c = m.clone();
-          c.transparent = true;
-          c.opacity = 0.7;
-          const lam = c as THREE.MeshLambertMaterial;
-          if (lam.emissive) {
-            lam.emissive = new THREE.Color("#4f74ff");
-            lam.emissiveIntensity = 0.55;
-          }
-          return c;
-        };
-        mesh.material = Array.isArray(mesh.material) ? mesh.material.map(restyle) : restyle(mesh.material);
-      });
-      // Dragons are boss-sized; familiars are knee-high companions.
-      group.scale.setScalar(def.view === "dragon" ? 0.3 : Math.min(def.scale ?? 1, 1) * 0.8);
-      const p = this.sim.movement.pos;
-      group.position.set(p.x + 1.2, this.sim.world.surfaceY(this.sim.movement.currentCell()), p.z + 1.2);
-      this.scene.add(group);
-      this.familiarView = { itemId: fam.itemId, group };
-    }
-    const view = this.familiarView;
-    const p = this.sim.movement.pos;
-    const target = { x: p.x + 0.5 + 1.1, z: p.z + 0.5 + 0.8 };
-    const g = view.group.position;
-    const dx = target.x - g.x, dz = target.z - g.z;
-    const dist = Math.hypot(dx, dz);
-    if (dist > 0.02) {
-      const step = Math.min(1, dt * (dist > 3 ? 6 : 3));
-      g.x += dx * step;
-      g.z += dz * step;
-      view.group.rotation.y = Math.atan2(dx, dz);
-    }
-    const cell = { x: Math.floor(g.x), z: Math.floor(g.z) };
-    const groundY = this.sim.world.surfaceY(cell);
-    g.y = groundY + 0.12 + Math.sin(this.elapsed * 3) * 0.07; // spirit hover
-  }
-
   /** The cell itself if walkable, else a walkable neighbour, else null. */
   private walkableNear(cell: { x: number; z: number }): { x: number; z: number } | null {
     if (this.sim.world.walkable(cell)) return cell;
@@ -620,6 +550,112 @@ export class GameRenderer {
     }
     return null;
   }
+
+  /** Species rig behind each set of spirit-mount reins. */
+  private static readonly MOUNT_SPECIES: Record<string, string> = {
+    "item.pouch.wolf": "enemy.timber_wolf",
+    "item.pouch.ox": "enemy.prairie_bull",
+    "item.pouch.tortoise": "enemy.armadillo",
+    "item.pouch.lynx": "enemy.dire_wolf",
+    "item.pouch.drake": "enemy.dragon.fire",
+  };
+
+  /** Build a companion rig from an enemy species, restyled by a glow color. */
+  private buildCompanionRig(defId: string, glow: string, opacity: number): THREE.Group {
+    const def = ENEMIES[defId];
+    const group = new THREE.Group();
+    this.buildEnemyBody(group, def.view, def.tint, defId);
+    group.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!(mesh as { isMesh?: boolean }).isMesh) return;
+      const restyle = (m: THREE.Material): THREE.Material => {
+        const c = m.clone();
+        c.transparent = true;
+        c.opacity = opacity;
+        const lam = c as THREE.MeshLambertMaterial;
+        if (lam.emissive) {
+          lam.emissive = new THREE.Color(glow);
+          lam.emissiveIntensity = 0.5;
+        }
+        return c;
+      };
+      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(restyle) : restyle(mesh.material);
+    });
+    group.scale.setScalar(def.view === "dragon" ? 0.3 : Math.min(def.scale ?? 1, 1) * 0.8);
+    return group;
+  }
+
+  /** Keep the raised minion at the player's side (necrotic green undead that
+   *  follows and worries the player's target) and the ridden mount under the
+   *  player's feet. Both fade out when their sim state clears. */
+  private updateCompanions(dt: number): void {
+    // --- minion (Necromancy) ---
+    const minion = this.sim.minion;
+    if (!minion) {
+      if (this.familiarView) {
+        this.scene.remove(this.familiarView.group);
+        this.disposeGroupResources(this.familiarView.group, false);
+        this.familiarView = null;
+      }
+    } else {
+      if (!this.familiarView || this.familiarView.itemId !== minion.itemId) {
+        if (this.familiarView) {
+          this.scene.remove(this.familiarView.group);
+          this.disposeGroupResources(this.familiarView.group, false);
+        }
+        const group = this.buildCompanionRig(minion.defId, "#3fd67c", 0.85);
+        const p0 = this.sim.movement.pos;
+        group.position.set(p0.x + 1.2, this.sim.world.surfaceY(this.sim.movement.currentCell()), p0.z + 1.2);
+        this.scene.add(group);
+        this.familiarView = { itemId: minion.itemId, group };
+      }
+      const p = this.sim.movement.pos;
+      const target = { x: p.x + 0.5 - 1.1, z: p.z + 0.5 + 0.8 };
+      const g = this.familiarView.group.position;
+      const dx = target.x - g.x, dz = target.z - g.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > 0.02) {
+        const step = Math.min(1, dt * (dist > 3 ? 6 : 3));
+        g.x += dx * step;
+        g.z += dz * step;
+        this.familiarView.group.rotation.y = Math.atan2(dx, dz);
+      }
+      const groundY = this.sim.world.surfaceY({ x: Math.floor(g.x), z: Math.floor(g.z) });
+      g.y = groundY + 0.06 + Math.sin(this.elapsed * 3) * 0.05;
+    }
+
+    // --- mount (Summoning) ---
+    const mountId = this.sim.activeMount() ? this.sim.activeMountItemId : null;
+    const species = mountId ? GameRenderer.MOUNT_SPECIES[mountId] : undefined;
+    if (!mountId || !species) {
+      if (this.mountView) {
+        this.scene.remove(this.mountView.group);
+        this.disposeGroupResources(this.mountView.group, false);
+        this.mountView = null;
+      }
+      return;
+    }
+    if (!this.mountView || this.mountView.itemId !== mountId) {
+      if (this.mountView) {
+        this.scene.remove(this.mountView.group);
+        this.disposeGroupResources(this.mountView.group, false);
+      }
+      const group = this.buildCompanionRig(species, "#4f74ff", 0.9);
+      this.scene.add(group);
+      this.mountView = { itemId: mountId, group };
+    }
+    // The mount sits exactly under the player, facing the way they face.
+    const p = this.sim.movement.pos;
+    const facing = this.sim.movement.facing;
+    this.mountView.group.position.set(
+      p.x + 0.5,
+      this.sim.world.surfaceY(this.sim.movement.currentCell()),
+      p.z + 0.5,
+    );
+    this.mountView.group.rotation.y =
+      facing === "north" ? Math.PI : facing === "east" ? -Math.PI / 2 : facing === "west" ? Math.PI / 2 : 0;
+  }
+
   /** Shared canopy-sway clock + amplitude (weather-driven), referenced by every
    *  leaf material so the whole forest breathes off one uniform. */
   private windTime = { value: 0 };
@@ -738,6 +774,7 @@ export class GameRenderer {
     this.guideWorld = null;
     this.guideWorldFor = null;
     this.familiarView = null;
+    this.mountView = null;
     this.oneShotAnim = null;
     this.tempFires = [];
 
@@ -5616,7 +5653,8 @@ export class GameRenderer {
     this.playerView.update(dt, {
       x: pos.x,
       z: pos.z,
-      targetY: cellH,
+      // In the saddle the player sits on the mount's back.
+      targetY: cellH + (this.sim.activeMount() ? 0.55 : 0),
       facing: this.sim.movement.facing,
       moving: this.sim.movement.isMoving() && !boating, // sitting, not walking
       action: this.sim.actions.currentActionAnim() ?? this.oneShotAnim?.kind ?? null,
@@ -5630,7 +5668,7 @@ export class GameRenderer {
     }
 
     this.updateQuestGuidance();
-    this.updateFamiliar(dt);
+    this.updateCompanions(dt);
     if (this.oneShotAnim) {
       this.oneShotAnim.remainS -= dt;
       if (this.oneShotAnim.remainS <= 0) this.oneShotAnim = null;

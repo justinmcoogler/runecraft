@@ -323,6 +323,7 @@ describe("province gameplay", () => {
     if (Object.values(ITEMS).some((i) => i.firemaking)) trainable.add("skill.firemaking");
     if (Object.values(ITEMS).some((i) => i.prayer)) trainable.add("skill.prayer");
     for (const skillId of Object.keys(SKILLS)) {
+      if (SKILLS[skillId].mergedInto) continue; // folded skills train via their home
       expect(trainable.has(skillId), `${skillId} has no training source`).toBe(true);
     }
   });

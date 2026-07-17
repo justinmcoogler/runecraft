@@ -7,7 +7,7 @@ import { skillActivities, skillCeiling, skillIds } from "../skill-guide";
 
 describe("skill guide", () => {
   it("lists every skill", () => {
-    expect(skillIds().length).toBe(Object.keys(SKILLS).length);
+    expect(skillIds().length).toBe(Object.values(SKILLS).filter((s) => !s.mergedInto).length);
     for (const id of skillIds()) expect(SKILLS[id]).toBeTruthy();
   });
 

@@ -13,6 +13,9 @@ export interface SkillDef {
   name: string;
   maxLevel: number;
   curveId: string;
+  /** This skill was folded into another: XP routes there, UI hides it, and
+   *  the def survives only so old content/lesson names keep resolving. */
+  mergedInto?: string;
 }
 
 /**
@@ -48,6 +51,10 @@ export interface ItemDef {
   firemaking?: { level: number; xp: number };
   /** Bones: burying them in the pack trains Prayer. */
   prayer?: { level: number; xp: number };
+  /** Spirit-mount reins (Summoning): tap to ride — stride multiplies by speed. */
+  mount?: { speed: number };
+  /** Necromancy rite: consuming it raises a minion that fights beside you. */
+  minion?: { defId: string; durationS: number; dmg: number };
 }
 
 export interface DropEntry {
@@ -234,6 +241,7 @@ export const SKILLS: Record<string, SkillDef> = {
     name: "Smelting",
     maxLevel: 99,
     curveId: "curve.standard",
+    mergedInto: "skill.smithing",
   },
   "skill.smithing": {
     id: "skill.smithing",
@@ -294,6 +302,7 @@ export const SKILLS: Record<string, SkillDef> = {
     name: "Brewing",
     maxLevel: 99,
     curveId: "curve.standard",
+    mergedInto: "skill.herblore",
   },
   "skill.enchanting": {
     id: "skill.enchanting",
@@ -1683,6 +1692,9 @@ export const ITEMS: Record<string, ItemDef> = {
   "item.amulet.ruby": { id: "item.amulet.ruby", name: "Ruby Amulet", icon: "📿", stackable: true, maxStack: 20 },
   "item.amulet.dragonstone": { id: "item.amulet.dragonstone", name: "Dragonstone Amulet", icon: "📿", stackable: true, maxStack: 20 },
   // ---- bones for Prayer (bury them) ----
+  "item.rite.skeleton": { id: "item.rite.skeleton", name: "Rite of the Risen Skeleton", icon: "💀", stackable: true, maxStack: 20, minion: { defId: "enemy.skeleton", durationS: 60, dmg: 2 } },
+  "item.rite.wight": { id: "item.rite.wight", name: "Rite of the Hollow Wight", icon: "👻", stackable: true, maxStack: 20, minion: { defId: "enemy.hollow_wight", durationS: 60, dmg: 5 } },
+  "item.rite.shambler": { id: "item.rite.shambler", name: "Rite of the Grave Shambler", icon: "🧟", stackable: true, maxStack: 20, minion: { defId: "enemy.grave_shambler", durationS: 75, dmg: 9 } },
   "item.bone.big": { id: "item.bone.big", name: "Big Bones", icon: "🦴", stackable: true, maxStack: 50 },
   "item.bone.dragon": { id: "item.bone.dragon", name: "Dragon Bones", icon: "🐉", stackable: true, maxStack: 50 },
   "item.bone.ancient": { id: "item.bone.ancient", name: "Ancient Bones", icon: "💀", stackable: true, maxStack: 50 },
@@ -1707,9 +1719,9 @@ export const ITEMS: Record<string, ItemDef> = {
   "tool.bow.jungle": { id: "tool.bow.jungle", name: "Jungle Warbow", icon: "🏹", stackable: false, maxStack: 1, toolTags: ["bow", "weapon"], damageBonus: 9 },
   "tool.bow.dark": { id: "tool.bow.dark", name: "Duskbark Bow", icon: "🏹", stackable: false, maxStack: 1, toolTags: ["bow", "weapon"], damageBonus: 12 },
   // ---- Summoning: familiar pouches (drink to call the familiar's aid) ----
-  "item.pouch.wolf": { id: "item.pouch.wolf", name: "Spirit Wolf Pouch", icon: "🐺", stackable: true, maxStack: 20, buff: { kind: "strength", durationS: 60 } },
-  "item.pouch.ox": { id: "item.pouch.ox", name: "Pack Ox Pouch", icon: "🐂", stackable: true, maxStack: 20, buff: { kind: "gathering", durationS: 60 } },
-  "item.pouch.tortoise": { id: "item.pouch.tortoise", name: "War Tortoise Pouch", icon: "🐢", stackable: true, maxStack: 20, buff: { kind: "stoneskin", durationS: 60 } },
+  "item.pouch.wolf": { id: "item.pouch.wolf", name: "Spirit Wolf Reins", icon: "🐺", stackable: true, maxStack: 20, mount: { speed: 1.25 } },
+  "item.pouch.ox": { id: "item.pouch.ox", name: "Pack Ox Reins", icon: "🐂", stackable: true, maxStack: 20, mount: { speed: 1.35 } },
+  "item.pouch.tortoise": { id: "item.pouch.tortoise", name: "War Tortoise Reins", icon: "🐢", stackable: true, maxStack: 20, mount: { speed: 1.45 } },
   // ---- Invention: salvaged parts and the gizmos built from them ----
   "item.component.parts": { id: "item.component.parts", name: "Salvaged Parts", icon: "⚙️", stackable: true, maxStack: 99 },
   "item.gizmo.swift": { id: "item.gizmo.swift", name: "Swift Gizmo", icon: "🧭", stackable: true, maxStack: 20, buff: { kind: "speed", durationS: 90 } },
@@ -1866,8 +1878,8 @@ export const ITEMS: Record<string, ItemDef> = {
   "tool.boat.cutter": { id: "tool.boat.cutter", name: "River Cutter", icon: "⛵", stackable: false, maxStack: 1, toolTags: ["boat"], boat: { speed: 7.6, level: 34 } },
   "tool.boat.longship": { id: "tool.boat.longship", name: "Coastal Longship", icon: "⛵", stackable: false, maxStack: 1, toolTags: ["boat"], boat: { speed: 9.2, level: 55 } },
   // ---- Summoning: two higher familiar pouches ----
-  "item.pouch.lynx": { id: "item.pouch.lynx", name: "Blood Lynx Pouch", icon: "🐈", stackable: true, maxStack: 20, buff: { kind: "focus", durationS: 60 } },
-  "item.pouch.drake": { id: "item.pouch.drake", name: "Storm Drake Pouch", icon: "🐲", stackable: true, maxStack: 20, buff: { kind: "speed", durationS: 60 } },
+  "item.pouch.lynx": { id: "item.pouch.lynx", name: "Blood Lynx Reins", icon: "🐈", stackable: true, maxStack: 20, mount: { speed: 1.55 } },
+  "item.pouch.drake": { id: "item.pouch.drake", name: "Storm Drake Reins", icon: "🐲", stackable: true, maxStack: 20, mount: { speed: 1.7 } },
   // ---- Farming: two higher crops (seed + produce) ----
   "item.seed.corn": { id: "item.seed.corn", name: "Sweetcorn Seed", icon: "🌱", stackable: true, maxStack: 50 },
   "item.crop.corn": { id: "item.crop.corn", name: "Sweetcorn", icon: "🌽", stackable: true, maxStack: 50, healAmount: 7 },
@@ -2029,7 +2041,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.copper_bar": {
     id: "recipe.copper_bar",
     name: "Copper Bar",
-    skillId: "skill.smelting",
+    skillId: "skill.smithing",
     requiredLevel: 1,
     cycleTimeS: 3.0,
     inputs: [{ itemId: "item.ore.copper", qty: 2 }],
@@ -2042,7 +2054,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.gold_bar": {
     id: "recipe.gold_bar",
     name: "Gold Bar",
-    skillId: "skill.smelting",
+    skillId: "skill.smithing",
     requiredLevel: 35,
     cycleTimeS: 3.4,
     inputs: [{ itemId: "item.ore.gold", qty: 2 }, { itemId: "item.ore.coal", qty: 1 }],
@@ -2055,7 +2067,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.tin_bar": {
     id: "recipe.tin_bar",
     name: "Tin Bar",
-    skillId: "skill.smelting",
+    skillId: "skill.smithing",
     requiredLevel: 2,
     cycleTimeS: 3.0,
     inputs: [{ itemId: "item.ore.tin", qty: 2 }],
@@ -2068,7 +2080,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.bronze_bar": {
     id: "recipe.bronze_bar",
     name: "Bronze Bar",
-    skillId: "skill.smelting",
+    skillId: "skill.smithing",
     requiredLevel: 3,
     cycleTimeS: 3.5,
     inputs: [
@@ -2140,7 +2152,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.stone_brick": {
     id: "recipe.stone_brick",
     name: "Stone Brick",
-    skillId: "skill.smelting",
+    skillId: "skill.smithing",
     requiredLevel: 1,
     cycleTimeS: 2.0,
     inputs: [{ itemId: "item.stone.rough", qty: 2 }],
@@ -2153,7 +2165,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.iron_bar": {
     id: "recipe.iron_bar",
     name: "Iron Bar",
-    skillId: "skill.smelting",
+    skillId: "skill.smithing",
     requiredLevel: 4,
     cycleTimeS: 4.0,
     inputs: [{ itemId: "item.ore.iron", qty: 2 }],
@@ -2317,7 +2329,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.netherite_scrap": {
     id: "recipe.netherite_scrap",
     name: "Netherite Scrap",
-    skillId: "skill.smelting",
+    skillId: "skill.smithing",
     requiredLevel: 60,
     cycleTimeS: 5.0,
     inputs: [
@@ -2333,7 +2345,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.netherite_ingot": {
     id: "recipe.netherite_ingot",
     name: "Netherite Ingot",
-    skillId: "skill.smelting",
+    skillId: "skill.smithing",
     requiredLevel: 72,
     cycleTimeS: 6.0,
     inputs: [
@@ -2714,7 +2726,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.potion_swift": {
     id: "recipe.potion_swift",
     name: "Swiftness Draught",
-    skillId: "skill.brewing",
+    skillId: "skill.herblore",
     requiredLevel: 1,
     cycleTimeS: 3.0,
     inputs: [
@@ -2731,7 +2743,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.potion_strength": {
     id: "recipe.potion_strength",
     name: "Strength Tonic",
-    skillId: "skill.brewing",
+    skillId: "skill.herblore",
     requiredLevel: 3,
     cycleTimeS: 3.4,
     inputs: [
@@ -2748,7 +2760,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.potion_stoneskin": {
     id: "recipe.potion_stoneskin",
     name: "Stoneskin Brew",
-    skillId: "skill.brewing",
+    skillId: "skill.herblore",
     requiredLevel: 5,
     cycleTimeS: 3.8,
     inputs: [
@@ -2831,7 +2843,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.potion_gathering": {
     id: "recipe.potion_gathering",
     name: "Forager's Brew",
-    skillId: "skill.brewing",
+    skillId: "skill.herblore",
     requiredLevel: 2,
     cycleTimeS: 3.2,
     inputs: [
@@ -2848,7 +2860,7 @@ export const RECIPES: Record<string, RecipeDef> = {
   "recipe.potion_focus": {
     id: "recipe.potion_focus",
     name: "Hunter's Focus",
-    skillId: "skill.brewing",
+    skillId: "skill.herblore",
     requiredLevel: 7,
     cycleTimeS: 3.6,
     inputs: [
@@ -3135,18 +3147,33 @@ export const RECIPES: Record<string, RecipeDef> = {
     outputs: [{ itemId: "tool.bow.dark", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 240,
   },
   // ---- Summoning: bind a charm and essence into a familiar pouch ----
+  "recipe.rite_skeleton": {
+    id: "recipe.rite_skeleton", name: "Rite of the Risen Skeleton", skillId: "skill.necromancy", requiredLevel: 1,
+    cycleTimeS: 2.6, inputs: [{ itemId: "item.bone.old", qty: 2 }, { itemId: "item.charm.bone", qty: 1 }],
+    outputs: [{ itemId: "item.rite.skeleton", qty: 2 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 40,
+  },
+  "recipe.rite_wight": {
+    id: "recipe.rite_wight", name: "Rite of the Hollow Wight", skillId: "skill.necromancy", requiredLevel: 30,
+    cycleTimeS: 3.0, inputs: [{ itemId: "item.bone.big", qty: 3 }, { itemId: "item.essence.rune", qty: 4 }],
+    outputs: [{ itemId: "item.rite.wight", qty: 2 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 170,
+  },
+  "recipe.rite_shambler": {
+    id: "recipe.rite_shambler", name: "Rite of the Grave Shambler", skillId: "skill.necromancy", requiredLevel: 55,
+    cycleTimeS: 3.4, inputs: [{ itemId: "item.bone.ancient", qty: 2 }, { itemId: "item.essence.rune", qty: 8 }],
+    outputs: [{ itemId: "item.rite.shambler", qty: 2 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 340,
+  },
   "recipe.pouch_wolf": {
-    id: "recipe.pouch_wolf", name: "Spirit Wolf Pouch", skillId: "skill.summoning", requiredLevel: 1,
+    id: "recipe.pouch_wolf", name: "Spirit Wolf Reins", skillId: "skill.summoning", requiredLevel: 1,
     cycleTimeS: 2.4, inputs: [{ itemId: "item.charm.bone", qty: 1 }, { itemId: "item.essence.rune", qty: 3 }],
     outputs: [{ itemId: "item.pouch.wolf", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 40,
   },
   "recipe.pouch_ox": {
-    id: "recipe.pouch_ox", name: "Pack Ox Pouch", skillId: "skill.summoning", requiredLevel: 22,
+    id: "recipe.pouch_ox", name: "Pack Ox Reins", skillId: "skill.summoning", requiredLevel: 22,
     cycleTimeS: 2.8, inputs: [{ itemId: "item.charm.bone", qty: 2 }, { itemId: "item.essence.rune", qty: 6 }, { itemId: "item.hide.cow", qty: 1 }],
     outputs: [{ itemId: "item.pouch.ox", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 110,
   },
   "recipe.pouch_tortoise": {
-    id: "recipe.pouch_tortoise", name: "War Tortoise Pouch", skillId: "skill.summoning", requiredLevel: 44,
+    id: "recipe.pouch_tortoise", name: "War Tortoise Reins", skillId: "skill.summoning", requiredLevel: 44,
     cycleTimeS: 3.2, inputs: [{ itemId: "item.charm.bone", qty: 3 }, { itemId: "item.essence.rune", qty: 10 }, { itemId: "item.bar.iron", qty: 1 }],
     outputs: [{ itemId: "item.pouch.tortoise", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 230,
   },
@@ -3182,7 +3209,7 @@ function ladderRecipes(): Record<string, RecipeDef> {
   const out: Record<string, RecipeDef> = {};
   const R = (r: RecipeDef) => { out[r.id] = r; };
   const brew = (id: string, name: string, level: number, cycleTimeS: number, inputs: RecipeItem[], out2: string, xp: number, successBase: number) =>
-    R({ id, name, skillId: "skill.brewing", requiredLevel: level, cycleTimeS, inputs, outputs: [{ itemId: out2, qty: 1 }], successBase, successPerLevel: 0.012, successMax: 0.99, xp });
+    R({ id, name, skillId: "skill.herblore", requiredLevel: level, cycleTimeS, inputs, outputs: [{ itemId: out2, qty: 1 }], successBase, successPerLevel: 0.012, successMax: 0.99, xp });
   const inp = (a: string, q = 1, b?: string, qb = 1, c?: string, qc = 1): RecipeItem[] => {
     const arr: RecipeItem[] = [{ itemId: a, qty: q }];
     if (b) arr.push({ itemId: b, qty: qb });
@@ -3217,7 +3244,7 @@ function ladderRecipes(): Record<string, RecipeDef> {
   R({ id: "recipe.kings_tincture", name: "King's Tincture", skillId: "skill.herblore", requiredLevel: 62, cycleTimeS: 4.0, inputs: inp("item.herb.emberleaf", 1, "item.herb.frostbloom", 1, "item.herb.duskcap", 1), outputs: [{ itemId: "item.salve.kings", qty: 1 }], successBase: 0.6, successPerLevel: 0.012, successMax: 0.99, xp: 330 });
   // ---- Smelting: the steel/mithril/adamant/runite bar ladder ----
   const smelt = (id: string, name: string, level: number, cycleTimeS: number, inputs: RecipeItem[], out2: string, xp: number) =>
-    R({ id, name, skillId: "skill.smelting", requiredLevel: level, cycleTimeS, inputs, outputs: [{ itemId: out2, qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp });
+    R({ id, name, skillId: "skill.smithing", requiredLevel: level, cycleTimeS, inputs, outputs: [{ itemId: out2, qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp });
   smelt("recipe.steel_bar", "Steel Bar", 16, 4.2, inp("item.bar.iron", 1, "item.ore.coal", 2), "item.bar.steel", 90);
   smelt("recipe.mithril_bar", "Mithril Bar", 30, 4.6, inp("item.ore.mithril", 1, "item.ore.coal", 2), "item.bar.mithril", 150);
   smelt("recipe.adamant_bar", "Adamant Bar", 45, 5.0, inp("item.ore.adamant", 1, "item.ore.coal", 3), "item.bar.adamant", 220);
@@ -3247,8 +3274,8 @@ function ladderRecipes(): Record<string, RecipeDef> {
   R({ id: "recipe.runed_rod", name: "Enchanted Rod", skillId: "skill.enchanting", requiredLevel: 22, cycleTimeS: 4.5, inputs: inp("tool.fishingrod.pearl", 1, "item.relic.idol", 1), outputs: [{ itemId: "tool.fishingrod.enchanted", qty: 1 }], successBase: 0.9, successPerLevel: 0.01, successMax: 0.99, xp: 150 });
   R({ id: "recipe.astral_sword", name: "Astral Blade", skillId: "skill.enchanting", requiredLevel: 58, cycleTimeS: 5.0, inputs: inp("tool.sword.diamond", 1, "item.relic.idol", 3, "item.charm.bone", 1), outputs: [{ itemId: "tool.sword.astral", qty: 1 }], successBase: 0.85, successPerLevel: 0.012, successMax: 0.99, xp: 420 });
   // ---- Summoning: two higher pouches ----
-  R({ id: "recipe.pouch_lynx", name: "Blood Lynx Pouch", skillId: "skill.summoning", requiredLevel: 58, cycleTimeS: 3.4, inputs: inp("item.charm.bone", 4, "item.essence.rune", 14, "item.bar.steel", 1), outputs: [{ itemId: "item.pouch.lynx", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 320 });
-  R({ id: "recipe.pouch_drake", name: "Storm Drake Pouch", skillId: "skill.summoning", requiredLevel: 72, cycleTimeS: 3.8, inputs: inp("item.charm.bone", 5, "item.essence.rune", 20, "item.bar.mithril", 1), outputs: [{ itemId: "item.pouch.drake", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 460 });
+  R({ id: "recipe.pouch_lynx", name: "Blood Lynx Reins", skillId: "skill.summoning", requiredLevel: 58, cycleTimeS: 3.4, inputs: inp("item.charm.bone", 4, "item.essence.rune", 14, "item.bar.steel", 1), outputs: [{ itemId: "item.pouch.lynx", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 320 });
+  R({ id: "recipe.pouch_drake", name: "Storm Drake Reins", skillId: "skill.summoning", requiredLevel: 72, cycleTimeS: 3.8, inputs: inp("item.charm.bone", 5, "item.essence.rune", 20, "item.bar.mithril", 1), outputs: [{ itemId: "item.pouch.drake", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 460 });
   // ---- Invention: high salvage source + two apex gizmos ----
   R({ id: "recipe.salvage_plate", name: "Salvage Plate", skillId: "skill.invention", requiredLevel: 50, cycleTimeS: 2.6, inputs: [{ itemId: "item.bar.runite", qty: 1 }], outputs: [{ itemId: "item.component.parts", qty: 8 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 90 });
   R({ id: "recipe.gizmo_bulwark", name: "Bulwark Gizmo", skillId: "skill.invention", requiredLevel: 55, cycleTimeS: 3.6, inputs: inp("item.component.parts", 14, "item.gem.emerald", 1), outputs: [{ itemId: "item.gizmo.bulwark", qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp: 320 });
@@ -5081,7 +5108,10 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     id: "object.obelisk.summon",
     name: "Summoning Obelisk",
     interaction: { mode: "adjacent_4", rangeCells: 1 },
-    workstationRecipeIds: ["recipe.pouch_wolf", "recipe.pouch_ox", "recipe.pouch_tortoise", "recipe.pouch_lynx", "recipe.pouch_drake"],
+    workstationRecipeIds: [
+      "recipe.pouch_wolf", "recipe.pouch_ox", "recipe.pouch_tortoise", "recipe.pouch_lynx", "recipe.pouch_drake",
+      "recipe.rite_skeleton", "recipe.rite_wight", "recipe.rite_shambler",
+    ],
     blocksNav: true,
   },
   "object.anvil.basic": {
@@ -5832,7 +5862,7 @@ const LESSONS: Record<string, Lesson> = {
   "skill.foraging": { deliver: { itemId: "item.berry.basic", qty: 2 }, note: "Pick a couple of berries from the bush and bring them to me." },
   "skill.fishing": { deliver: { itemId: "item.fish.raw", qty: 2 }, gift: [{ itemId: "tool.fishingrod.basic", qty: 1 }], note: "Here's a rod — catch a couple of fish and bring them back." },
   "skill.cooking": { action: [train("skill.cooking", "Cook a fish on the campfire")], gift: [{ itemId: "item.fish.raw", qty: 2 }], note: "Here's a raw fish — cook it on the campfire." },
-  "skill.smelting": { action: [train("skill.smelting", "Smelt a copper bar at the furnace")], gift: [{ itemId: "item.ore.copper", qty: 2 }], note: "Take this copper ore — smelt it in the furnace." },
+  "skill.smelting": { action: [train("skill.smithing", "Smelt a copper bar at the furnace")], gift: [{ itemId: "item.ore.copper", qty: 2 }], note: "Take this copper ore — smelt it in the furnace." },
   "skill.smithing": { action: [train("skill.smithing", "Hammer something on the anvil")], gift: [{ itemId: "tool.hammer.basic", qty: 1 }, { itemId: "item.bar.copper", qty: 2 }], note: "Here's a hammer and two copper bars — hammer them into a blade on the anvil." },
   "skill.attack": { action: [train("skill.attack", "Strike a pig on Accurate style — trains Attack"), train("skill.strength", "Tap the attack-style button to Aggressive, then strike — trains Strength")], gift: [{ itemId: "tool.sword.copper", qty: 1 }] },
   "skill.farming": { deliver: { itemId: "item.wheat", qty: 2 }, gift: [{ itemId: "tool.hoe.basic", qty: 1 }, { itemId: "item.seed.wheat", qty: 3 }], note: "Here's a hoe and wheat seeds. First PLOW a plot: click my field plot (or till fresh grass with the hoe) and your hoe will break the soil into furrows. Only plowed furrows take seed — sow one, wait for it to grow, then harvest the wheat and bring me two. Harvests give seed back, so keep replanting." },
@@ -5841,7 +5871,7 @@ const LESSONS: Record<string, Lesson> = {
   "skill.archaeology": { action: [train("skill.archaeology", "Dig at the excavation")], note: "Take a trowel to the dig site and see what you turn up." },
   "skill.archery": { action: [{ id: "do", label: "Fell a target dummy", type: "slay", enemyDefId: "enemy.target_dummy", qty: 1 }], gift: [{ itemId: "tool.bow.oak", qty: 1 }, { itemId: "item.arrow.bronze", qty: 30 }], note: "Here's a bow and arrows — equip the bow and loose at the dummy." },
   "skill.construction": { action: [train("skill.construction", "Repair the collapsed ramp")], gift: [{ itemId: "item.brick.stone", qty: 6 }, { itemId: "item.plank.cut", qty: 4 }], note: "See that scaffolded wreck beside me? The ramp collapsed in the last storm. Take these bricks and planks, click the broken ramp, and build it back up" },
-  "skill.brewing": { action: [train("skill.brewing", "Brew a draught in the cauldron")], gift: [{ itemId: "item.herb.sage", qty: 1 }, { itemId: "item.feather", qty: 1 }], note: "Sage and a feather — brew a draught in the cauldron." },
+  "skill.brewing": { action: [train("skill.herblore", "Brew a draught in the cauldron")], gift: [{ itemId: "item.herb.sage", qty: 1 }, { itemId: "item.feather", qty: 1 }], note: "Sage and a feather — brew a draught in the cauldron." },
   "skill.enchanting": { action: [train("skill.enchanting", "Rune the axe at the table")], gift: [{ itemId: "tool.axe.iron", qty: 1 }, { itemId: "item.relic.idol", qty: 1 }], note: "An iron axe and a relic idol — rune the axe at the table." },
   "skill.hunting": { action: [{ id: "do", label: "Catch a chicken", type: "slay", enemyDefId: "enemy.chicken", qty: 1 }] },
   "skill.thieving": { action: [train("skill.thieving", "Filch from the market stall")], note: "See that stall? Lift something from it when the keeper looks away." },
@@ -5854,8 +5884,8 @@ const LESSONS: Record<string, Lesson> = {
   "skill.fletching": { action: [train("skill.fletching", "Cut arrow shafts at the workbench")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "Timber — cut arrow shafts at the workbench." },
   "skill.magic": { action: [train("skill.magic", "Cast Low Alchemy on the bar")], gift: [{ itemId: "item.bar.copper", qty: 1 }, { itemId: "item.rune.fire", qty: 1 }], note: "A copper bar and a fire rune — cast Low Alchemy on the bar from your pack." },
   "skill.dungeoneering": { action: [train("skill.dungeoneering", "Fell the pit-beast")], note: "Every delver bloods themselves — put down the beast in the pit." },
-  "skill.summoning": { action: [train("skill.summoning", "Bind a spirit pouch at the obelisk")], gift: [{ itemId: "item.charm.bone", qty: 1 }, { itemId: "item.essence.rune", qty: 3 }], note: "A bone charm and rune essence — bind a spirit pouch at the obelisk." },
-  "skill.necromancy": { action: [{ id: "do", label: "Fell a skeleton", type: "slay", enemyDefId: "enemy.skeleton", qty: 1 }] },
+  "skill.summoning": { action: [train("skill.summoning", "Bind spirit reins at the obelisk")], gift: [{ itemId: "item.charm.bone", qty: 1 }, { itemId: "item.essence.rune", qty: 3 }], note: "A bone charm and rune essence — bind Spirit Wolf Reins at the obelisk, then tap them in your pack to RIDE. A mount carries you faster than any boot leather." },
+  "skill.necromancy": { action: [{ id: "do", label: "Fell a skeleton", type: "slay", enemyDefId: "enemy.skeleton", qty: 1 }], gift: [{ itemId: "item.rite.skeleton", qty: 1 }], note: "Take this rite — use it from your pack and a risen skeleton will fight at your side. Prove yourselves: fell the skeleton in my pen together." },
   "skill.invention": { action: [train("skill.invention", "Salvage parts at the workbench")], gift: [{ itemId: "item.bar.iron", qty: 1 }], note: "An iron bar — salvage it into components at the workbench." },
 };
 

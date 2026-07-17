@@ -144,9 +144,10 @@ export class GameSimulation {
   tutorial: TutorialDriver | null = null;
   /** Timed potion effects: kind -> seconds remaining. */
   buffs: Record<string, number> = {};
-  /** The summoned familiar walking beside the player (visual companion for an
-   *  active pouch buff): which pouch called it and how long it stays. */
-  familiar: { itemId: string; remainS: number } | null = null;
+  /** The reins the player is riding on (Summoning mounts), or null on foot. */
+  activeMountItemId: string | null = null;
+  /** The raised undead fighting at the player's side (Necromancy). */
+  minion: { itemId: string; defId: string; remainS: number; dmg: number; strikeCooldownS: number } | null = null;
   /** Shared cooldown for the slot rites (burying bones, striking a fire). */
   private riteCooldownS = 0;
   /** Seconds of wild travel left before the next roaming world event may fire. */
@@ -363,6 +364,17 @@ export class GameSimulation {
 
   /** The best boat the player can currently handle (carried or equipped),
    *  by hull speed and Boating level — or null if they have none usable. */
+  /** The mount being ridden — reins must still be in the pack (dropping or
+   *  banking them dismounts you on the spot). */
+  activeMount(): { speed: number } | null {
+    if (!this.activeMountItemId) return null;
+    if (this.inventory.count(this.activeMountItemId) < 1) {
+      this.activeMountItemId = null;
+      return null;
+    }
+    return ITEMS[this.activeMountItemId].mount ?? null;
+  }
+
   bestBoat(): { itemId: string; speed: number } | null {
     const level = this.skills.levelOf("skill.boating");
     let best: { itemId: string; speed: number } | null = null;
@@ -938,9 +950,23 @@ export class GameSimulation {
       this.buffs[kind] -= TICK_DT;
       if (this.buffs[kind] <= 0) delete this.buffs[kind];
     }
-    if (this.familiar) {
-      this.familiar.remainS -= TICK_DT;
-      if (this.familiar.remainS <= 0) this.familiar = null;
+    if (this.minion) {
+      this.minion.remainS -= TICK_DT;
+      if (this.minion.remainS <= 0) {
+        this.minion = null;
+      } else {
+        this.minion.strikeCooldownS -= TICK_DT;
+        if (this.minion.strikeCooldownS <= 0) {
+          // The minion worries whatever the player is fighting.
+          const targetId = this.actions.currentTargetId();
+          if (targetId && this.enemies.minionStrike(targetId, this.minion.dmg)) {
+            this.minion.strikeCooldownS = 2.4;
+            this.skills.grantXp("skill.necromancy", 2);
+          } else {
+            this.minion.strikeCooldownS = 0.6; // idle: re-check soon
+          }
+        }
+      }
     }
     if (this.riteCooldownS > 0) this.riteCooldownS -= TICK_DT;
     // Stride: swiftness on land; on water the boat's hull speed rules.
@@ -949,6 +975,10 @@ export class GameSimulation {
     if (boat && onWater) {
       this.movement.speedCellsPerS = boat.speed;
       // Rowing rests the legs — stamina recovers on the water.
+      this.regenStamina();
+    } else if (this.activeMount()) {
+      // In the saddle: the beast sets the stride and the legs rest.
+      this.movement.speedCellsPerS = WALK_SPEED * this.activeMount()!.speed;
       this.regenStamina();
     } else {
       const base = this.buffs["speed"] > 0 ? 4.55 : WALK_SPEED;
@@ -968,6 +998,10 @@ export class GameSimulation {
     // Rowing trains Boating: award XP each time you glide into a new water cell.
     if (boat && !cellsMatch(beforeMove, movedCell) && this.world.blockAt(movedCell) === "water") {
       this.skills.grantXp("skill.boating", 4);
+    }
+    // Riding trains Summoning: the bond deepens with every cell travelled.
+    if (this.activeMount() && !cellsMatch(beforeMove, movedCell)) {
+      this.skills.grantXp("skill.summoning", 1);
     }
     // Walking away from an open container/workstation closes it.
     if (!cellsMatch(beforeMove, movedCell)) {
@@ -1697,14 +1731,29 @@ export class GameSimulation {
         const s = this.inventory.slots[c.slot];
         if (!s) break;
         const def = ITEMS[s.itemId];
+        if (def.mount) {
+          // Reins toggle riding; the beast is never consumed.
+          this.activeMountItemId = this.activeMountItemId === s.itemId ? null : s.itemId;
+          this.events.emit({ type: "mountChanged", itemId: this.activeMountItemId });
+          break;
+        }
+        if (def.minion) {
+          this.inventory.removeFromSlot(c.slot, 1);
+          this.minion = {
+            itemId: s.itemId,
+            defId: def.minion.defId,
+            remainS: def.minion.durationS,
+            dmg: def.minion.dmg,
+            strikeCooldownS: 1,
+          };
+          this.events.emit({ type: "minionRaised", itemId: s.itemId });
+          this.events.emit({ type: "inventoryChanged" });
+          break;
+        }
         if (def.buff) {
           // Drink: the effect refreshes rather than stacking.
           this.inventory.removeFromSlot(c.slot, 1);
           this.buffs[def.buff.kind] = def.buff.durationS;
-          // A spirit pouch calls its familiar to walk beside you.
-          if (s.itemId.startsWith("item.pouch.")) {
-            this.familiar = { itemId: s.itemId, remainS: def.buff.durationS };
-          }
           this.events.emit({ type: "buffApplied", itemId: s.itemId, kind: def.buff.kind });
           this.events.emit({ type: "inventoryChanged" });
           break;
@@ -1817,7 +1866,7 @@ export class GameSimulation {
         this.inventory.removeItemById(s.itemId, 2);
         this.inventory.add(recipe.bar, 1);
         this.skills.grantXp("skill.magic", SUPERHEAT.magicXp);
-        this.skills.grantXp("skill.smelting", recipe.xp);
+        this.skills.grantXp("skill.smithing", recipe.xp);
         this.events.emit({ type: "spellCast", spell: "superheat", coins: 0 });
         this.events.emit({ type: "inventoryChanged" });
         break;

@@ -64,6 +64,9 @@ export type SimEvent =
   | { type: "logBurned"; itemId: string; cell?: Cell }
   | { type: "bonesBuried"; itemId: string }
   | { type: "plowed"; instanceId: string }
+  | { type: "mountChanged"; itemId: string | null }
+  | { type: "minionRaised"; itemId: string }
+  | { type: "minionStruck"; instanceId: string; dmg: number }
   | { type: "tilled"; cell: Cell }
   | { type: "spellCast"; spell: string; coins: number }
   | { type: "xpGained"; skillId: string; amount: number }

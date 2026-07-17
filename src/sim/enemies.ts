@@ -127,6 +127,16 @@ export class EnemySystem {
     enemy.hp = Math.max(1, enemy.hp - amount);
   }
 
+  /** A raised minion strikes: softens the target but never lands the kill —
+   *  the killing blow (and its loot) stays the player's. */
+  minionStrike(instanceId: string, dmg: number): boolean {
+    const enemy = this.enemies.get(instanceId);
+    if (!enemy || enemy.phase !== "alive" || enemy.hp <= 1) return false;
+    this.chip(enemy, dmg);
+    this.deps.events.emit({ type: "minionStruck", instanceId, dmg });
+    return true;
+  }
+
   /** Fire Aspect: queue burn damage that ticks off one point per second. */
   applyBurn(instanceId: string, total: number): void {
     const enemy = this.enemies.get(instanceId);

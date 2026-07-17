@@ -259,5 +259,5 @@ export function skillCeiling(skillId: string): number {
 
 /** All skill ids, in their defined order. */
 export function skillIds(): string[] {
-  return Object.keys(SKILLS);
+  return Object.keys(SKILLS).filter((id) => !SKILLS[id].mergedInto);
 }

@@ -144,13 +144,13 @@ export const TUTORIAL_LESSONS: TutorialLesson[] = [
     reward: { items: coin(10), xp: { skillId: "skill.cooking", amount: 30 } },
   },
   {
-    id: "tut.smelt", act: "Processing", skillId: "skill.smelting",
+    id: "tut.smelt", act: "Processing", skillId: "skill.smithing",
     title: "Smelt a bronze bar",
     blurb: "At the furnace, smelt copper + tin into a bronze bar.",
     markerId: "tutorial.furnace",
     grant: [{ itemId: "item.ore.copper", qty: 2 }, { itemId: "item.ore.tin", qty: 2 }],
     trigger: { kind: "itemPrefix", prefix: "item.bar." },
-    reward: { items: coin(10), xp: { skillId: "skill.smelting", amount: 40 } },
+    reward: { items: coin(10), xp: { skillId: "skill.smithing", amount: 40 } },
   },
   {
     id: "tut.smith", act: "Processing", skillId: "skill.smithing",
@@ -225,13 +225,13 @@ export const TUTORIAL_LESSONS: TutorialLesson[] = [
     reward: { items: coin(10), xp: { skillId: "skill.magic", amount: 40 } },
   },
   {
-    id: "tut.brew", act: "Spiritual", skillId: "skill.brewing",
+    id: "tut.brew", act: "Spiritual", skillId: "skill.herblore",
     title: "Brew a potion",
     blurb: "At the cauldron, brew the sage and feather into a tonic.",
     markerId: "tutorial.cauldron",
     grant: [{ itemId: "item.herb.sage", qty: 1 }, { itemId: "item.feather", qty: 1 }],
-    trigger: { kind: "skillXp", skillId: "skill.brewing" },
-    reward: { items: coin(10), xp: { skillId: "skill.brewing", amount: 30 } },
+    trigger: { kind: "skillXp", skillId: "skill.herblore" },
+    reward: { items: coin(10), xp: { skillId: "skill.herblore", amount: 30 } },
   },
   {
     id: "tut.enchant", act: "Spiritual", skillId: "skill.enchanting",

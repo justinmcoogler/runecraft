@@ -46,18 +46,18 @@ function runUntil(sim: GameSimulation, predicate: (e: SimEvent) => boolean, maxT
 const levelXp = (level: number) => xpToReachLevel(CURVES["curve.standard"], level);
 
 describe("smelting levels at the furnace", () => {
-  it("furnace work trains Smelting, not Smithing", () => {
+  it("furnace work trains Smithing (Smelting folded in)", () => {
     const sim = new GameSimulation(makeForgeRegion(), 17);
     sim.inventory.add("item.ore.copper", 2);
     sim.enqueue({ type: "interact", targetId: FURNACE });
     runUntil(sim, (e) => e.type === "workstationOpened");
     sim.enqueue({ type: "craft", stationId: FURNACE, recipeId: "recipe.copper_bar" });
     runUntil(sim, (e) => e.type === "actionEnded");
-    expect(sim.skills.xp["skill.smelting"]).toBe(30);
-    expect(sim.skills.xp["skill.smithing"]).toBe(0);
+    expect(sim.skills.xp["skill.smithing"]).toBe(30);
+    expect(sim.skills.xp["skill.smelting"], "merged skills hold no XP of their own").toBeUndefined();
   });
 
-  it("gates tin bars behind Smelting 2 and bronze behind Smelting 3", () => {
+  it("gates tin bars behind Smithing 2 and bronze behind Smithing 3", () => {
     const sim = new GameSimulation(makeForgeRegion(), 17);
     sim.inventory.add("item.ore.tin", 2);
     sim.enqueue({ type: "interact", targetId: FURNACE });
@@ -67,7 +67,7 @@ describe("smelting levels at the furnace", () => {
     let events = [sim.tick(), sim.tick()].flat();
     expect(events.some((e) => e.type === "actionRejected" && e.reason === "level_too_low")).toBe(true);
 
-    sim.skills.xp["skill.smelting"] = levelXp(2);
+    sim.skills.xp["skill.smithing"] = levelXp(2);
     sim.enqueue({ type: "craft", stationId: FURNACE, recipeId: "recipe.tin_bar" });
     runUntil(sim, (e) => e.type === "actionEnded");
     expect(sim.inventory.count("item.bar.tin")).toBe(1);
@@ -78,7 +78,7 @@ describe("smelting levels at the furnace", () => {
     events = [sim.tick(), sim.tick()].flat();
     expect(events.some((e) => e.type === "actionRejected" && e.reason === "level_too_low")).toBe(true);
 
-    sim.skills.xp["skill.smelting"] = levelXp(3);
+    sim.skills.xp["skill.smithing"] = levelXp(3);
     sim.enqueue({ type: "craft", stationId: FURNACE, recipeId: "recipe.bronze_bar" });
     runUntil(sim, (e) => e.type === "actionEnded");
     expect(sim.inventory.count("item.bar.bronze")).toBe(1);
@@ -109,7 +109,6 @@ describe("smithing at the anvil", () => {
     expect(sim.inventory.count("tool.sword.copper")).toBe(1);
     expect(sim.inventory.count("item.bar.copper")).toBe(0);
     expect(sim.skills.xp["skill.smithing"]).toBe(40);
-    expect(sim.skills.xp["skill.smelting"]).toBe(0);
   });
 
   it("copper axe and pickaxe unlock at Smithing 2; bronze sword at 4", () => {
