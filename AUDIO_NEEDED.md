@@ -108,7 +108,63 @@ Priority key: **P0** = core feel · **P1** = strongly wanted · **P2** = polish.
 | Save "quill scratch" tick | P2 | |
 | Toast pop (parchment slide) | P2 | |
 
-## 6. Mixing Notes
+## 6. New features since the first draft (added this revision)
+
+### Enchanting & gem sockets
+| Cue | Priority | Direction |
+|---|---|---|
+| Enchant bound (arcane swell + chime, 1 s) | **P0** | Fires on the "✨ bound to your sword" toast. |
+| Gem socketed (crystal click-set + sparkle tail) | **P0** | Distinct per-gem pitch is a bonus, one sound is fine. |
+| Enchanter's table ambient hum (loop, quiet) | P2 | Only within ~4 cells of the table. |
+
+### Combat effects (Minecraft-style enchants)
+| Cue | Priority | Direction |
+|---|---|---|
+| Fire Aspect ignite (whoosh) + burn tick (soft crackle) | P1 | Burn tick is per-second, keep tiny. |
+| Knockback shove (air thump + scuff landing) | P1 | |
+| Thorns reflect (brittle "spike" snap) | P2 | |
+| Looting double-drop jingle (two-coin flourish) | P1 | Sells the 30% proc. |
+| Lifesteal drink-in (soft reverse-swell) | P2 | |
+
+### Fishing ladder & docks
+| Cue | Priority | Direction |
+|---|---|---|
+| Crab pool snap-snip (claw clicks) | P2 | Per-tier catch flavor is P2 — |
+| Lobster pot rope creak + splash | P2 | the base cast/reel/plop (§3) covers all tiers. |
+| Storm Rise electric fizz (rare-catch sting) | P2 | |
+| Dock footsteps on planks (hollow knock) | P1 | Reuse "wood" footstep set over bridge/dock cells. |
+| Water lapping at pier posts (spot loop) | P2 | |
+
+### Villages, errands & taskmaster
+| Cue | Priority | Direction |
+|---|---|---|
+| Villager greet murmurs (3 neutral "hm?/hallo" grunts) | P1 | Non-verbal, RS-style. |
+| Errand accepted (short scroll snap) | P1 | Can reuse quest-accepted. |
+| Errand turned in (coin pour + warm chord) | P1 | |
+| Slayer assignment issued (gruff grunt + ledger scratch) | P2 | |
+| Livestock pen ambience (soft animal shuffle loop) | P2 | Near farmyard pens. |
+
+### World structures
+| Cue | Priority | Direction |
+|---|---|---|
+| Dungeon gate entry (stone grind + depth reverb swell) | **P0** | The cave-mouth portal moment. |
+| Mineshaft ambience (timber creaks, distant pick echoes) | P1 | For "mine"/"foundry" dungeon styles. |
+| Endless-descent floor transition (deepening drone step) | P1 | Pitch drops per floor — sells the depth. |
+| Treasure cache unearth (shovel + burst of coins) | P1 | |
+| Fast travel whoosh (map-fold + arrival chime) | P1 | |
+| Faction rank-up fanfare (short banner flourish) | P2 | |
+| Season change sting (4 gentle variants) | P2 | Spring birds / summer shimmer / autumn rustle / winter chill. |
+| World event nearby (subtle danger sting) | P2 | Ambush/rare-beast spawns. |
+
+## 7. Already stubbed by the built-in synthesizer
+
+`src/render/audio.ts` procedurally synthesizes 21 placeholder cues today (no
+files needed): chop, clink, rustle, splash, sizzle, forge, anvil, hit, whiff,
+hurt, slain, died, chopMiss, eat, item, level, deplete, respawn, reject,
+chest, step. Real recordings of the **P0** rows replace these one-for-one —
+the `SfxName` hook points already exist, so wiring is a lookup-table swap.
+
+## 8. Mixing Notes
 
 - Music at −18 LUFS-ish under gameplay; ambience −6 dB below music; SFX peaks ≤ −6 dBFS.
 - Day/night and biome transitions should crossfade beds over ~4 s.
