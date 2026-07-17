@@ -51,6 +51,38 @@ describe("tutorial guidance resilience", () => {
     expect(target!.label).toContain("Hops");
   });
 
+  it("the enchanting lesson completes through the REAL craft pipeline", () => {
+    const sim = GameSimulation.createTutorial(7);
+    sim.tick();
+    for (const id of Object.keys(sim.quests.states)) {
+      if (id.startsWith("quest.tut_") && id !== "quest.tut_enchanting" && id !== "quest.tut_graduation") {
+        sim.quests.states[id].status = "completed";
+      }
+    }
+    const def = QUESTS["quest.tut_enchanting"];
+    const lumen = sim.world.region.npcs.find((n) => n.instanceId === def.giverNpcId)!;
+    sim.movement.setCellPosition(sim.world.nearestWalkable(lumen.cell, 4)!);
+    sim.enqueue({ type: "interact", targetId: def.giverNpcId });
+    for (let i = 0; i < 80; i++) sim.tick();
+    expect(sim.quests.states["quest.tut_enchanting"].status).toBe("active");
+    expect(sim.inventory.count("tool.axe.iron")).toBe(1);
+    expect(sim.inventory.count("item.relic.idol")).toBe(1);
+    // Walk to the table and actually rune the axe.
+    const table = sim.world.region.objects.find((o) => o.instanceId === "tut.station.enchanting")!;
+    sim.movement.setCellPosition(sim.world.nearestWalkable(table.cell, 4)!);
+    sim.enqueue({ type: "interact", targetId: "tut.station.enchanting" });
+    for (let i = 0; i < 60; i++) sim.tick();
+    sim.enqueue({ type: "craft", stationId: "tut.station.enchanting", recipeId: "recipe.runed_axe" });
+    for (let i = 0; i < 200; i++) sim.tick();
+    expect(sim.inventory.count("tool.axe.runed"), "the runed axe was made").toBe(1);
+    expect(sim.quests.states["quest.tut_enchanting"].objectiveIndex, "train objective ticked live").toBe(2);
+    // Report back to Lumen — lesson signed off.
+    sim.movement.setCellPosition(sim.world.nearestWalkable(lumen.cell, 4)!);
+    sim.enqueue({ type: "interact", targetId: def.giverNpcId });
+    for (let i = 0; i < 80; i++) sim.tick();
+    expect(sim.quests.states["quest.tut_enchanting"].status).toBe("completed");
+  });
+
   it("a train lesson already performed registers when reporting back", () => {
     const sim = GameSimulation.createTutorial(7);
     sim.tick();

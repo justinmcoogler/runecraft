@@ -86,7 +86,8 @@ const LADDER_DENSITY = 0.12;
 /** Pick a distance-gated gathering-ladder node for an open ground cell. */
 function pickLadderNode(x: number, z: number, seed: number): string {
   const which = cellHash(x * 3 + 1, z * 5 + 2, salt(seed, 74));
-  const ladder = which < 0.5 ? FORAGE_LADDER : which < 0.78 ? HUNT_LADDER : ARCH_LADDER;
+  // Hunting keeps a slim share — snare trails everywhere read as litter.
+  const ladder = which < 0.58 ? FORAGE_LADDER : which < 0.68 ? HUNT_LADDER : ARCH_LADDER;
   const remote = remoteness01(x, z);
   const unlocked = Math.max(1, Math.min(ladder.length, 1 + Math.floor(remote * ladder.length)));
   const idx = Math.min(unlocked - 1, Math.floor(cellHash(z * 7 + 3, x * 11 + 4, salt(seed, 75)) * unlocked));
@@ -323,7 +324,7 @@ type HeightCache = Map<number, number>;
 // The widest river a road will bridge. Anything wider (broad rivers, lakes, the
 // sea) is left unbridged — the track simply meets the bank — so the world never
 // grows super-long bridges or bridge-to-bridge spans.
-const MAX_BRIDGE_SPAN = 30;
+const MAX_BRIDGE_SPAN = 40;
 
 /** Open, unfrozen water at this cell (river channel, lake or pool — not ocean-vs
  *  -inland distinction; used only to measure how wide a crossing is). */
@@ -373,29 +374,75 @@ function bridgeCrossingOk(seed: number, x: number, z: number, maxSpan: number): 
   return waterRunAlong(seed, x, z, ux, uz, maxSpan) <= maxSpan;
 }
 
-// A short plank jetty length: where a road's line meets water too wide to bridge,
+// A plank jetty length: where a road's line meets water too wide to bridge,
 // the first few water cells from the bank become a dock instead of dead-ending.
-const DOCK_LEN = 4;
+const DOCK_LEN = 5;
 
-/** True when this water cell is within DOCK_LEN of a shore ALONG the road's
- *  travel direction — a jetty jutting out from the bank the road arrives on. */
-function dockCell(seed: number, x: number, z: number): boolean {
+/** The road's travel direction at (x,z) (perpendicular to the distance-to-road
+ *  gradient), or null off the road field. Shared by the dock deck and its
+ *  fishing spot so they always agree. */
+function roadTravelDir(seed: number, x: number, z: number): { ux: number; uz: number } | null {
   const s = 2;
   const dpx = roadDist(seed, x + s, z), dmx = roadDist(seed, x - s, z);
   const dpz = roadDist(seed, x, z + s), dmz = roadDist(seed, x, z - s);
-  if (![dpx, dmx, dpz, dmz].every(Number.isFinite)) return false;
+  if (![dpx, dmx, dpz, dmz].every(Number.isFinite)) return null;
   const gx = dpx - dmx, gz = dpz - dmz;
   const len = Math.hypot(gx, gz);
-  if (len < 1e-6) return false;
-  const ux = -gz / len, uz = gx / len; // road travel direction
+  if (len < 1e-6) return null;
+  return { ux: -gz / len, uz: gx / len };
+}
+
+/** How far along the jetty this water cell sits: the distance (in cells) to
+ *  dry land along the road's travel direction, or 0 when no shore lies within
+ *  DOCK_LEN either way (open water — not a dock cell). */
+function dockShoreK(seed: number, x: number, z: number): number {
+  const dir = roadTravelDir(seed, x, z);
+  if (!dir) return 0;
   for (const sgn of [1, -1]) {
     for (let k = 1; k <= DOCK_LEN; k++) {
-      if (!isOpenWater(seed, Math.round(x + ux * sgn * k), Math.round(z + uz * sgn * k))) {
-        return true; // dry land within DOCK_LEN this way → we're on a jetty
+      if (!isOpenWater(seed, Math.round(x + dir.ux * sgn * k), Math.round(z + dir.uz * sgn * k))) {
+        return k;
       }
     }
   }
-  return false;
+  return 0;
+}
+
+/** True when this water cell carries dock decking: a T-shaped pier — a narrow
+ *  walkway out from the bank widening into a flat head at the end, where the
+ *  fishing spot waits. */
+function dockCell(seed: number, x: number, z: number): boolean {
+  const rd = roadDist(seed, x, z);
+  if (rd >= 5) return false;
+  const k = dockShoreK(seed, x, z);
+  if (k === 0) return false;
+  // Near the bank the pier is a narrow walkway; the last two rows widen into
+  // the flat head.
+  return k >= DOCK_LEN - 1 ? rd < 5 : rd < 3;
+}
+
+/** For a dock-head cell on the pier's centerline, the open-water cell just off
+ *  the flat end — where the dock's fishing spot bobs. Null everywhere else, so
+ *  each dock gets exactly one spot. */
+function dockFishingCell(seed: number, x: number, z: number): Cell | null {
+  if (roadDist(seed, x, z) >= 1.3) return null; // centerline cells only
+  // Bridges carry the road right across — only true dead-end piers (water too
+  // wide to bridge) put out a fishing spot.
+  if (bridgeCrossingOk(seed, x, z, MAX_BRIDGE_SPAN)) return null;
+  const dir = roadTravelDir(seed, x, z);
+  if (!dir) return null;
+  for (const sgn of [1, -1]) {
+    for (let k = 1; k <= DOCK_LEN; k++) {
+      if (!isOpenWater(seed, Math.round(x + dir.ux * sgn * k), Math.round(z + dir.uz * sgn * k))) {
+        if (k !== DOCK_LEN) return null; // not the head row
+        // Shore lies sgn-ward; the open water continues the other way.
+        const fx = Math.round(x - dir.ux * sgn * 2);
+        const fz = Math.round(z - dir.uz * sgn * 2);
+        return isOpenWater(seed, fx, fz) ? { x: fx, z: fz } : null;
+      }
+    }
+  }
+  return null;
 }
 
 function rawHeight(seed: number, x: number, z: number, cache?: HeightCache): number {
@@ -534,10 +581,10 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
     ) {
       return { h: Math.max(1, Math.round(f.h)), block: "bridge", biome, water: false };
     }
-    // Road meets water too wide to bridge → a short plank dock juts from the
-    // bank (the road's own line runs near here) instead of dead-ending. Rendered
-    // as the same open-underneath plank deck on piers.
-    if (!f.ocean && roadDist(seed, x, z) < 3 && dockCell(seed, x, z)) {
+    // Road meets water too wide to bridge → a plank dock juts from the bank
+    // (narrow walkway widening to a flat head) instead of dead-ending.
+    // Rendered as the same open-underneath plank deck on piers.
+    if (!f.ocean && dockCell(seed, x, z)) {
       return { h: Math.max(1, Math.round(f.h)), block: "bridge", biome, water: false };
     }
     // Cold country freezes over: lakes, pools and rivers wear a walkable
@@ -1106,7 +1153,7 @@ const VILLAGE_R = 120; // how far a village's homestead boost reaches (bigger = 
 // (generateChunk) and the lane replay (onVillageLane / villageHomeStamps) key
 // off them — they must stay identical or lanes lead to empty lots (or homes
 // get no lane). Bumped up to populate villages and the countryside more richly.
-const WILD_HOME_ROLL = 0.09; // lone homesteads out in the wild
+const WILD_HOME_ROLL = 0.06; // lone homesteads out in the wild
 const VILLAGE_HOME_ROLL = 0.82; // homes in a village's reach
 const villageAnchorCache = new Map<number, { x: number; z: number; ok: boolean }>();
 
@@ -2206,6 +2253,21 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   let n = 0;
   const id = () => `end.${cx}.${cz}.${n++}`;
 
+  // Dock fishing spots: every T-headed pier gets ONE spot bobbing just off
+  // its flat end. Deck cells are already in `blocks`, so only they are probed;
+  // adjacent centerline cells of the same head dedupe to a single spot.
+  const dockSpots: Cell[] = [];
+  for (let dz = 0; dz < ECHUNK; dz++) {
+    for (let dx = 0; dx < ECHUNK; dx++) {
+      if (blocks[dz * ECHUNK + dx] !== BLOCK_ID.bridge) continue;
+      const spot = dockFishingCell(seed, x0 + dx, z0 + dz);
+      if (!spot) continue;
+      if (dockSpots.some((s) => Math.max(Math.abs(s.x - spot.x), Math.abs(s.z - spot.z)) <= 4)) continue;
+      dockSpots.push(spot);
+      nodes.push({ instanceId: `end.${cx}.${cz}.dock${dx}.${dz}`, defId: "resource.fishing.river", cell: spot });
+    }
+  }
+
   // Torches spaced around the top of the castle wall — only while the vale is on.
   if (VALE_ACTIVE) {
     const a = townAnchor(seed);
@@ -2493,7 +2555,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.085) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
           else if (r < 0.1) nodes.push({ instanceId: id(), defId: "resource.herb.sage", cell });
           else if (r < 0.11) enemies.push({ instanceId: id(), defId: "enemy.cow", cell });
-          else if (r < 0.125) nodes.push({ instanceId: id(), defId: "resource.trail.rabbit", cell });
+          else if (r < 0.117) nodes.push({ instanceId: id(), defId: "resource.trail.rabbit", cell });
           break;
         case 7: // jungle
           if (r < 0.4) nodes.push({ instanceId: id(), defId: "resource.tree.jungle", cell });
@@ -2541,8 +2603,8 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.02) nodes.push({ instanceId: id(), defId: "resource.tree.spruce", cell });
           else if (r < 0.09) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
           else if (r < 0.105) nodes.push({ instanceId: id(), defId: "resource.rock.coal", cell });
-          else if (r < 0.12) nodes.push({ instanceId: id(), defId: "resource.trail.moor", cell });
-          else if (r < 0.13) nodes.push({ instanceId: id(), defId: "resource.trail.rabbit", cell });
+          else if (r < 0.111) nodes.push({ instanceId: id(), defId: "resource.trail.moor", cell });
+          else if (r < 0.117) nodes.push({ instanceId: id(), defId: "resource.trail.rabbit", cell });
           else if (r < 0.15) objects.push({ instanceId: id(), defId: "object.flowers.wild", cell });
           else if (r < 0.16) nodes.push({ instanceId: id(), defId: "resource.herb.frostbloom", cell });
           break;
