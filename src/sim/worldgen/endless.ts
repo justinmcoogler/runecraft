@@ -409,11 +409,11 @@ function bridgeCrossingOk(seed: number, x: number, z: number, maxSpan: number): 
 // dead-ending — long enough to feel like a real pier reaching open water.
 const DOCK_LEN = 8;
 
-// Pier proportions: a narrow walkway (5 wide) out from the bank, the last two
-// rows widening into the flat head (9 wide) where the fishing spot waits.
-const DOCK_WALK_HALF = 2;
-const DOCK_HEAD_HALF = 4;
-const DOCK_DIRS = [
+// Pier proportions: a slim 3-plank walkway out from the bank, the last two
+// rows widening into the flat 5-plank head where the fishing spot waits.
+const DOCK_WALK_HALF = 1;
+const DOCK_HEAD_HALF = 2;
+export const DOCK_DIRS = [
   { ax: 1, az: 0 }, { ax: -1, az: 0 }, { ax: 0, az: 1 }, { ax: 0, az: -1 },
 ] as const;
 type DockDir = (typeof DOCK_DIRS)[number];
@@ -423,9 +423,9 @@ type DockDir = (typeof DOCK_DIRS)[number];
  *  exists per road dead-end (roadDist-minimal among its shore neighbors,
  *  leftward neighbor winning ties), and the whole deck is stamped as a rigid
  *  rectangle from it — so every pier comes out straight with a flat end. */
-export let anchorCacheSeed = Number.NaN;
+let anchorCacheSeed = Number.NaN;
 const anchorCache = new Map<number, boolean>();
-function isDockAnchor(seed: number, wx: number, wz: number, d: DockDir): boolean {
+export function isDockAnchor(seed: number, wx: number, wz: number, d: DockDir): boolean {
   // Every cell of a pier probes the same handful of anchor slots, so the
   // verdict is memoized — the pier costs one full evaluation, not dozens.
   if (anchorCacheSeed !== seed) {
@@ -489,12 +489,16 @@ function isDockAnchorUncached(seed: number, wx: number, wz: number, d: DockDir):
  *  T-shaped rectangle stamped seaward from some pier anchor. */
 export function dockCell(seed: number, x: number, z: number): boolean {
   if (!isOpenWater(seed, x, z)) return false;
-  if (roadDist(seed, x, z) >= 8) return false; // cheap prefilter
-  // A pier cell always has land within DOCK_LEN straight along some cardinal
-  // (its own column reaches the shore) — open expanses reject right here.
+  // Cheap prefilter — must clear the pier's whole reach (length + head width),
+  // or the far head corners get clipped off and the flat end grows notches.
+  if (roadDist(seed, x, z) >= DOCK_LEN + DOCK_HEAD_HALF + 2) return false;
+  // A pier cell always has land within reach along some cardinal — with slack
+  // for head corners whose own column meets a receding diagonal shore later
+  // than the pier's centerline does. Open expanses reject right here.
+  const REACH = DOCK_LEN + DOCK_HEAD_HALF + 2;
   let nearLand = false;
   for (const d of DOCK_DIRS) {
-    for (let k = 1; k <= DOCK_LEN && !nearLand; k++) {
+    for (let k = 1; k <= REACH && !nearLand; k++) {
       if (!isOpenWater(seed, x + d.ax * k, z + d.az * k)) nearLand = true;
     }
     if (nearLand) break;
