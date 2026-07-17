@@ -15,6 +15,8 @@ export type Command =
   | { type: "interact"; targetId: string }
   | { type: "cancel" }
   | { type: "equipSlot"; slot: number }
+  | { type: "enchantSlot"; slot: number; enchId: string }
+  | { type: "socketSlot"; slot: number; gemItemId: string }
   | { type: "unequip" }
   | { type: "deposit"; slot: number }
   | { type: "depositAll" }
@@ -57,6 +59,7 @@ export type SimEvent =
   | { type: "actionStarted"; targetId: string }
   | { type: "actionCycle"; targetId: string; success: boolean }
   | { type: "itemGained"; itemId: string; qty: number }
+  | { type: "itemModded"; itemId: string; label: string }
   | { type: "gemFound"; itemId: string }
   | { type: "logBurned"; itemId: string }
   | { type: "bonesBuried"; itemId: string }

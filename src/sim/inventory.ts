@@ -1,11 +1,18 @@
 // Slot inventory with stacking and transactional transfers.
 // All mutations are all-or-nothing: a failed operation leaves no partial state.
 
-import { ITEMS } from "../content/content";
+import { ITEMS, type ItemMods } from "../content/content";
 
 export interface ItemStack {
   itemId: string;
   qty: number;
+  /** Enchantments + socketed gems riding this (non-stackable) item. */
+  mods?: ItemMods;
+}
+
+/** Deep-copy an item's mods (arrays and all). */
+export function cloneMods(mods: ItemMods | undefined | null): ItemMods | undefined {
+  return mods ? { ench: [...mods.ench], gems: [...mods.gems] } : undefined;
 }
 
 export type Slots = Array<ItemStack | null>;
@@ -79,7 +86,7 @@ export class Inventory {
 
   /** Deep copy of the slot state, for transactional rollback. */
   snapshot(): Slots {
-    return this.slots.map((s) => (s ? { ...s } : null));
+    return this.slots.map((s) => (s ? { ...s, mods: cloneMods(s.mods) } : null));
   }
 
   restore(slots: Slots): void {
@@ -118,6 +125,15 @@ export class Inventory {
 export function transferSlot(from: Inventory, slot: number, to: Inventory): number {
   const s = from.slots[slot];
   if (!s) return 0;
+  // A modded item (enchanted/socketed gear, always qty 1) moves as a whole
+  // into an empty destination slot so its mods travel with it.
+  if (s.mods) {
+    const empty = to.slots.findIndex((t) => t === null);
+    if (empty < 0) return 0;
+    to.slots[empty] = { itemId: s.itemId, qty: s.qty, mods: cloneMods(s.mods) };
+    from.slots[slot] = null;
+    return s.qty;
+  }
   const movable = to.capacityFor(s.itemId, s.qty);
   if (movable === 0) return 0;
   const itemId = s.itemId;

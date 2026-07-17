@@ -2256,15 +2256,18 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   // Dock fishing spots: every T-headed pier gets ONE spot bobbing just off
   // its flat end. Deck cells are already in `blocks`, so only they are probed;
   // adjacent centerline cells of the same head dedupe to a single spot.
-  const dockSpots: Cell[] = [];
-  for (let dz = 0; dz < ECHUNK; dz++) {
-    for (let dx = 0; dx < ECHUNK; dx++) {
-      if (blocks[dz * ECHUNK + dx] !== BLOCK_ID.bridge) continue;
-      const spot = dockFishingCell(seed, x0 + dx, z0 + dz);
-      if (!spot) continue;
-      if (dockSpots.some((s) => Math.max(Math.abs(s.x - spot.x), Math.abs(s.z - spot.z)) <= 4)) continue;
-      dockSpots.push(spot);
-      nodes.push({ instanceId: `end.${cx}.${cz}.dock${dx}.${dz}`, defId: "resource.fishing.river", cell: spot });
+  // (Skipped in the vale — the sealed tutorial streams no wild content.)
+  if (!VALE_ACTIVE) {
+    const dockSpots: Cell[] = [];
+    for (let dz = 0; dz < ECHUNK; dz++) {
+      for (let dx = 0; dx < ECHUNK; dx++) {
+        if (blocks[dz * ECHUNK + dx] !== BLOCK_ID.bridge) continue;
+        const spot = dockFishingCell(seed, x0 + dx, z0 + dz);
+        if (!spot) continue;
+        if (dockSpots.some((s) => Math.max(Math.abs(s.x - spot.x), Math.abs(s.z - spot.z)) <= 4)) continue;
+        dockSpots.push(spot);
+        nodes.push({ instanceId: `end.${cx}.${cz}.dock${dx}.${dz}`, defId: "resource.fishing.river", cell: spot });
+      }
     }
   }
 

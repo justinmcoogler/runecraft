@@ -89,6 +89,10 @@ export interface ActionDeps {
   attackLevel(): number;
   /** Damage bonus of the equipped weapon (0 when unarmed). */
   weaponBonus(): number;
+  /** Aggregated enchant + socket effects on the equipped weapon. */
+  weaponModEffects(): { dmg: number; acc: number; lifesteal: number };
+  /** Restore HP (vampiric enchants), clamped to max. */
+  healPlayer(amount: number): void;
   /** Attack reach in cells: 1 in melee, farther with a bow equipped. */
   weaponRange(): number;
   /** Which combat skill the equipped weapon trains (attack vs archery). */
@@ -852,10 +856,11 @@ export class ActionController {
 
     const attack = PLAYER_COMBAT.attack;
     const level = d.attackLevel();
+    const weaponMods = d.weaponModEffects();
     const accuracy = Math.min(
       attack.accuracyMax,
       attack.accuracyBase + attack.accuracyPerLevel * (level - 1),
-    ) + d.buffBonus("focus"); // Hunter's Focus sharpens the eye past the cap
+    ) + d.buffBonus("focus") + weaponMods.acc; // buffs and enchants pass the cap
 
     if (d.rng.next() < accuracy) {
       const levelDamageBonus = Math.floor((level - 1) / attack.dmgPerLevels);
@@ -865,6 +870,7 @@ export class ActionController {
       const damage =
         d.rng.intBetween(attack.dmgMin, attack.dmgMax + levelDamageBonus) + d.weaponBonus() + strengthBonus + arrowBonus;
       const killed = d.enemies.damage(pipeline.targetId, damage);
+      if (weaponMods.lifesteal > 0) d.healPlayer(weaponMods.lifesteal);
       d.events.emit({ type: "playerAttack", instanceId: pipeline.targetId, damage, killed });
       // A landed arrow survives half the time, stuck in the target's cell.
       if (arrowId && d.rng.next() < 0.5) d.spawnGroundItem(pipeline.targetCell, arrowId, 1);

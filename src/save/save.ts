@@ -18,6 +18,8 @@ interface SaveDataV1 {
   inventory: Slots;
   equippedTool: string | null;
   equippedArmor?: Record<string, string | null>;
+  equippedToolMods?: import("../content/content").ItemMods | null;
+  equippedArmorMods?: Record<string, import("../content/content").ItemMods | null>;
   containers: Record<string, Slots>;
   nodes: Array<{ id: string; phase: "active" | "depleted"; remaining: number; respawnRemainingS: number }>;
   quests?: Record<string, { status: "available" | "active" | "completed"; objectiveIndex: number; progress: number }>;
@@ -72,6 +74,8 @@ export interface SharedState {
   inventory: Slots;
   equippedTool: string | null;
   equippedArmor: Record<"head" | "body" | "legs", string | null>;
+  equippedToolMods?: import("../content/content").ItemMods | null;
+  equippedArmorMods?: Record<string, import("../content/content").ItemMods | null>;
   hp: number;
   quests: Record<string, { status: "available" | "active" | "completed"; objectiveIndex: number; progress: number }>;
   worldFlags: string[];
@@ -154,6 +158,8 @@ export function captureSharedState(sim: GameSimulation): SharedState {
     inventory: sim.inventory.snapshot(),
     equippedTool: sim.equippedTool,
     equippedArmor: { ...sim.equippedArmor },
+    equippedToolMods: sim.equippedToolMods,
+    equippedArmorMods: { ...sim.equippedArmorMods },
     hp: sim.hp,
     quests: Object.fromEntries(Object.entries(sim.quests.states).map(([id, st]) => [id, { ...st }])),
     worldFlags: [...sim.worldFlags],
@@ -177,6 +183,11 @@ export function applySharedState(sim: GameSimulation, shared: SharedState): void
   sim.inventory.slots = migrateSlots(shared.inventory);
   sim.equippedTool = shared.equippedTool;
   sim.equippedArmor = Object.assign({ head: null, body: null, legs: null, feet: null }, shared.equippedArmor);
+  sim.equippedToolMods = shared.equippedToolMods ?? null;
+  sim.equippedArmorMods = Object.assign(
+    { head: null, body: null, legs: null, feet: null },
+    shared.equippedArmorMods,
+  );
   sim.hp = Math.max(1, Math.min(sim.maxHp(), shared.hp));
   for (const [id, st] of Object.entries(shared.quests)) {
     // Villager errands (vq.*) restore unconditionally: their defs register
@@ -227,6 +238,8 @@ export function serialize(
     inventory: sim.inventory.slots,
     equippedTool: sim.equippedTool,
     equippedArmor: { ...sim.equippedArmor },
+    equippedToolMods: sim.equippedToolMods,
+    equippedArmorMods: { ...sim.equippedArmorMods },
     containers,
     // Only non-default node state is meaningful, but persisting all is tiny at this scale.
     nodes: [...sim.nodes.instances.values()].map((n) => ({
@@ -302,6 +315,8 @@ export function applySave(sim: GameSimulation, data: SaveDataV1): void {
   sim.inventory.slots = migrateSlots(data.inventory);
   sim.equippedTool = data.equippedTool;
   sim.equippedArmor = { head: null, body: null, legs: null, feet: null, ...(data.equippedArmor ?? {}) };
+  sim.equippedToolMods = data.equippedToolMods ?? null;
+  sim.equippedArmorMods = { head: null, body: null, legs: null, feet: null, ...(data.equippedArmorMods ?? {}) };
   // Position after inventory: a saved water cell is valid iff the restored
   // kit yields a boat. Map updates (a new river) still fall back to spawn.
   restorePlayerPosition(sim, data.player.cell, data.player.facing ?? 0);

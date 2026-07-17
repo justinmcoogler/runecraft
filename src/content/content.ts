@@ -5704,6 +5704,137 @@ QUESTS["quest.tut_graduation"].prereqQuestIds = [
 // ---------- combat ----------
 
 /** Player combat parameters (original formulas; all values are data). */
+// ---------------------------------------------------------------------------
+// Item mods: stacking enchantments + Diablo-style gem sockets. A weapon or
+// armor piece carries up to MAX_ENCHANTS different enchant types and
+// MAX_SOCKETS gems at once; every mod contributes to the same aggregate
+// effect pool (damage, accuracy, lifesteal, ward, max HP) and is listed on
+// the item when clicked.
+// ---------------------------------------------------------------------------
+
+export interface ItemMods {
+  /** Enchant ids (ENCHANTS keys) — all different types, they stack. */
+  ench: string[];
+  /** Socketed gem item ids (SOCKET_GEMS keys). */
+  gems: string[];
+}
+
+export interface ModEffect {
+  /** Flat damage added to every landed hit (weapons). */
+  dmg?: number;
+  /** Added hit chance, 0..1 (weapons). */
+  acc?: number;
+  /** HP healed on every landed hit (weapons). */
+  lifesteal?: number;
+  /** Shaved off enemy hit chance, 0..1 (armor). */
+  ward?: number;
+  /** Extra max HP (armor). */
+  hp?: number;
+}
+
+export interface EnchantDef {
+  id: string;
+  name: string;
+  appliesTo: "weapon" | "armor";
+  effect: ModEffect;
+  cost: Array<{ itemId: string; qty: number }>;
+  requiredLevel: number; // Enchanting level
+  xp: number;
+  blurb: string;
+}
+
+export const MAX_ENCHANTS = 3;
+export const MAX_SOCKETS = 2;
+
+export const ENCHANTS: Record<string, EnchantDef> = {
+  "ench.sharpness": {
+    id: "ench.sharpness", name: "Sharpness", appliesTo: "weapon",
+    effect: { dmg: 2 }, requiredLevel: 1, xp: 30,
+    cost: [{ itemId: "item.relic.idol", qty: 1 }],
+    blurb: "+2 damage on every hit",
+  },
+  "ench.precision": {
+    id: "ench.precision", name: "Precision", appliesTo: "weapon",
+    effect: { acc: 0.06 }, requiredLevel: 8, xp: 45,
+    cost: [{ itemId: "item.relic.idol", qty: 1 }, { itemId: "item.feather", qty: 3 }],
+    blurb: "+6% chance to hit",
+  },
+  "ench.vampirism": {
+    id: "ench.vampirism", name: "Vampirism", appliesTo: "weapon",
+    effect: { lifesteal: 1 }, requiredLevel: 20, xp: 70,
+    cost: [{ itemId: "item.relic.idol", qty: 1 }, { itemId: "item.bone.old", qty: 2 }],
+    blurb: "heal 1 HP on every landed hit",
+  },
+  "ench.smite": {
+    id: "ench.smite", name: "Smite", appliesTo: "weapon",
+    effect: { dmg: 3, acc: 0.02 }, requiredLevel: 35, xp: 110,
+    cost: [{ itemId: "item.relic.idol", qty: 2 }, { itemId: "item.essence.rune", qty: 2 }],
+    blurb: "+3 damage, +2% chance to hit",
+  },
+  "ench.warding": {
+    id: "ench.warding", name: "Warding", appliesTo: "armor",
+    effect: { ward: 0.04 }, requiredLevel: 5, xp: 40,
+    cost: [{ itemId: "item.relic.idol", qty: 1 }],
+    blurb: "enemies hit you 4% less often",
+  },
+  "ench.vigor": {
+    id: "ench.vigor", name: "Vigor", appliesTo: "armor",
+    effect: { hp: 6 }, requiredLevel: 14, xp: 60,
+    cost: [{ itemId: "item.relic.idol", qty: 1 }, { itemId: "item.herb.sage", qty: 2 }],
+    blurb: "+6 max HP",
+  },
+  "ench.bulwark": {
+    id: "ench.bulwark", name: "Bulwark", appliesTo: "armor",
+    effect: { ward: 0.07, hp: 2 }, requiredLevel: 30, xp: 100,
+    cost: [{ itemId: "item.relic.idol", qty: 2 }, { itemId: "item.bar.iron", qty: 1 }],
+    blurb: "enemies hit you 7% less often, +2 max HP",
+  },
+};
+
+/** What each gem does when socketed — one column for weapons, one for armor. */
+export const SOCKET_GEMS: Record<string, { name: string; weapon: ModEffect; armor: ModEffect; blurb: string }> = {
+  "item.gem.quartz": { name: "Quartz", weapon: { dmg: 1 }, armor: { hp: 2 }, blurb: "weapon +1 dmg · armor +2 HP" },
+  "item.gem.opal": { name: "Opal", weapon: { acc: 0.02 }, armor: { hp: 3 }, blurb: "weapon +2% hit · armor +3 HP" },
+  "item.gem.jade": { name: "Jade", weapon: { acc: 0.03 }, armor: { ward: 0.02 }, blurb: "weapon +3% hit · armor 2% ward" },
+  "item.gem.topaz": { name: "Topaz", weapon: { dmg: 1, acc: 0.02 }, armor: { hp: 4 }, blurb: "weapon +1 dmg +2% hit · armor +4 HP" },
+  "item.gem.sapphire": { name: "Sapphire", weapon: { acc: 0.04 }, armor: { ward: 0.03 }, blurb: "weapon +4% hit · armor 3% ward" },
+  "item.gem.emerald": { name: "Emerald", weapon: { dmg: 2 }, armor: { hp: 5 }, blurb: "weapon +2 dmg · armor +5 HP" },
+  "item.gem.ruby": { name: "Ruby", weapon: { dmg: 3 }, armor: { hp: 7 }, blurb: "weapon +3 dmg · armor +7 HP" },
+  "item.gem.lapis": { name: "Lapis", weapon: { acc: 0.05 }, armor: { ward: 0.04 }, blurb: "weapon +5% hit · armor 4% ward" },
+  "item.gem.emberstone": { name: "Emberstone", weapon: { dmg: 3, acc: 0.02 }, armor: { ward: 0.03, hp: 3 }, blurb: "weapon +3 dmg +2% hit · armor 3% ward +3 HP" },
+  "item.gem.diamond": { name: "Diamond", weapon: { dmg: 4 }, armor: { ward: 0.05 }, blurb: "weapon +4 dmg · armor 5% ward" },
+  "item.gem.dragonstone": { name: "Dragonstone", weapon: { dmg: 4, lifesteal: 1 }, armor: { ward: 0.04, hp: 8 }, blurb: "weapon +4 dmg + lifesteal · armor 4% ward +8 HP" },
+};
+
+/** Which mod family an item belongs to, or null when it takes no mods. */
+export function itemModCategory(itemId: string): "weapon" | "armor" | null {
+  const def = ITEMS[itemId];
+  if (!def) return null;
+  if (def.armorSlot) return "armor";
+  if (def.toolTags?.includes("weapon") || def.toolTags?.includes("bow")) return "weapon";
+  return null;
+}
+
+/** Sum every effect a modded item contributes (enchants + socketed gems). */
+export function aggregateMods(mods: ItemMods | null | undefined, category: "weapon" | "armor"): Required<ModEffect> {
+  const out = { dmg: 0, acc: 0, lifesteal: 0, ward: 0, hp: 0 };
+  if (!mods) return out;
+  const fold = (e: ModEffect | undefined) => {
+    if (!e) return;
+    out.dmg += e.dmg ?? 0;
+    out.acc += e.acc ?? 0;
+    out.lifesteal += e.lifesteal ?? 0;
+    out.ward += e.ward ?? 0;
+    out.hp += e.hp ?? 0;
+  };
+  for (const id of mods.ench) {
+    const ench = ENCHANTS[id];
+    if (ench && ench.appliesTo === category) fold(ench.effect);
+  }
+  for (const gem of mods.gems) fold(SOCKET_GEMS[gem]?.[category]);
+  return out;
+}
+
 export const PLAYER_COMBAT = {
   baseHealth: 20,
   healthPerDefenseLevel: 2, // extra max HP per Defense level

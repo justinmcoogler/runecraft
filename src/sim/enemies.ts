@@ -33,6 +33,8 @@ export interface EnemyDeps {
   getPlayerCell(): Cell;
   isPlayerAlive(): boolean;
   getDefenseLevel(): number;
+  /** Enemy-accuracy reduction from armor enchants + socketed gems. */
+  getWardBonus(): number;
   damagePlayer(amount: number): void;
   /** Drop a stack on the ground (chickens laying eggs). */
   spawnGroundItem(cell: Cell, itemId: string, qty: number): void;
@@ -169,7 +171,8 @@ export class EnemySystem {
             const hitChance = Math.max(
               PLAYER_COMBAT.defense.enemyHitChanceMin,
               def.attack.accuracy -
-                PLAYER_COMBAT.defense.enemyHitReductionPerLevel * (this.deps.getDefenseLevel() - 1),
+                PLAYER_COMBAT.defense.enemyHitReductionPerLevel * (this.deps.getDefenseLevel() - 1) +
+                  this.deps.getWardBonus(),
             );
             if (rng.next() < hitChance) {
               const dmg = rng.intBetween(def.attack.dmgMin, def.attack.dmgMax);

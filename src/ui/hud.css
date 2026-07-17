@@ -379,6 +379,29 @@ html, body {
 .item-pop-head { display: flex; align-items: center; gap: 8px; }
 .item-pop-actions { display: flex; gap: 6px; }
 .item-pop-actions .item-action { width: 100%; }
+.item-pop-actions .btn { flex: 1; white-space: nowrap; }
+.item-pop-mods { display: flex; flex-direction: column; gap: 2px; }
+.item-mod { font-size: 12px; color: #cfa9ff; }
+.item-pop-hint { font-size: 11px; opacity: 0.65; }
+.item-pop-picker { display: flex; flex-direction: column; gap: 4px; }
+.mod-pick {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1px 8px;
+  align-items: center;
+  text-align: left;
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.mod-pick:disabled { opacity: 0.45; cursor: default; }
+.mod-pick-name { font-size: 13px; }
+.mod-pick-fx { grid-column: 1; font-size: 11px; opacity: 0.75; }
+.mod-pick-cost { grid-column: 2; grid-row: 1 / span 2; font-size: 11px; display: flex; align-items: center; gap: 3px; }
 
 .inventory-panel, .chest-panel {
   position: absolute;

@@ -1,14 +1,14 @@
 // GameSimulation: owns all authoritative state, consumes Commands once per fixed
 // tick, emits SimEvents. No engine or DOM imports — fully testable headless.
 
-import { ALCHEMY, ALCH_VALUES, ITEMS, OBJECTS, PLAYER_COMBAT, QUESTS, SHOPS, SUPERHEAT, TUTORIAL_ORDER, ZONES, type ShopDef } from "../content/content";
+import { ALCHEMY, ALCH_VALUES, ENCHANTS, ITEMS, MAX_ENCHANTS, MAX_SOCKETS, OBJECTS, PLAYER_COMBAT, QUESTS, SHOPS, SOCKET_GEMS, SUPERHEAT, TUTORIAL_ORDER, ZONES, aggregateMods, itemModCategory, type ItemMods, type ShopDef } from "../content/content";
 import { getStructure } from "../content/structures";
 import { effectiveSink, walkableSurfaces, solidColumns } from "../structures/types";
 import { lobbyWalk, LOBBY_W, LOBBY_D, LOBBY_SINK, LOBBY_TILE } from "../content/structures/lobby";
 import { ActionController } from "./actions";
 import { EnemySystem } from "./enemies";
 import { GroundItemSystem } from "./ground-items";
-import { Inventory, transferSlot } from "./inventory";
+import { Inventory, cloneMods, transferSlot } from "./inventory";
 import { MovementController } from "./movement";
 import { findPath } from "./pathfinding";
 import { TutorialDriver } from "./tutorial";
@@ -110,6 +110,9 @@ export class GameSimulation {
   readonly curator: CuratorService;
   equippedTool: string | null = null;
   equippedArmor: Record<ArmorSlot, string | null> = { head: null, body: null, legs: null, feet: null };
+  /** Enchants + socketed gems riding the equipped weapon/tool and armor. */
+  equippedToolMods: ItemMods | null = null;
+  equippedArmorMods: Record<ArmorSlot, ItemMods | null> = { head: null, body: null, legs: null, feet: null };
   /** Persistent world-state flags (repaired bridges, stabilized anchors…). */
   readonly worldFlags = new Set<string>();
   /** Discovered endless-world landmarks the player can fast-travel between. */
@@ -207,6 +210,7 @@ export class GameSimulation {
         getPlayerCell: () => this.movement.currentCell(),
         isPlayerAlive: () => this.hp > 0,
         getDefenseLevel: () => this.skills.levelOf("skill.defense"),
+        getWardBonus: () => this.armorWardBonus(),
         damagePlayer: (amount) => this.damagePlayer(amount),
         spawnGroundItem: (cell, itemId, qty) => this.spawnGroundItem(cell, itemId, qty),
       },
@@ -234,7 +238,16 @@ export class GameSimulation {
       attackLevel: () => this.skills.levelOf(this.combatSkillId()),
       weaponBonus: () =>
         (this.equippedTool ? ITEMS[this.equippedTool].damageBonus ?? 0 : 0) +
+        aggregateMods(this.equippedToolMods, "weapon").dmg +
         (this.buffs["strength"] > 0 ? 2 : 0),
+      weaponModEffects: () => aggregateMods(this.equippedToolMods, "weapon"),
+      healPlayer: (amount) => {
+        const healed = Math.min(this.maxHp(), this.hp + amount);
+        if (healed !== this.hp) {
+          this.hp = healed;
+          this.events.emit({ type: "healthChanged", hp: this.hp, maxHp: this.maxHp() });
+        }
+      },
       weaponRange: () => (this.hasBowEquipped() ? 5 : 1),
       combatSkillId: () => this.combatSkillId(),
       awardCombatXp: (amount) => this.awardCombatXp(amount),
@@ -412,11 +425,44 @@ export class GameSimulation {
   }
 
   maxHp(): number {
+    let modHp = 0;
+    for (const slot of ["head", "body", "legs", "feet"] as const) {
+      modHp += aggregateMods(this.equippedArmorMods[slot], "armor").hp;
+    }
     return (
       PLAYER_COMBAT.baseHealth +
       PLAYER_COMBAT.healthPerDefenseLevel * (this.skills.levelOf("skill.defense") - 1) +
-      PLAYER_COMBAT.healthPerConstLevel * (this.skills.levelOf("skill.constitution") - 1)
+      PLAYER_COMBAT.healthPerConstLevel * (this.skills.levelOf("skill.constitution") - 1) +
+      modHp
     );
+  }
+
+  /** Total enemy-accuracy shaved off by armor enchants + socketed gems. */
+  armorWardBonus(): number {
+    let ward = 0;
+    for (const slot of ["head", "body", "legs", "feet"] as const) {
+      ward += aggregateMods(this.equippedArmorMods[slot], "armor").ward;
+    }
+    return ward;
+  }
+
+  /** Standing beside an enchanter's table (where mods are applied). */
+  nearEnchanter(): boolean {
+    const p = this.movement.currentCell();
+    return this.world.region.objects.some(
+      (o) => o.defId === "object.enchanter.basic" &&
+        Math.max(Math.abs(o.cell.x - p.x), Math.abs(o.cell.z - p.z)) <= 2,
+    );
+  }
+
+  /** Add a plain or modded item to the pack (modded items claim an empty slot
+   *  so their enchants ride along). Returns true when it fit. */
+  private addItemWithMods(itemId: string, mods: ItemMods | null): boolean {
+    if (!mods) return this.inventory.add(itemId, 1) === 1;
+    const empty = this.inventory.slots.findIndex((t) => t === null);
+    if (empty < 0) return false;
+    this.inventory.slots[empty] = { itemId, qty: 1, mods: cloneMods(mods) };
+    return true;
   }
 
   /** Total incoming-damage reduction from worn armor (capped: never immune). */
@@ -1387,18 +1433,84 @@ export class GameSimulation {
         const def = ITEMS[s.itemId];
         if (def.armorSlot) {
           const previous = this.equippedArmor[def.armorSlot];
+          const previousMods = this.equippedArmorMods[def.armorSlot];
           this.equippedArmor[def.armorSlot] = s.itemId;
+          this.equippedArmorMods[def.armorSlot] = cloneMods(s.mods) ?? null;
           this.inventory.removeFromSlot(c.slot, 1);
-          if (previous) this.inventory.add(previous, 1);
+          if (previous) this.addItemWithMods(previous, previousMods);
         } else if (def.toolTags) {
           const previous = this.equippedTool;
+          const previousMods = this.equippedToolMods;
           this.equippedTool = s.itemId;
+          this.equippedToolMods = cloneMods(s.mods) ?? null;
           this.inventory.removeFromSlot(c.slot, 1);
-          if (previous) this.inventory.add(previous, 1);
+          if (previous) this.addItemWithMods(previous, previousMods);
         } else {
           break;
         }
+        this.hp = Math.min(this.hp, this.maxHp());
         this.events.emit({ type: "equipmentChanged" });
+        this.events.emit({ type: "inventoryChanged" });
+        break;
+      }
+      case "enchantSlot": {
+        const s = this.inventory.slots[c.slot];
+        const ench = ENCHANTS[c.enchId];
+        if (!s || !ench) break;
+        const category = itemModCategory(s.itemId);
+        if (category !== ench.appliesTo) {
+          this.events.emit({ type: "actionRejected", reason: "no_target", targetId: c.enchId });
+          break;
+        }
+        if (!this.nearEnchanter()) {
+          this.events.emit({ type: "actionRejected", reason: "unreachable", targetId: c.enchId });
+          break;
+        }
+        if (this.skills.levelOf("skill.enchanting") < ench.requiredLevel) {
+          this.events.emit({ type: "actionRejected", reason: "level_too_low", targetId: c.enchId });
+          break;
+        }
+        const mods = (s.mods ??= { ench: [], gems: [] });
+        if (mods.ench.includes(ench.id) || mods.ench.length >= MAX_ENCHANTS) {
+          this.events.emit({ type: "actionRejected", reason: "no_target", targetId: ench.id });
+          break;
+        }
+        if (ench.cost.some((req) => this.inventory.count(req.itemId) < req.qty)) {
+          this.events.emit({ type: "actionRejected", reason: "missing_inputs" });
+          break;
+        }
+        for (const req of ench.cost) this.inventory.removeItemById(req.itemId, req.qty);
+        mods.ench.push(ench.id);
+        this.skills.grantXp("skill.enchanting", ench.xp);
+        this.events.emit({ type: "itemModded", itemId: s.itemId, label: ench.name });
+        this.events.emit({ type: "inventoryChanged" });
+        break;
+      }
+      case "socketSlot": {
+        const s = this.inventory.slots[c.slot];
+        const gem = SOCKET_GEMS[c.gemItemId];
+        if (!s || !gem) break;
+        if (!itemModCategory(s.itemId)) {
+          this.events.emit({ type: "actionRejected", reason: "no_target", targetId: c.gemItemId });
+          break;
+        }
+        if (!this.nearEnchanter()) {
+          this.events.emit({ type: "actionRejected", reason: "unreachable", targetId: c.gemItemId });
+          break;
+        }
+        const mods = (s.mods ??= { ench: [], gems: [] });
+        if (mods.gems.length >= MAX_SOCKETS) {
+          this.events.emit({ type: "actionRejected", reason: "no_target", targetId: c.gemItemId });
+          break;
+        }
+        if (this.inventory.count(c.gemItemId) < 1) {
+          this.events.emit({ type: "actionRejected", reason: "missing_inputs" });
+          break;
+        }
+        this.inventory.removeItemById(c.gemItemId, 1);
+        mods.gems.push(c.gemItemId);
+        this.skills.grantXp("skill.enchanting", 15);
+        this.events.emit({ type: "itemModded", itemId: s.itemId, label: gem.name });
         this.events.emit({ type: "inventoryChanged" });
         break;
       }
@@ -1449,24 +1561,25 @@ export class GameSimulation {
       case "unequipArmor": {
         const worn = this.equippedArmor[c.slot];
         if (!worn) break;
-        if (!this.inventory.canAdd(worn, 1)) {
+        if (!this.addItemWithMods(worn, this.equippedArmorMods[c.slot])) {
           this.events.emit({ type: "inventoryFull" });
           break;
         }
-        this.inventory.add(worn, 1);
         this.equippedArmor[c.slot] = null;
+        this.equippedArmorMods[c.slot] = null;
+        this.hp = Math.min(this.hp, this.maxHp());
         this.events.emit({ type: "equipmentChanged" });
         this.events.emit({ type: "inventoryChanged" });
         break;
       }
       case "unequip": {
         if (!this.equippedTool) break;
-        if (!this.inventory.canAdd(this.equippedTool, 1)) {
+        if (!this.addItemWithMods(this.equippedTool, this.equippedToolMods)) {
           this.events.emit({ type: "inventoryFull" });
           break;
         }
-        this.inventory.add(this.equippedTool, 1);
         this.equippedTool = null;
+        this.equippedToolMods = null;
         this.events.emit({ type: "equipmentChanged" });
         this.events.emit({ type: "inventoryChanged" });
         break;

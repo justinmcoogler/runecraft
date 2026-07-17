@@ -1,7 +1,7 @@
 // HUD: DOM overlay. Subscribes to SimEvents and reads sim state; every button
 // emits a Command. The UI never mutates simulation state directly.
 
-import { ALCHEMY, ALCHEMY_TIERS, ALCH_VALUES, CURVES, ENEMIES, ITEMS, NODES, OBJECTS, RECIPES, SHOPS, SKILLS, SUPERHEAT, xpToReachLevel, type AlchemyTier } from "../content/content";
+import { ALCHEMY, ALCHEMY_TIERS, ALCH_VALUES, CURVES, ENCHANTS, ENEMIES, ITEMS, MAX_ENCHANTS, MAX_SOCKETS, NODES, OBJECTS, RECIPES, SHOPS, SKILLS, SOCKET_GEMS, SUPERHEAT, itemModCategory, xpToReachLevel, type AlchemyTier, type ModEffect } from "../content/content";
 import { skillActivities, skillCeiling } from "../content/skill-guide";
 import { BLOCKS } from "../content/blocks";
 import type { GameRenderer } from "../render/renderer";
@@ -613,6 +613,9 @@ export class Hud {
             `+${ev.qty} ${ITEMS[ev.itemId].name} ${itemIconHtml(ev.itemId, ITEMS[ev.itemId].icon, 18)}`,
           );
           break;
+        case "itemModded":
+          this.toast(`✨ ${ev.label} bound to your ${ITEMS[ev.itemId].name}!`, "level", itemIconHtml(ev.itemId, ITEMS[ev.itemId].icon, 22));
+          break;
         case "gemFound":
           this.toast(`You struck a ${ITEMS[ev.itemId].name}!`, "level", itemIconHtml(ev.itemId, ITEMS[ev.itemId].icon, 22));
           break;
@@ -1221,6 +1224,7 @@ export class Hud {
           }
           // Tap to inspect: show what it is, with an explicit action button.
           this.selectedSlot = this.selectedSlot === i ? null : i;
+          this.itemPopMode = "main";
           this.refreshInventory();
         });
       } else if (this.selectedSlot === i) {
@@ -1237,9 +1241,23 @@ export class Hud {
   }
 
   private itemPopEl: HTMLElement | null = null;
+  /** Which face of the item card is showing: info, enchant picker, or gem picker. */
+  private itemPopMode: "main" | "ench" | "gem" = "main";
   private clearItemPop(): void {
     this.itemPopEl?.remove();
     this.itemPopEl = null;
+  }
+
+  /** "+2 dmg, +6% hit" — a mod effect in a few words. */
+  private static fx(e: ModEffect | undefined): string {
+    if (!e) return "";
+    return [
+      e.dmg ? `+${e.dmg} dmg` : "",
+      e.acc ? `+${Math.round(e.acc * 100)}% hit` : "",
+      e.lifesteal ? `heals ${e.lifesteal}/hit` : "",
+      e.ward ? `${Math.round(e.ward * 100)}% ward` : "",
+      e.hp ? `+${e.hp} max HP` : "",
+    ].filter(Boolean).join(", ");
   }
 
   /** A small card floating at the tapped slot: name, what it does, and a Use/
@@ -1321,6 +1339,19 @@ export class Hud {
         },
       };
     }
+    // Enchantments and socketed gems ride the item and show on its card.
+    const category = itemModCategory(slot.itemId);
+    const nearEnch = category !== null && this.sim.nearEnchanter();
+    if (this.itemPopMode !== "main" && !nearEnch) this.itemPopMode = "main";
+    const mods = slot.mods;
+    let modsHtml = "";
+    if (category && mods && mods.ench.length + mods.gems.length > 0) {
+      const rows = [
+        ...mods.ench.map((id) => ENCHANTS[id] ? `<span class="item-mod">✨ ${ENCHANTS[id].name} · ${Hud.fx(ENCHANTS[id].effect)}</span>` : ""),
+        ...mods.gems.map((id) => SOCKET_GEMS[id] ? `<span class="item-mod">\u{1F48E} ${SOCKET_GEMS[id].name} · ${Hud.fx(SOCKET_GEMS[id][category])}</span>` : ""),
+      ];
+      modsHtml = `<div class="item-pop-mods">${rows.join("")}</div>`;
+    }
     const pop = document.createElement("div");
     pop.className = "item-pop";
     pop.setAttribute("data-testid", "item-info");
@@ -1332,6 +1363,7 @@ export class Hud {
           <span class="item-info-desc">${describeItem(item)}</span>
         </span>
       </div>
+      ${modsHtml}
       ${action ? `<div class="item-pop-actions"><button class="btn small item-action" data-testid="item-action"></button></div>` : ""}`;
     // Clicking inside the card must not bubble up and re-toggle the slot.
     pop.addEventListener("click", (e) => e.stopPropagation());
@@ -1340,6 +1372,35 @@ export class Hud {
       btn.textContent = action.label;
       btn.addEventListener("click", action.run);
     }
+    if (category && this.itemPopMode === "main") {
+      if (nearEnch) {
+        // At the table: offer the two rune-work actions right on the card.
+        const row = document.createElement("div");
+        row.className = "item-pop-actions";
+        const enchFull = (mods?.ench.length ?? 0) >= MAX_ENCHANTS;
+        const gemFull = (mods?.gems.length ?? 0) >= MAX_SOCKETS;
+        const enchBtn = document.createElement("button");
+        enchBtn.className = "btn small";
+        enchBtn.setAttribute("data-testid", "item-enchant");
+        enchBtn.textContent = enchFull ? `✨ Enchants full (${MAX_ENCHANTS})` : "✨ Enchant…";
+        enchBtn.disabled = enchFull;
+        enchBtn.addEventListener("click", () => { this.itemPopMode = "ench"; this.refreshInventory(); });
+        const gemBtn = document.createElement("button");
+        gemBtn.className = "btn small";
+        gemBtn.setAttribute("data-testid", "item-socket");
+        gemBtn.textContent = gemFull ? `\u{1F48E} Sockets full (${MAX_SOCKETS})` : "\u{1F48E} Socket gem…";
+        gemBtn.disabled = gemFull;
+        gemBtn.addEventListener("click", () => { this.itemPopMode = "gem"; this.refreshInventory(); });
+        row.append(enchBtn, gemBtn);
+        pop.appendChild(row);
+      } else {
+        const hint = document.createElement("span");
+        hint.className = "item-pop-hint";
+        hint.textContent = "Enchant & socket gems at an enchanter's table.";
+        pop.appendChild(hint);
+      }
+    }
+    if (category && this.itemPopMode !== "main") this.buildModPicker(pop, index, category);
     // Fixed-positioned so a scrolling/clipping panel can never hide it. Anchor
     // just below the slot, flipping above when there's no room, and clamp on x.
     this.root.appendChild(pop);
@@ -1352,6 +1413,60 @@ export class Hud {
     const top = below + ph > window.innerHeight - 8 ? r.top - ph - 6 : below;
     pop.style.left = `${Math.round(left)}px`;
     pop.style.top = `${Math.round(Math.max(8, top))}px`;
+  }
+
+  /** The enchant/gem list inside the item card, shown while at the table. */
+  private buildModPicker(pop: HTMLElement, index: number, category: "weapon" | "armor"): void {
+    const slot = this.sim.inventory.slots[index]!;
+    const list = document.createElement("div");
+    list.className = "item-pop-picker";
+    const lvl = this.sim.skills.levelOf("skill.enchanting");
+    let any = false;
+    if (this.itemPopMode === "ench") {
+      for (const ench of Object.values(ENCHANTS)) {
+        if (ench.appliesTo !== category || slot.mods?.ench.includes(ench.id)) continue;
+        any = true;
+        const canLevel = lvl >= ench.requiredLevel;
+        const canPay = ench.cost.every((req) => this.sim.inventory.count(req.itemId) >= req.qty);
+        const costHtml = ench.cost.map((req) =>
+          `${itemIconHtml(req.itemId, ITEMS[req.itemId].icon, 15)}${req.qty > 1 ? `×${req.qty}` : ""}`).join(" ");
+        const row = document.createElement("button");
+        row.className = "mod-pick";
+        row.setAttribute("data-testid", `ench-${ench.id}`);
+        row.disabled = !canLevel || !canPay;
+        row.innerHTML = `<span class="mod-pick-name">✨ ${ench.name}</span>
+          <span class="mod-pick-fx">${ench.blurb}</span>
+          <span class="mod-pick-cost">${canLevel ? costHtml : `Enchanting ${ench.requiredLevel}`}</span>`;
+        row.addEventListener("click", () =>
+          this.sim.enqueue({ type: "enchantSlot", slot: index, enchId: ench.id }));
+        list.appendChild(row);
+      }
+      if (!any) {
+        list.innerHTML = `<span class="item-pop-hint">Every enchantment it can hold is already on it.</span>`;
+      }
+    } else {
+      for (const [gemId, gem] of Object.entries(SOCKET_GEMS)) {
+        if (this.sim.inventory.count(gemId) < 1) continue;
+        any = true;
+        const row = document.createElement("button");
+        row.className = "mod-pick";
+        row.setAttribute("data-testid", `socket-${gemId}`);
+        row.innerHTML = `<span class="mod-pick-name">${itemIconHtml(gemId, ITEMS[gemId].icon, 16)} ${gem.name}</span>
+          <span class="mod-pick-fx">${Hud.fx(gem[category])}</span>`;
+        row.addEventListener("click", () =>
+          this.sim.enqueue({ type: "socketSlot", slot: index, gemItemId: gemId }));
+        list.appendChild(row);
+      }
+      if (!any) {
+        list.innerHTML = `<span class="item-pop-hint">No gems in your pack — mining sometimes turns them up.</span>`;
+      }
+    }
+    const back = document.createElement("button");
+    back.className = "btn small";
+    back.textContent = "Back";
+    back.addEventListener("click", () => { this.itemPopMode = "main"; this.refreshInventory(); });
+    list.appendChild(back);
+    pop.appendChild(list);
   }
 
   /** Populate the store: coin balance and the buy list. */
