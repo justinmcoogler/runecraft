@@ -9,6 +9,7 @@ import { isModelEnabled } from "../render/model-prefs";
 import { Inventory } from "./inventory";
 import type { GameSimulation } from "./simulation";
 import type { Cell } from "./types";
+import { villagerQuestFor } from "./villager-quests";
 import { ECHUNK, type EndlessTerrain } from "./worldgen/endless";
 
 /** Chunks kept active around the player (radius in chunks). ENTITY_RADIUS
@@ -77,6 +78,11 @@ export class ChunkManager {
     for (const npc of chunk.npcs) {
       region.npcs.push(npc);
       this.sim.npcs.addPlacement(npc, this.sim.rng);
+      // Skill-home residents each carry one procedural errand. The def is a
+      // pure function of (seed, npc id), so streaming back in re-registers
+      // the identical quest — saved progress on it survives untouched.
+      const errand = villagerQuestFor(this.sim.seed, npc);
+      if (errand) this.sim.quests.addDef(errand);
     }
     this.active.add(key);
   }

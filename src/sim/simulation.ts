@@ -1088,20 +1088,28 @@ export class GameSimulation {
   private beginTreasureHunt(): void {
     if (this.inventory.removeItemById("item.treasure_map", 1) === 0) return;
     const here = this.movement.currentCell();
-    // A random bearing, 300–900 paces out; nudge off any water to dry land.
+    // A random bearing, 300–900 paces out — then a deterministic dry-land
+    // search: sweep bearings (golden-angle steps) and march each mark back
+    // toward the player until it leaves open water. A random nudge walk can
+    // strand the mark in a big lake; this can't, and it keeps the cache a
+    // real trek (never closer than ~240 paces).
     const ang = this.rng.next() * Math.PI * 2;
     const dist = 300 + Math.floor(this.rng.next() * 600);
     let tx = Math.round(here.x + Math.cos(ang) * dist);
     let tz = Math.round(here.z + Math.sin(ang) * dist);
-    // Nudge the mark off open water onto dry land (terrain reads are per-cell).
-    for (let i = 0; i < 24 && this.world.blockAt({ x: tx, z: tz }) === "water"; i++) {
-      tx += Math.round((this.rng.next() - 0.5) * 30);
-      tz += Math.round((this.rng.next() - 0.5) * 30);
+    dry: for (let b = 0; b < 8; b++) {
+      const a2 = ang + b * 2.399963;
+      for (let r = dist; r >= 240; r -= 12) {
+        const x = Math.round(here.x + Math.cos(a2) * r);
+        const z = Math.round(here.z + Math.sin(a2) * r);
+        if (this.world.blockAt({ x, z }) !== "water") { tx = x; tz = z; break dry; }
+      }
     }
     this.treasureHunt = { x: tx, z: tz };
     // Eight-wind bearing from the player toward the mark.
     const oct = Math.round((Math.atan2(tz - here.z, tx - here.x) / (Math.PI * 2)) * 8 + 8) % 8;
-    const hint = `The map marks a cache to the ${GameSimulation.COMPASS[oct]}, about ${dist} paces off.`;
+    const paces = Math.round(Math.hypot(tx - here.x, tz - here.z));
+    const hint = `The map marks a cache to the ${GameSimulation.COMPASS[oct]}, about ${paces} paces off.`;
     this.events.emit({ type: "treasureHuntBegan", hint, x: tx, z: tz });
   }
 

@@ -2288,7 +2288,9 @@ export class GameRenderer {
             stoneWaist: roll(4) < 0.28,
             flowerBoxes: roll(5) < 0.4,
             barrels: roll(6) < 0.35,
-            crossWing: w >= 8 && roll(7) < 0.5,
+            crossWing: w >= 8 && roll(7) < 0.6,
+            // The odd all-masonry house breaks up rows of timber frames.
+            stoneWalls: roll(8) < 0.12,
           };
           const theme = THEMES[obj.instanceId] ?? derived;
           const wallH = theme.wallH;

@@ -232,7 +232,7 @@ export class ActionController {
       // open, walk through, no travel).
       const isDoor = (objectPlacement.defId.startsWith("object.door.") ||
         objectPlacement.defId.startsWith("object.gate.")) && !objectPlacement.portal;
-      if (!isDoor && (objectDef.scenery || (!objectPlacement.portal && !objectDef.shopId &&
+      if (!isDoor && !objectDef.interiorId && (objectDef.scenery || (!objectPlacement.portal && !objectDef.shopId &&
           !objectDef.workstationRecipeIds && !objectDef.containerSlots && !objectDef.buildRequires &&
           !objectDef.sleepable))) {
         return; // furniture and decor: a click does nothing
@@ -248,25 +248,44 @@ export class ActionController {
         return this.reject("level_too_low", targetId);
       }
       const isStairs = objectPlacement.defId.startsWith("object.stairs.");
-      kind = isDoor
-        ? "door"
-        : isStairs
-        ? "stairs"
-        : objectDef.shortcut
-        ? "shortcut"
-        : objectDef.sleepable
-          ? "sleep"
-          : objectPlacement.portal
-            ? "portal"
-            : objectDef.shopId
-              ? "shop"
-              : objectDef.workstationRecipeIds
-                ? "workstation"
-                : objectDef.buildRequires
-                  ? "build"
-                  : "container";
-      targetCell = objectPlacement.cell;
-      rangeCells = objectDef.interaction.rangeCells;
+      // An enterable code-drawn building (cottage/inn): clicking it walks to
+      // the yard just outside and steps into its procedural interior — the
+      // same flow imported structures use, keyed by the def's interiorId.
+      // Only in the endless world: the interior's exit door leads back there.
+      if (!isDoor && objectDef.interiorId && d.world.region.id === "region.endless") {
+        const cells = [objectPlacement.cell, ...(objectPlacement.footprint ?? [])];
+        const centre = {
+          x: Math.round(cells.reduce((n, c) => n + c.x, 0) / cells.length),
+          z: Math.round(cells.reduce((n, c) => n + c.z, 0) / cells.length),
+        };
+        const span = 2 + Math.max(1, ...cells.map((c) => Math.max(Math.abs(c.x - centre.x), Math.abs(c.z - centre.z))));
+        const yard = d.world.nearestWalkable(centre, span) ?? d.movement.currentCell();
+        kind = "enter";
+        targetCell = yard;
+        rangeCells = 0;
+        enterRegionId = houseInteriorId(objectDef.interiorId, yard);
+        enterArrival = houseInteriorArrival(objectDef.interiorId);
+      } else {
+        kind = isDoor
+          ? "door"
+          : isStairs
+          ? "stairs"
+          : objectDef.shortcut
+          ? "shortcut"
+          : objectDef.sleepable
+            ? "sleep"
+            : objectPlacement.portal
+              ? "portal"
+              : objectDef.shopId
+                ? "shop"
+                : objectDef.workstationRecipeIds
+                  ? "workstation"
+                  : objectDef.buildRequires
+                    ? "build"
+                    : "container";
+        targetCell = objectPlacement.cell;
+        rangeCells = objectDef.interaction.rangeCells;
+      }
     } else if (structure && !structure.structureId.startsWith("lobby.")) {
       // A building you enter by clicking it: walk to the yard just outside, then
       // step into its reconstructed interior — no door object needed.

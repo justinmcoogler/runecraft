@@ -145,6 +145,11 @@ export interface WorldObjectDef {
    * cell, and skips the night through to dawn.
    */
   sleepable?: boolean;
+  /**
+   * An enterable building: clicking it walks to the yard and steps into a
+   * procedural interior room keyed by this id (see buildHouseInterior).
+   */
+  interiorId?: string;
   blocksNav: boolean;
 }
 
@@ -4973,7 +4978,7 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     id: "object.house.big",
     name: "Inn",
     interaction: { mode: "adjacent_4", rangeCells: 1 },
-    scenery: true,
+    interiorId: "inn",
     blocksNav: true,
   },
   "object.spire.large": {
@@ -5022,7 +5027,7 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     id: "object.house.small",
     name: "Cottage",
     interaction: { mode: "adjacent_4", rangeCells: 1 },
-    scenery: true,
+    interiorId: "cottage",
     blocksNav: true,
   },
   "object.shrine.stone": {

@@ -179,7 +179,9 @@ export function applySharedState(sim: GameSimulation, shared: SharedState): void
   sim.equippedArmor = Object.assign({ head: null, body: null, legs: null, feet: null }, shared.equippedArmor);
   sim.hp = Math.max(1, Math.min(sim.maxHp(), shared.hp));
   for (const [id, st] of Object.entries(shared.quests)) {
-    if (sim.quests.states[id]) sim.quests.states[id] = { ...st };
+    // Villager errands (vq.*) restore unconditionally: their defs register
+    // lazily when the giver's chunk streams in, possibly after this load.
+    if (sim.quests.states[id] || id.startsWith("vq.")) sim.quests.states[id] = { ...st };
   }
   for (const flag of shared.worldFlags ?? []) sim.setWorldFlag(flag);
   if (shared.slayer) sim.slayer.state = { ...shared.slayer };
@@ -316,7 +318,9 @@ export function applySave(sim: GameSimulation, data: SaveDataV1): void {
   }
   // Older saves have no quest block: quests stay at their fresh defaults.
   for (const [id, saved] of Object.entries(data.quests ?? {})) {
-    if (sim.quests.states[id]) sim.quests.states[id] = { ...saved };
+    // Villager errands (vq.*) restore unconditionally: their defs register
+    // lazily when the giver's chunk streams in, possibly after this load.
+    if (sim.quests.states[id] || id.startsWith("vq.")) sim.quests.states[id] = { ...saved };
   }
   if (typeof data.hp === "number") {
     sim.hp = Math.max(1, Math.min(sim.maxHp(), data.hp));

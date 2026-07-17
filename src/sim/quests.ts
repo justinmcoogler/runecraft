@@ -30,10 +30,27 @@ export class QuestService {
 
   constructor(deps: QuestDeps, defs: Record<string, QuestDef> = QUESTS) {
     this.deps = deps;
-    this.defs = defs;
+    this.defs = { ...defs };
     for (const id of Object.keys(defs)) {
       this.states[id] = { status: "available", objectiveIndex: 0, progress: 0 };
     }
+  }
+
+  /** Register a dynamically generated quest (villager errands). Defs are pure
+   *  functions of (seed, giver), so re-registering the same id as its NPC
+   *  streams back in is a no-op — and never clobbers saved/live state. */
+  addDef(def: QuestDef): void {
+    if (!this.defs[def.id]) this.defs[def.id] = def;
+    this.states[def.id] ??= { status: "available", objectiveIndex: 0, progress: 0 };
+  }
+
+  defOf(questId: string): QuestDef | undefined {
+    return this.defs[questId];
+  }
+
+  /** Every quest id with a registered definition (static + streamed-in). */
+  allIds(): string[] {
+    return Object.keys(this.defs);
   }
 
   state(questId: string): QuestState {
@@ -124,6 +141,12 @@ export class QuestService {
     for (const [id, def] of Object.entries(this.defs)) {
       const state = this.states[id];
       if (def.giverNpcId === npcId && this.isAvailable(id)) {
+        // Villager errands cap so the log stays a to-do list, not a backlog:
+        // at the cap the villager just chats until a slot frees up.
+        if (id.startsWith("vq.") &&
+          Object.entries(this.states).filter(([q, s]) => q.startsWith("vq.") && s.status === "active").length >= 3) {
+          continue;
+        }
         state.status = "active";
         this.deps.events.emit({ type: "questStarted", questId: id, name: def.name });
         // A tutor hands over the tool the lesson needs the moment you accept.

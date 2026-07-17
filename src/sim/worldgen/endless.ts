@@ -1098,7 +1098,7 @@ function valeWall(seed: number, x: number, z: number): { h: number; block: Block
 // wholly inside its own chunk, so the pure-function seam holds.
 // ---------------------------------------------------------------------------
 
-const VILLAGE_L = 168; // spacing between village anchors (tighter = villages a touch more common)
+const VILLAGE_L = 256; // spacing between village anchors — villages are a real find, not a rest stop
 const VILLAGE_R = 120; // how far a village's homestead boost reaches (bigger = more homes per village)
 // Per-chunk homestead roll thresholds. Lone wild homes are uncommon; inside a
 // village's reach the roll is boosted so a dense cluster of homes grows around
@@ -1118,7 +1118,7 @@ function villageAnchor(seed: number, gx: number, gz: number): { x: number; z: nu
   const jz = (cellHash(gx * 11 + 3, gz * 13 + 4, salt(seed, 105)) - 0.5) * VILLAGE_L * 0.5;
   const x = Math.round(gx * VILLAGE_L + VILLAGE_L / 2 + jx);
   const z = Math.round(gz * VILLAGE_L + VILLAGE_L / 2 + jz);
-  const exists = cellHash(gx * 3 + 5, gz * 17 + 9, salt(seed, 106)) < 0.5;
+  const exists = cellHash(gx * 3 + 5, gz * 17 + 9, salt(seed, 106)) < 0.42;
   let ok = false;
   if (exists) {
     const f = heightFields(seed, x, z);
@@ -1207,15 +1207,35 @@ function onVillageLane(seed: number, x: number, z: number): boolean {
   return false;
 }
 
+/** The building stock: every code-drawn house footprint the world places.
+ *  The renderer sizes each house from its placed footprint (and unlocks the
+ *  L-shaped cross-wing at w≥8), so variety here is variety on screen — huts,
+ *  cottages, longhouses, square houses, inns, and the rare grand hall. */
+const HOUSE_VARIANTS: Array<{ defId: string; w: number; d: number; weight: number }> = [
+  { defId: "object.house.small", w: 4, d: 4, weight: 2 }, // hut
+  { defId: "object.house.small", w: 5, d: 4, weight: 3 }, // cottage
+  { defId: "object.house.small", w: 5, d: 5, weight: 2 }, // square house
+  { defId: "object.house.small", w: 6, d: 4, weight: 2 }, // longhouse
+  { defId: "object.house.big", w: 6, d: 5, weight: 2 }, // inn
+  { defId: "object.house.big", w: 7, d: 5, weight: 1 }, // great inn
+  { defId: "object.house.big", w: 8, d: 6, weight: 1 }, // grand hall (cross-wing)
+];
+const HOUSE_WEIGHT_TOTAL = HOUSE_VARIANTS.reduce((n, v) => n + v.weight, 0);
+function pickHouseVariant(roll: number): { defId: string; w: number; d: number } {
+  let t = roll * HOUSE_WEIGHT_TOTAL;
+  for (const v of HOUSE_VARIANTS) {
+    t -= v.weight;
+    if (t < 0) return v;
+  }
+  return HOUSE_VARIANTS[0];
+}
+
 /** Wild homes are our own code-drawn buildings (object.house.small / .big —
  *  procedural timber-frame cottages and inns), not the imported voxel-house
  *  pack. Size is picked deterministically per chunk so the placement gate and
  *  its lane-routing predictor stay in lockstep. */
 function wildHouseSize(seed: number, cx: number, cz: number): { defId: string; w: number; d: number } {
-  const pick = cellHash(cx * 6367, cz * 12007, salt(seed, 55));
-  return pick < 0.28
-    ? { defId: "object.house.big", w: 6, d: 5 }
-    : { defId: "object.house.small", w: 5, d: 4 };
+  return pickHouseVariant(cellHash(cx * 6367, cz * 12007, salt(seed, 55)));
 }
 
 /** A chunk-local rectangle, used to keep natural features out of a stamped
@@ -1458,13 +1478,18 @@ function pickSkillHomeTheme(seed: number, cx: number, cz: number, biome: number)
 
 /** Dress a placed homestead's yard with its skill theme: station(s), a node,
  *  props, and a resident. Best-effort — each fixture only lands on a dry,
- *  gentle cell just outside the house footprint, flattened level. */
+ *  gentle cell just outside the house footprint, flattened level. `idPrefix`
+ *  namespaces the fixture/resident instance ids so several dressed homes can
+ *  share a chunk (the plaza cottage ring); `themeOverride` pins the workshop
+ *  instead of the per-chunk biome pick. */
 function dressSkillHome(
   seed: number, cx: number, cz: number, ox: number, oz: number, w: number, d: number,
   anchor: number, heights: Int16Array, blocks: Uint8Array, biomes: Uint8Array, x0: number, z0: number,
   nodes: NodePlacement[], objects: ObjectPlacement[], npcs: NpcPlacement[],
+  idPrefix?: string, themeOverride?: SkillHomeTheme,
 ): void {
-  const theme = pickSkillHomeTheme(seed, cx, cz, biomes[(oz + (d >> 1)) * ECHUNK + (ox + (w >> 1))]);
+  const theme = themeOverride ?? pickSkillHomeTheme(seed, cx, cz, biomes[(oz + (d >> 1)) * ECHUNK + (ox + (w >> 1))]);
+  const pre = idPrefix ?? `end.${cx}.${cz}`;
   // Candidate yard cells ring the footprint (never on it, never the border).
   const ring: Array<[number, number]> = [
     [ox - 2, oz + 1], [ox - 2, oz + d - 2], [ox + w + 1, oz + 1], [ox + w + 1, oz + d - 2],
@@ -1491,13 +1516,13 @@ function dressSkillHome(
     const [sx, sz] = spots[si++];
     heights[sz * ECHUNK + sx] = anchor; // sit level with the yard
     const cell = { x: x0 + sx, z: z0 + sz };
-    if (fx.kind === "node") nodes.push({ instanceId: `end.${cx}.${cz}.sk${si}`, defId: fx.defId, cell });
-    else objects.push({ instanceId: `end.${cx}.${cz}.sk${si}`, defId: fx.defId, cell });
+    if (fx.kind === "node") nodes.push({ instanceId: `${pre}.sk${si}`, defId: fx.defId, cell });
+    else objects.push({ instanceId: `${pre}.sk${si}`, defId: fx.defId, cell });
   }
   // The resident stands in the yard (a spare spot, else the first).
   const [nx, nz] = spots[Math.min(si, spots.length - 1)];
   heights[nz * ECHUNK + nx] = anchor;
-  npcs.push({ instanceId: `end.${cx}.${cz}.res`, name: theme.npcName, cell: { x: x0 + nx, z: z0 + nz }, wanderRadius: 2, lines: theme.lines });
+  npcs.push({ instanceId: `${pre}.res`, name: theme.npcName, cell: { x: x0 + nx, z: z0 + nz }, wanderRadius: 2, lines: theme.lines });
 }
 
 /**
@@ -1869,21 +1894,24 @@ function stampVillagePlaza(
       lines: settle.lines[linesI],
     });
   }
-  // A tight ring of cottages hugging the plaza, so a village reads as a real
-  // cluster of homes at its core — not just a green ringed by distant
-  // farmsteads. These sit wholly inside the plaza chunk (no cross-chunk lane to
-  // replay), each on its own flattened pad with a resident by the door. Any
-  // slot that lands wet, steep, on the starter town, or atop a neighbour is
+  // A ring of homes hugging the plaza, so a village reads as a real cluster
+  // at its core — not just a green ringed by distant farmsteads. The ring is
+  // what makes each village its own place: home count, footprints (hut →
+  // grand hall), and ring radius all roll per village, and every home is a
+  // working skill house — a different workshop (anvil, cook-fire, brew tub…)
+  // with its keeper — so a village core trains several skills. Homes sit
+  // wholly inside the plaza chunk (no cross-chunk lane to replay); any slot
+  // that lands wet, steep, on the starter town, or atop a neighbour is
   // skipped, so the ring gracefully thins on awkward ground.
-  const RING_N = 7;
-  for (let k = 0; k < RING_N; k++) {
-    const ang = (k / RING_N) * Math.PI * 2 + 0.45;
-    const big = cellHash(cx * 3 + k * 5, cz * 7 + k * 2, salt(seed, 111)) < 0.3;
-    const hw = big ? 6 : 5, hd = big ? 5 : 4;
-    const rr = 18 + Math.round(cellHash(cx + k * 9, cz + k * 4, salt(seed, 112)) * 4);
+  const ringN = 3 + Math.floor(cellHash(cx * 31 + 7, cz * 17 + 3, salt(seed, 110)) * 6); // 3..8 homes
+  const themeBase = Math.floor(cellHash(cx * 13 + 1, cz * 19 + 5, salt(seed, 119)) * SKILL_HOME_THEMES.length);
+  for (let k = 0; k < ringN; k++) {
+    const ang = (k / ringN) * Math.PI * 2 + 0.45;
+    const { defId, w: hw, d: hd } = pickHouseVariant(cellHash(cx * 3 + k * 5, cz * 7 + k * 2, salt(seed, 111)));
+    const rr = 16 + Math.round(cellHash(cx + k * 9, cz + k * 4, salt(seed, 112)) * 8);
     const hx = px + Math.round(Math.cos(ang) * rr) - (hw >> 1);
     const hz = pz + Math.round(Math.sin(ang) * rr) - (hd >> 1);
-    if (hx < 2 || hz < 2 || hx + hw >= ECHUNK - 2 || hz + hd >= ECHUNK - 2) continue;
+    if (hx < 3 || hz < 3 || hx + hw >= ECHUNK - 3 || hz + hd >= ECHUNK - 3) continue;
     let plo = Infinity, phi = -Infinity, bad = false;
     for (let dz = 0; dz < hd && !bad; dz++) {
       for (let dx = 0; dx < hw; dx++) {
@@ -1894,7 +1922,7 @@ function stampVillagePlaza(
       }
     }
     if (bad || phi - plo > 3) continue;
-    if (houseBoxes.some((b) => hx <= b.x1 && hx + hw - 1 >= b.x0 && hz <= b.z1 && hz + hd - 1 >= b.z0)) continue;
+    if (houseBoxes.some((b) => hx - 1 <= b.x1 && hx + hw >= b.x0 && hz - 1 <= b.z1 && hz + hd >= b.z0)) continue;
     const ha = heights[(hz + (hd >> 1)) * ECHUNK + (hx + (hw >> 1))];
     const fp: Array<{ x: number; z: number }> = [];
     for (let dx = 0; dx < hw; dx++) {
@@ -1906,18 +1934,17 @@ function stampVillagePlaza(
     }
     objects.push({
       instanceId: `end.${cx}.${cz}.pr${k}`,
-      defId: big ? "object.house.big" : "object.house.small",
+      defId,
       cell: { x: x0 + hx, z: z0 + hz },
       footprint: fp,
     });
     houseBoxes.push({ x0: hx, z0: hz, x1: hx + hw - 1, z1: hz + hd - 1 });
-    npcs.push({
-      instanceId: `end.${cx}.${cz}.pr${k}.res`,
-      name: VILLAGER_NAMES[(k * 3 + 1) % VILLAGER_NAMES.length],
-      cell: { x: x0 + hx + (hw >> 1), z: z0 + hz + hd },
-      wanderRadius: 3,
-      lines: settle.lines[k % settle.lines.length],
-    });
+    // Each ring home is a working skill house: sequential themes off a per-
+    // village base, so neighbours never share a trade. The theme's keeper is
+    // the home's resident.
+    const theme = SKILL_HOME_THEMES[(themeBase + k) % SKILL_HOME_THEMES.length];
+    dressSkillHome(seed, cx, cz, hx, hz, hw, hd, ha, heights, blocks, biomes, x0, z0,
+      nodes, objects, npcs, `end.${cx}.${cz}.pr${k}`, theme);
   }
   return true;
 }

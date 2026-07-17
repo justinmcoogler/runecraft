@@ -47,6 +47,22 @@ describe("house interiors", () => {
     expect(ok / tot).toBeGreaterThan(0.75);
   });
 
+  it("clicking a code-drawn cottage in the endless world steps inside it", () => {
+    const sim = GameSimulation.createEndless(7);
+    const spawn = sim.world.region.spawn;
+    // Drop a cottage a few cells from spawn (the editor-placement path).
+    sim.addEditorObject({ instanceId: "test.cottage", defId: "object.house.small", cell: { x: spawn.x + 4, z: spawn.z + 2 } });
+    sim.enqueue({ type: "interact", targetId: "test.cottage" });
+    let entered: { targetRegionId: string } | undefined;
+    for (let i = 0; i < 300 && !entered; i++) {
+      for (const ev of sim.tick()) if (ev.type === "portalEntered") entered = ev as never;
+    }
+    expect(entered?.targetRegionId.startsWith("houseint_cottage_"), "cottage click should enter its interior").toBe(true);
+    // And the interior itself is a walkable furnished room with a way back out.
+    const room = buildRegion(entered!.targetRegionId);
+    expect(room.objects.some((o) => o.portal?.targetRegionId === "region.endless")).toBe(true);
+  });
+
   it("clicking a solid house walks to it and enters its interior — no door object", () => {
     // A hand-built overworld tile with one solid house and NO door object:
     // clicking the building itself paths the player to the yard, then steps

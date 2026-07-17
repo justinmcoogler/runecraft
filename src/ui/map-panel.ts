@@ -4,7 +4,7 @@
 // changes nothing.
 
 import { buildOverworld } from "../sim/worldgen/overworld";
-import { QUESTS, ZONES } from "../content/content";
+import { ZONES } from "../content/content";
 import type { GameSimulation } from "../sim/simulation";
 import type { BlockType } from "../sim/world";
 import { activeQuestTarget, giverCell } from "./quest-helper";
@@ -165,7 +165,7 @@ export class MapPanel {
     // ◆ on the active objective.
     ctx.textAlign = "center";
     ctx.font = '10px "Press Start 2P", monospace';
-    for (const questId of Object.keys(QUESTS)) {
+    for (const questId of sim.quests.allIds()) {
       const status = sim.quests.states[questId]?.status;
       const cell = giverCell(sim, questId);
       if (!cell) continue;
@@ -174,7 +174,7 @@ export class MapPanel {
         ctx.fillText("!", cell.x / S + 1, cell.z / S - 4);
         ctx.fillStyle = "#ffd166";
         ctx.fillText("!", cell.x / S, cell.z / S - 5);
-      } else if (status === "active" && sim.quests.markFor(QUESTS[questId].giverNpcId) === "ready") {
+      } else if (status === "active" && sim.quests.markFor(sim.quests.defOf(questId)!.giverNpcId) === "ready") {
         ctx.fillStyle = "#10151b";
         ctx.fillText("?", cell.x / S + 1, cell.z / S - 4);
         ctx.fillStyle = "#7cc243";

@@ -1,7 +1,7 @@
 // HUD: DOM overlay. Subscribes to SimEvents and reads sim state; every button
 // emits a Command. The UI never mutates simulation state directly.
 
-import { ALCHEMY, ALCHEMY_TIERS, ALCH_VALUES, CURVES, ENEMIES, ITEMS, NODES, OBJECTS, QUESTS, RECIPES, SHOPS, SKILLS, SUPERHEAT, xpToReachLevel, type AlchemyTier } from "../content/content";
+import { ALCHEMY, ALCHEMY_TIERS, ALCH_VALUES, CURVES, ENEMIES, ITEMS, NODES, OBJECTS, RECIPES, SHOPS, SKILLS, SUPERHEAT, xpToReachLevel, type AlchemyTier } from "../content/content";
 import { skillActivities, skillCeiling } from "../content/skill-guide";
 import { BLOCKS } from "../content/blocks";
 import type { GameRenderer } from "../render/renderer";
@@ -714,7 +714,7 @@ export class Hud {
           // still owe before this one will open.
           const blockedBy = this.sim.quests.blockedByFor(ev.instanceId);
           if (blockedBy) {
-            const pre = QUESTS[blockedBy];
+            const pre = this.sim.quests.defOf(blockedBy)!;
             this.toast(
               `${ev.name}: “You're not ready for my lesson yet — go and finish "${pre.name}" with ${npcName(pre.giverNpcId, this.sim)} first, then come back.”`,
               "speech",
@@ -728,13 +728,13 @@ export class Hud {
           break;
         }
         case "questStarted": {
-          const quest = QUESTS[ev.questId];
+          const quest = this.sim.quests.defOf(ev.questId)!;
           this.toast(`Quest started: ${ev.name}`, "level", uiIconHtml("quest", 20));
           this.toast(`${npcName(quest.giverNpcId, this.sim)}: “${quest.intro}”`, "speech");
           break;
         }
         case "questCompleted": {
-          const quest = QUESTS[ev.questId];
+          const quest = this.sim.quests.defOf(ev.questId)!;
           this.toast(`${npcName(quest.giverNpcId, this.sim)}: “${quest.outro}”`, "speech");
           this.toast(`Quest complete: ${ev.name}!`, "level", uiIconHtml("quest", 20));
           break;
@@ -914,11 +914,12 @@ export class Hud {
     // The pinned quest, if any and active, is shown first; otherwise the first
     // active quest (matching the guidance line's own priority).
     const tracked = this.sim.trackedQuestId;
-    const ids = tracked && QUESTS[tracked]
-      ? [tracked, ...Object.keys(QUESTS).filter((id) => id !== tracked)]
-      : Object.keys(QUESTS);
+    const all = this.sim.quests.allIds();
+    const ids = tracked && this.sim.quests.defOf(tracked)
+      ? [tracked, ...all.filter((id) => id !== tracked)]
+      : all;
     for (const questId of ids) {
-      const quest = QUESTS[questId];
+      const quest = this.sim.quests.defOf(questId)!;
       const state = this.sim.quests.states[questId];
       if (state?.status !== "active") continue;
       const objective = quest.objectives[state.objectiveIndex];

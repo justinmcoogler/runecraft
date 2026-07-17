@@ -1,7 +1,7 @@
 // Quest-helper lookups shared by the quest log, world-map markers and the
 // on-screen objective pointer. Pure reads — no sim mutation.
 
-import { NODES, QUESTS, ZONES, type QuestDef } from "../content/content";
+import { NODES, ZONES, type QuestDef } from "../content/content";
 import { buildOverworld } from "../sim/worldgen/overworld";
 import type { GameSimulation } from "../sim/simulation";
 import type { Cell } from "../sim/types";
@@ -22,7 +22,7 @@ export function npcCell(sim: GameSimulation, npcId: string): Cell | null {
 
 /** Home cell of a quest giver. */
 export function giverCell(sim: GameSimulation, questId: string): Cell | null {
-  const def = QUESTS[questId];
+  const def = sim.quests.defOf(questId);
   return def ? npcCell(sim, def.giverNpcId) : null;
 }
 
@@ -66,7 +66,7 @@ export interface QuestTarget {
 
 /** Display name of a quest's giver, current region first. */
 function giverName(sim: GameSimulation, questId: string): string {
-  const def = QUESTS[questId];
+  const def = sim.quests.defOf(questId);
   if (!def) return "the quest giver";
   const here = sim.world.region.npcs.find((n) => n.instanceId === def.giverNpcId);
   const over = buildOverworld().region.npcs.find((n) => n.instanceId === def.giverNpcId);
@@ -75,7 +75,7 @@ function giverName(sim: GameSimulation, questId: string): string {
 
 /** Quest ids ordered so the player's pinned (tracked) quest is considered first. */
 function trackedFirst(sim: GameSimulation): string[] {
-  const ids = Object.keys(QUESTS);
+  const ids = sim.quests.allIds();
   const tracked = sim.trackedQuestId;
   if (tracked && ids.includes(tracked)) return [tracked, ...ids.filter((id) => id !== tracked)];
   return ids;
@@ -90,7 +90,8 @@ export function activeQuestTarget(sim: GameSimulation): QuestTarget | null {
   const region = sim.world.region.id;
   const inOverworld = region === "region.vale_clearing" || region === "region.tutorial" || region === "region.endless";
   for (const questId of trackedFirst(sim)) {
-    const def = QUESTS[questId] as QuestDef;
+    const def = sim.quests.defOf(questId) as QuestDef;
+    if (!def) continue;
     const state = sim.quests.states[questId];
     // A pinned quest you haven't started yet: lead to the giver to begin it.
     if (state?.status !== "active") {
@@ -187,8 +188,13 @@ export function questLog(sim: GameSimulation): QuestLogEntry[] {
   const entries: QuestLogEntry[] = [];
   const here = sim.world.region.npcs;
   const over = buildOverworld().region.npcs;
-  for (const [questId, def] of Object.entries(QUESTS) as Array<[string, QuestDef]>) {
+  for (const questId of sim.quests.allIds()) {
+    const def = sim.quests.defOf(questId) as QuestDef;
     const state = sim.quests.states[questId];
+    // Villager errands only join the log once accepted (talking to the
+    // villager accepts them) — an endless world holds endless "available"
+    // errands, and listing them all would drown the real to-do list.
+    if (questId.startsWith("vq.") && state?.status !== "active" && state?.status !== "completed") continue;
     const npc = here.find((n) => n.instanceId === def.giverNpcId) ?? over.find((n) => n.instanceId === def.giverNpcId);
     const giverName = npc?.name ?? "someone";
     const where = npc ? giverName : "the vale";
