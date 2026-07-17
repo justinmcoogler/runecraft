@@ -331,6 +331,7 @@ async function boot(): Promise<void> {
 
   function enterRegion(targetRegionId: string, targetCell: { x: number; z: number }): void {
     const shared = captureSharedState(sim);
+    const explored = sim.explored;
     // Stepping off the surface: remember the doorstep for mid-dungeon saves.
     if (currentRegionId === "region.endless" || currentRegionId === "region.tutorial") {
       lastSurface = { regionId: currentRegionId, cell: sim.movement.currentCell() };
@@ -361,6 +362,7 @@ async function boot(): Promise<void> {
     }
     // Every fresh sim needs the model-preference spawn veto re-attached.
     sim.spawnFilter = (defId) => isModelEnabled(defId);
+    sim.explored = explored; // fog-of-war memory rides across region swaps
     applySharedState(sim, shared);
     ensureSurfaceHome();
     const snapshot = targetRegionId === "region.endless" ? undefined : regionStore[targetRegionId];

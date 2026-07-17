@@ -1908,6 +1908,15 @@ export const ALCH_VALUES: Record<string, number> = {
   "item.bar.gold": 60, "item.ingot.netherite": 900,
   "item.bar.steel": 55, "item.bar.mithril": 100, "item.bar.adamant": 170, "item.bar.runite": 270,
   "tool.sword.astral": 320,
+  // Smithed gear below diamond: every tier alchs, so training Smithing has a
+  // coin sink instead of a pack full of unsellable swords and helms.
+  "tool.sword.copper": 18, "tool.sword.bronze": 34, "tool.sword.iron": 60, "tool.sword.runed": 90,
+  "armor.cap.copper": 16, "armor.tunic.copper": 24, "armor.leggings.copper": 20, "armor.boots.copper": 12,
+  "armor.cap.bronze": 28, "armor.tunic.bronze": 42, "armor.leggings.bronze": 34, "armor.boots.bronze": 20,
+  "armor.cap.iron": 50, "armor.tunic.iron": 75, "armor.leggings.iron": 62, "armor.boots.iron": 36,
+  "armor.cap.steel": 80, "armor.tunic.steel": 120, "armor.leggings.steel": 100, "armor.boots.steel": 58,
+  "armor.cap.mithril": 140, "armor.tunic.mithril": 210, "armor.leggings.mithril": 175, "armor.boots.mithril": 100,
+  "armor.cap.leather": 10, "armor.tunic.leather": 15, "armor.leggings.leather": 12, "armor.boots.leather": 8,
   "item.gem.opal": 15, "item.gem.jade": 26, "item.gem.topaz": 40, "item.gem.sapphire": 66,
   "item.gem.emerald": 120, "item.gem.ruby": 120, "item.gem.diamond": 180, "item.gem.dragonstone": 380,
   "item.ring.opal": 60, "item.ring.sapphire": 170, "item.amulet.emerald": 320,
@@ -5577,6 +5586,10 @@ export const SHOPS: Record<string, ShopDef> = {
       { itemId: "tool.trap.box", price: 60 },
       { itemId: "item.seed.corn", price: 12 },
       { itemId: "item.seed.sunfruit", price: 20 },
+      // Potato/melon plots and the baked-potato recipe were dead-locked:
+      // these two seeds existed but nothing in the world dispensed them.
+      { itemId: "item.seed.potato", price: 4 },
+      { itemId: "item.seed.melon", price: 9 },
       // Blaze Runes so Magic (Low Alch at L1 burns one per cast) is playable
       // from day one — without these, the first fire rune sits behind
       // Runecrafting 14 and hours of essence grinding.

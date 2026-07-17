@@ -87,7 +87,7 @@ export type SimEvent =
   | { type: "enemyAttack"; instanceId: string; damage: number | null }
   | { type: "healthChanged"; hp: number; maxHp: number }
   | { type: "ateFood"; itemId: string; healed: number }
-  | { type: "playerDied" }
+  | { type: "playerDied"; coinsLost?: number }
   | { type: "enemyDied"; instanceId: string }
   | { type: "enemyRespawned"; instanceId: string }
   | { type: "portalEntered"; targetRegionId: string; targetCell: Cell }
@@ -116,6 +116,7 @@ export type SimEvent =
   | { type: "slayerTaskProgress"; enemyName: string; remaining: number }
   | { type: "slayerTaskComplete"; xp: number; coins: number }
   | { type: "relicDonated"; itemId: string; qty: number; xp: number; firstOfKind: boolean }
+  | { type: "relicOffer"; count: number }
   | { type: "relicCollectionComplete"; coins: number }
   | { type: "zoneEntered"; zoneId: string; name: string; blurb: string };
 

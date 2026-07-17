@@ -222,6 +222,9 @@ describe("the relic collection", () => {
 
     sim.inventory.add("item.relic.idol", 1);
     sim.inventory.add("item.relic.shard", 3);
+    // Two-tap confirm: the first chat offers, the second donates.
+    sim.enqueue({ type: "interact", targetId: "village.npc.fenwick" });
+    runUntil(sim, (e) => e.type === "relicOffer", 200);
     sim.enqueue({ type: "interact", targetId: "village.npc.fenwick" });
     const donated = runUntil(sim, (e) => e.type === "relicDonated", 200);
     expect(donated.some((e) => e.type === "relicDonated" && e.itemId === "item.relic.idol" && e.firstOfKind)).toBe(true);
@@ -234,10 +237,14 @@ describe("the relic collection", () => {
       sim.inventory.add(id, 1);
     }
     sim.enqueue({ type: "interact", targetId: "village.npc.fenwick" });
+    runUntil(sim, (e) => e.type === "relicOffer", 200);
+    sim.enqueue({ type: "interact", targetId: "village.npc.fenwick" });
     runUntil(sim, (e) => e.type === "relicCollectionComplete", 200);
     expect(sim.inventory.count("item.coin")).toBeGreaterThan(coinsBefore);
     // Donating more of a known type never re-fires the completion bonus.
     sim.inventory.add("item.relic.urn", 1);
+    sim.enqueue({ type: "interact", targetId: "village.npc.fenwick" });
+    runUntil(sim, (e) => e.type === "relicOffer", 200);
     sim.enqueue({ type: "interact", targetId: "village.npc.fenwick" });
     const again = runUntil(sim, (e) => e.type === "relicDonated", 200);
     expect(again.some((e) => e.type === "relicCollectionComplete")).toBe(false);

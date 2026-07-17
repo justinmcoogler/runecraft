@@ -828,7 +828,15 @@ export class Hud {
           break;
         }
         case "playerDied":
-          this.toast("You black out… and wake at camp.", "warn");
+          this.toast(
+            ev.coinsLost && ev.coinsLost > 0
+              ? `You black out… and wake at camp, ${ev.coinsLost} coins lighter.`
+              : "You black out… and wake at camp.",
+            "warn",
+          );
+          break;
+        case "relicOffer":
+          this.toast(`Curator Fenwick eyes your ${ev.count} relic${ev.count > 1 ? "s" : ""} — talk again to donate them for Archaeology XP.`, "info");
           break;
         default:
           break;
@@ -837,6 +845,7 @@ export class Hud {
   }
 
   private rejectText(reason: string, targetId?: string): string {
+    if (targetId === "wild_chest") return "This weathered cache won't keep your things — loot only. Use your camp chest.";
     if (reason === "missing_inputs" && this.sim.actions.openShopId) return "Not enough coins.";
     const def = targetId ? NODES[this.sim.nodes.get(targetId)?.defId ?? ""] : undefined;
     switch (reason) {

@@ -449,6 +449,8 @@ interface EndlessSaveData {
    *  "region.tutorial" = mid-tutorial (Continue re-enters the island with all
    *  quest/skill/pack progress intact instead of losing the run). */
   region?: string;
+  /** Explored 16-cell tiles (packed keys) — the map's fog of war. */
+  explored?: number[];
 }
 
 /** A lightweight summary of a saved world, for the "continue" list. */
@@ -537,6 +539,7 @@ export function saveEndlessToStorage(
       shared: captureSharedState(sim),
       containers,
       region: regionId ?? "region.endless",
+      explored: [...sim.explored],
     };
     const json = JSON.stringify(data);
     localStorage.setItem(endlessWorldKey(worldSeed), json); // this world's own slot
@@ -580,6 +583,7 @@ export function loadEndlessFromStorage(sim: GameSimulation, slotSeed?: number): 
     if (typeof data.timeS === "number" && Number.isFinite(data.timeS)) {
       sim.timeS = Math.max(0, data.timeS);
     }
+    if (Array.isArray(data.explored)) sim.explored = new Set(data.explored);
     // Shared state (incl. inventory) is already applied above, so a boat in
     // the kit legitimises a saved position out on the water.
     restorePlayerPosition(sim, data.player.cell, data.player.facing ?? 0);

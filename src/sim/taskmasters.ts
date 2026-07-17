@@ -147,6 +147,9 @@ const COLLECTION_REWARD_XP = 400;
 export class CuratorService {
   /** Relic types donated at least once (persisted). */
   donated = new Set<string>();
+  /** Two-tap confirm: the first chat offers, the second actually donates —
+   *  the curator no longer sweeps relics out of your pack unannounced. */
+  private offerArmed = false;
 
   constructor(
     private deps: {
@@ -160,6 +163,17 @@ export class CuratorService {
     const d = this.deps;
     for (const ev of events) {
       if (ev.type !== "npcChat" || ev.instanceId !== CURATOR_NPC_ID) continue;
+      const carried = Object.keys(RELIC_XP).reduce((n, id) => n + d.inventory.count(id), 0);
+      if (carried === 0) {
+        this.offerArmed = false;
+        continue;
+      }
+      if (!this.offerArmed) {
+        this.offerArmed = true;
+        d.events.emit({ type: "relicOffer", count: carried });
+        continue;
+      }
+      this.offerArmed = false;
       const alreadyComplete = COLLECTION.every((id) => this.donated.has(id));
       for (const itemId of Object.keys(RELIC_XP)) {
         const qty = d.inventory.count(itemId);

@@ -457,6 +457,24 @@ export class GameSimulation {
     return thorns;
   }
 
+  /** Explored 16-cell tiles of the endless world — the map's fog of war.
+   *  Persisted with the save; the map only paints tiles you have walked. */
+  explored = new Set<number>();
+  noteExplored(cell: Cell): void {
+    if (this.world.region.id !== "region.endless") return;
+    const qx = cell.x >> 4, qz = cell.z >> 4;
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) this.explored.add((qx + dx) * 131072 + (qz + dz));
+    }
+  }
+
+  /** True when the open container is a streamed wild cache (chunk-scoped):
+   *  its contents are destroyed when the chunk retires, so it's loot-only. */
+  isWildContainer(): boolean {
+    const id = this.actions.openContainerId;
+    return !!id && id.startsWith("end.");
+  }
+
   /** Per-shortcut Agility-XP cooldown: the hop always works, but the same
    *  obstacle only pays XP once a minute — no click-looping a log to 99. */
   private shortcutXpAt = new Map<string, number>();
@@ -510,7 +528,12 @@ export class GameSimulation {
     if (this.hp === 0) {
       // Black out: wake at full health, inventory intact — at your bed if you
       // set one, otherwise the region spawn.
-      this.events.emit({ type: "playerDied" });
+      // Dying costs a tithe of carried coins — enough that death-warping home
+      // isn't free fast travel, gentle enough that a bad fight isn't ruinous.
+      const coins = this.inventory.count("item.coin");
+      const coinsLost = Math.floor(coins * 0.1);
+      if (coinsLost > 0) this.inventory.removeItemById("item.coin", coinsLost);
+      this.events.emit({ type: "playerDied", coinsLost });
       this.actions.cancel();
       this.enemies.disengageAll();
       this.hp = this.maxHp();
@@ -966,6 +989,7 @@ export class GameSimulation {
       }
       // A treasure map in the pack sets a buried-cache hunt; reaching the marked
       // spot unearths the prize (and sometimes the next map — a chain).
+      this.noteExplored(movedCell);
       if (!this.treasureHunt && this.inventory.count("item.treasure_map") > 0) this.beginTreasureHunt();
       if (this.treasureHunt && chebyshev(movedCell, this.treasureHunt) <= 1) this.unearthTreasure();
       // Crossing into a new named biome announces it; the first time you set
@@ -1608,6 +1632,12 @@ export class GameSimulation {
       case "deposit": {
         const chest = this.openContainer();
         if (!chest) break;
+        if (this.isWildContainer()) {
+          // Streamed wild caches are loot-only: their contents vanish when
+          // the chunk retires, so anything deposited would be destroyed.
+          this.events.emit({ type: "actionRejected", reason: "no_target", targetId: "wild_chest" });
+          break;
+        }
         if (transferSlot(this.inventory, c.slot, chest) > 0) {
           this.events.emit({ type: "inventoryChanged" });
         }
@@ -1616,6 +1646,10 @@ export class GameSimulation {
       case "depositAll": {
         const chest = this.openContainer();
         if (!chest) break;
+        if (this.isWildContainer()) {
+          this.events.emit({ type: "actionRejected", reason: "no_target", targetId: "wild_chest" });
+          break;
+        }
         let moved = 0;
         for (let i = 0; i < this.inventory.slots.length; i++) {
           const s = this.inventory.slots[i];

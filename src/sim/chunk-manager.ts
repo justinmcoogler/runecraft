@@ -30,6 +30,10 @@ export class ChunkManager {
     const wanted = new Set<string>();
     for (let dz = -ACTIVE_RADIUS; dz <= ACTIVE_RADIUS; dz++) {
       for (let dx = -ACTIVE_RADIUS; dx <= ACTIVE_RADIUS; dx++) {
+        // A disc, not a square: the box's corners sit ~40% farther out than
+        // its faces, so content used to pop in earlier or later depending on
+        // heading. A circle keeps the loaded ring even all around the player.
+        if (dx * dx + dz * dz > ACTIVE_RADIUS * ACTIVE_RADIUS + 1) continue;
         wanted.add(`${pcx + dx},${pcz + dz}`);
       }
     }
