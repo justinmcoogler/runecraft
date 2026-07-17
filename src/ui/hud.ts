@@ -1345,11 +1345,17 @@ export class Hud {
     if (this.itemPopMode !== "main" && !nearEnch) this.itemPopMode = "main";
     const mods = slot.mods;
     let modsHtml = "";
-    if (category && mods && mods.ench.length + mods.gems.length > 0) {
-      const rows = [
-        ...mods.ench.map((id) => ENCHANTS[id] ? `<span class="item-mod">✨ ${ENCHANTS[id].name} · ${Hud.fx(ENCHANTS[id].effect)}</span>` : ""),
-        ...mods.gems.map((id) => SOCKET_GEMS[id] ? `<span class="item-mod">\u{1F48E} ${SOCKET_GEMS[id].name} · ${Hud.fx(SOCKET_GEMS[id][category])}</span>` : ""),
-      ];
+    if (category) {
+      // Diablo-style: sockets are always visible on the item, filled or empty.
+      const rows = (mods?.ench ?? []).map((id) =>
+        ENCHANTS[id] ? `<span class="item-mod">✨ ${ENCHANTS[id].name} · ${Hud.fx(ENCHANTS[id].effect)}</span>` : "");
+      const gems = mods?.gems ?? [];
+      for (const id of gems) {
+        if (SOCKET_GEMS[id]) rows.push(`<span class="item-mod">\u{1F48E} ${SOCKET_GEMS[id].name} · ${Hud.fx(SOCKET_GEMS[id][category])}</span>`);
+      }
+      for (let i = gems.length; i < MAX_SOCKETS; i++) {
+        rows.push(`<span class="item-mod empty-socket">◇ empty socket</span>`);
+      }
       modsHtml = `<div class="item-pop-mods">${rows.join("")}</div>`;
     }
     const pop = document.createElement("div");
