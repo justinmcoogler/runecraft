@@ -36,6 +36,47 @@ export const ENTITY_TEXTURES: EntityTextureDef[] = [
   { key: "entity.husk", paths: ["zombie/husk.png"] },
   // Not a mob: the chest prop's faces are composited from this atlas.
   { key: "entity.chest", paths: ["chest/normal.png"] },
+  // ── Variant-mob skins (ASSETS_NEEDED.md §2b) ─────────────────────────────
+  // Until these files are delivered, each variant renders as a tint-recolor
+  // of its base mob. Drop the PNG at the exact path below (inside
+  // assets/minecraft/textures/entity/) and the variant stops being a recolor.
+  // Wolf-family (base layout: wolf/wolf.png, 64×32).
+  { key: "entity.frost_wolf", paths: ["wolf/frost_wolf.png"] },
+  { key: "entity.dire_wolf", paths: ["wolf/dire_wolf.png"] },
+  { key: "entity.ash_hound", paths: ["wolf/ash_hound.png"] },
+  // Spider-family (base layout: spider/spider.png, 64×32).
+  { key: "entity.gloom_spinner", paths: ["spider/gloom_spinner.png"] },
+  { key: "entity.dust_scuttler", paths: ["spider/dust_scuttler.png"] },
+  { key: "entity.vine_stalker", paths: ["spider/vine_stalker.png"] },
+  { key: "entity.thornback", paths: ["spider/thornback.png"] },
+  { key: "entity.ember_crawler", paths: ["spider/ember_crawler.png"] },
+  { key: "entity.old_gnasher", paths: ["spider/old_gnasher.png"] },
+  // Slime-family (base layout: slime/slime.png, 64×32).
+  { key: "entity.bog_slime", paths: ["slime/bog_slime.png"] },
+  { key: "entity.blight_slime", paths: ["slime/blight_slime.png"] },
+  { key: "entity.bramble_slime", paths: ["slime/bramble_slime.png"] },
+  { key: "entity.marsh_lurker", paths: ["slime/marsh_lurker.png"] },
+  { key: "entity.silt_king", paths: ["slime/silt_king.png"] },
+  // Zombie/husk-family (base layout: zombie/zombie.png, 64×64).
+  { key: "entity.mire_husk", paths: ["zombie/mire_husk.png"] },
+  { key: "entity.dune_husk", paths: ["zombie/dune_husk.png"] },
+  { key: "entity.glacial_wight", paths: ["zombie/glacial_wight.png"] },
+  { key: "entity.grave_shambler", paths: ["zombie/grave_shambler.png"] },
+  { key: "entity.hollow_wight", paths: ["zombie/hollow_wight.png"] },
+  { key: "entity.spore_shambler", paths: ["zombie/spore_shambler.png"] },
+  // Livestock variants (base layouts: cow/cow.png, pig/pig.png — 64×32).
+  { key: "entity.prairie_bull", paths: ["cow/prairie_bull.png"] },
+  { key: "entity.boar", paths: ["pig/boar.png"] },
+  // Skeleton variant (base layout: skeleton/skeleton.png, 64×32).
+  { key: "entity.barrow_lord", paths: ["skeleton/barrow_lord.png"] },
+  // Construct/golem-family (iron-golem-ish layout, 64×64 — the construct rig
+  // gains UV-mapping when this art lands; see ASSETS_NEEDED.md §2b).
+  { key: "entity.canyon_construct", paths: ["golem/canyon_construct.png"] },
+  { key: "entity.rust_construct", paths: ["golem/rust_construct.png"] },
+  { key: "entity.rootbound_warden", paths: ["golem/rootbound_warden.png"] },
+  { key: "entity.moss_golem", paths: ["golem/moss_golem.png"] },
+  { key: "entity.stone_sentinel", paths: ["golem/stone_sentinel.png"] },
+  { key: "entity.liftworks_overseer", paths: ["golem/liftworks_overseer.png"] },
 ];
 
 /** Fast lookup: entity-relative path -> texture key (first-listed wins). */

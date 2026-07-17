@@ -118,28 +118,39 @@ let blobTexture: THREE.CanvasTexture | null = null;
  * keep their def tint as a color multiply; original creatures (constructs,
  * the archery dummy) have no vanilla-layout equivalent and stay painted.
  */
-const ENEMY_SKINS: Record<string, { key: string; wool?: string; tinted?: boolean }> = {
+// Each enemy resolves its skin by `key` first; when a variant's dedicated
+// texture hasn't been delivered yet, `fallback` names the base-mob skin it
+// borrows, recoloured by the enemy tint (`tinted`). Once real art lands for a
+// variant key (see ASSETS_NEEDED.md §2b for the exact file names), it wins
+// automatically and the tint recolor stops applying — no code change needed.
+const ENEMY_SKINS: Record<string, { key: string; fallback?: string; wool?: string; tinted?: boolean }> = {
   "enemy.cow": { key: "entity.cow" },
   "enemy.pig": { key: "entity.pig" },
   "enemy.chicken": { key: "entity.chicken" },
   "enemy.sheep": { key: "entity.sheep.skin", wool: "entity.sheep.wool" },
   "enemy.spider": { key: "entity.spider" },
   "enemy.cave_spider": { key: "entity.cave_spider" },
-  "enemy.old_gnasher": { key: "entity.cave_spider" },
+  "enemy.old_gnasher": { key: "entity.old_gnasher", fallback: "entity.cave_spider" },
   "enemy.timber_wolf": { key: "entity.wolf" },
-  "enemy.frost_wolf": { key: "entity.wolf", tinted: true },
-  "enemy.bog_slime": { key: "entity.slime" },
-  "enemy.silt_king": { key: "entity.slime", tinted: true },
-  "enemy.mire_husk": { key: "entity.zombie" },
-  "enemy.dune_husk": { key: "entity.husk" },
-  "enemy.grave_shambler": { key: "entity.zombie", tinted: true },
-  "enemy.hollow_wight": { key: "entity.zombie", tinted: true },
-  "enemy.dire_wolf": { key: "entity.wolf", tinted: true },
-  "enemy.gloom_spinner": { key: "entity.cave_spider", tinted: true },
-  "enemy.blight_slime": { key: "entity.slime", tinted: true },
-  "enemy.spore_shambler": { key: "entity.zombie", tinted: true },
-  "enemy.dust_scuttler": { key: "entity.spider", tinted: true },
-  "enemy.vine_stalker": { key: "entity.spider", tinted: true },
+  "enemy.frost_wolf": { key: "entity.frost_wolf", fallback: "entity.wolf", tinted: true },
+  "enemy.dire_wolf": { key: "entity.dire_wolf", fallback: "entity.wolf", tinted: true },
+  "enemy.ash_hound": { key: "entity.ash_hound", fallback: "entity.wolf", tinted: true },
+  "enemy.bog_slime": { key: "entity.bog_slime", fallback: "entity.slime" },
+  "enemy.silt_king": { key: "entity.silt_king", fallback: "entity.slime", tinted: true },
+  "enemy.blight_slime": { key: "entity.blight_slime", fallback: "entity.slime", tinted: true },
+  "enemy.bramble_slime": { key: "entity.bramble_slime", fallback: "entity.slime", tinted: true },
+  "enemy.marsh_lurker": { key: "entity.marsh_lurker", fallback: "entity.slime", tinted: true },
+  "enemy.mire_husk": { key: "entity.mire_husk", fallback: "entity.zombie" },
+  "enemy.dune_husk": { key: "entity.dune_husk", fallback: "entity.husk" },
+  "enemy.glacial_wight": { key: "entity.glacial_wight", fallback: "entity.husk", tinted: true },
+  "enemy.grave_shambler": { key: "entity.grave_shambler", fallback: "entity.zombie", tinted: true },
+  "enemy.hollow_wight": { key: "entity.hollow_wight", fallback: "entity.zombie", tinted: true },
+  "enemy.spore_shambler": { key: "entity.spore_shambler", fallback: "entity.zombie", tinted: true },
+  "enemy.gloom_spinner": { key: "entity.gloom_spinner", fallback: "entity.cave_spider", tinted: true },
+  "enemy.dust_scuttler": { key: "entity.dust_scuttler", fallback: "entity.spider", tinted: true },
+  "enemy.vine_stalker": { key: "entity.vine_stalker", fallback: "entity.spider", tinted: true },
+  "enemy.thornback": { key: "entity.thornback", fallback: "entity.spider", tinted: true },
+  "enemy.ember_crawler": { key: "entity.ember_crawler", fallback: "entity.spider", tinted: true },
 };
 
 /** An entity skin bound to one rig: shared material + texture scale. */
@@ -4048,17 +4059,21 @@ export class GameRenderer {
     // mob's texture, boxes UV-map onto it and painted detail boxes (eyes,
     // patches) drop out; otherwise the rig keeps its original painted art.
     const skinDef = ENEMY_SKINS[defId ?? ""];
-    const bindSkin = (entity: EntitySkin | null): RigSkin | null => {
+    const bindSkin = (entity: EntitySkin | null, applyTint: boolean): RigSkin | null => {
       if (!entity) return null;
       const material = new THREE.MeshLambertMaterial({
         map: entity.texture,
         alphaTest: 0.05,
       });
-      if (skinDef?.tinted && tint) material.color.set(tint);
+      if (applyTint && tint) material.color.set(tint);
       return { material, width: entity.width, height: entity.height, k: entity.width / 64 };
     };
-    const rigSkin = skinDef ? bindSkin(this.materials.entitySkin(skinDef.key)) : null;
-    const woolSkin = skinDef?.wool ? bindSkin(this.materials.entitySkin(skinDef.wool)) : null;
+    // Dedicated variant art wins clean; while it's missing, the base-mob skin
+    // fills in with the variant's tint recolor (the pre-art placeholder look).
+    const primarySkin = skinDef ? this.materials.entitySkin(skinDef.key) : null;
+    const fallbackSkin = !primarySkin && skinDef?.fallback ? this.materials.entitySkin(skinDef.fallback) : null;
+    const rigSkin = bindSkin(primarySkin ?? fallbackSkin, !primarySkin && !!skinDef?.tinted);
+    const woolSkin = skinDef?.wool ? bindSkin(this.materials.entitySkin(skinDef.wool), !!skinDef?.tinted) : null;
     /** UV-mapped box when skinned (uvDims: region size if it differs from geometry). */
     const skinned = (
       s: RigSkin | null,
@@ -4096,11 +4111,19 @@ export class GameRenderer {
     if (mobModelId) {
       const built = buildBBModel(mobModelId);
       if (built) {
-        if (tint) for (const m of built.materials) m.color.set(tint); // variant recolor (multiplies the skin)
+        // When a variant's own skin has been delivered (an `entity.<name>`
+        // texture — see ASSETS_NEEDED.md §2b), lay it over the model instead
+        // of tint-recoloring the base mob's baked art.
+        const dedicated = defId ? this.materials.entitySkin(`entity.${defId.slice("enemy.".length)}`) : null;
+        if (dedicated) {
+          for (const m of built.materials) { m.map = dedicated.texture; m.color.set("#ffffff"); }
+        } else if (tint) for (const m of built.materials) m.color.set(tint); // pre-art variant recolor (multiplies the skin)
         // A few bb-models are authored facing the opposite way to the rest of
-        // the pack (verified empirically with camera-facing line-ups): spin
-        // those rigs 180° so they walk forwards instead of rear-first.
-        if (mobModelId === "mob.sheep" || mobModelId === "mob.cow") built.group.rotation.y += Math.PI;
+        // the pack: the sheep's head-bone cubes sit at +z (HeadGroup z 6.5..15)
+        // while cow/pig/chicken snouts point -z like every other rig. Spin only
+        // the sheep 180° so it walks forwards — the cow already faces -z and
+        // flipping it made it walk rear-first.
+        if (mobModelId === "mob.sheep") built.group.rotation.y += Math.PI;
         body.add(built.group);
         // Procedural animation off the bone names: legs and arms swing on the
         // walk cycle (the existing leg loop drives anim.legs), wings flap, and

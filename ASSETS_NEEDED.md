@@ -146,6 +146,65 @@ separate Blockbench model system, not these.
 Optional: a proper **player skin** (`entity.player`) — currently a simple
 original skin.
 
+### 2b. Recolored mob variants — each needs its own skin (28 files)
+
+Today these mobs are **tint-recolors** of a base mob's texture (the whole
+skin multiplied by one colour), so families of enemies look like palette
+swaps. Each wants its own hand-drawn skin on the **same box-UV layout as its
+base mob** — same canvas, same part placement, new art.
+
+**What to call the file (exactly):** deliver each PNG at the path below,
+inside `assets/minecraft/textures/entity/` of the texture pack zip. The
+engine is pre-wired for these names (`src/texturepacks/entities.ts`) — the
+moment the file exists, that mob stops being a recolor, no code edit needed.
+To bake them into the shipped defaults, run
+`node scripts/bake-default-textures.mjs <pack.zip>` (regenerates
+`src/render/default-textures.ts`).
+
+The "tint today" hex is the current recolor — treat it as the colour
+direction for the new art, not a constraint.
+
+| Mob (name) | Enemy id | Base layout to follow | Canvas | Tint today | **Deliver file as** |
+|---|---|---|---|---|---|
+| Frost Wolf | `enemy.frost_wolf` | `wolf/wolf.png` | 64×32 | `#dfe6ea` icy white | `wolf/frost_wolf.png` |
+| Dire Wolf | `enemy.dire_wolf` | `wolf/wolf.png` | 64×32 | `#3a3f47` near-black | `wolf/dire_wolf.png` |
+| Ash Hound | `enemy.ash_hound` | `wolf/wolf.png` | 64×32 | `#6a352a` ember red | `wolf/ash_hound.png` |
+| Gloom Spinner | `enemy.gloom_spinner` | `spider/spider.png` | 64×32 | `#7a4f9b` violet | `spider/gloom_spinner.png` |
+| Dust Scuttler | `enemy.dust_scuttler` | `spider/spider.png` | 64×32 | `#a08153` sandy | `spider/dust_scuttler.png` |
+| Vine Stalker | `enemy.vine_stalker` | `spider/spider.png` | 64×32 | `#3f6b2f` leafy | `spider/vine_stalker.png` |
+| Thornback Spider | `enemy.thornback` | `spider/spider.png` | 64×32 | `#5a4a2f` bramble | `spider/thornback.png` |
+| Ember Crawler | `enemy.ember_crawler` | `spider/spider.png` | 64×32 | `#8a3a2a` magma | `spider/ember_crawler.png` |
+| Old Gnasher (boss) | `enemy.old_gnasher` | `spider/cave_spider.png` | 64×32 | — (uses cave spider art) | `spider/old_gnasher.png` |
+| Bog Slime | `enemy.bog_slime` | `slime/slime.png` | 64×32 | `#5d8c3a` murky green | `slime/bog_slime.png` |
+| Blight Slime | `enemy.blight_slime` | `slime/slime.png` | 64×32 | `#8a5fae` corrupt purple | `slime/blight_slime.png` |
+| Bramble Slime | `enemy.bramble_slime` | `slime/slime.png` | 64×32 | `#6b8a3a` thorny | `slime/bramble_slime.png` |
+| Marsh Lurker | `enemy.marsh_lurker` | `slime/slime.png` | 64×32 | `#4a5f3a` swamp | `slime/marsh_lurker.png` |
+| The Silt King (boss) | `enemy.silt_king` | `slime/slime.png` | 64×32 | `#7a6f45` silt gold | `slime/silt_king.png` |
+| Mire Husk | `enemy.mire_husk` | `zombie/zombie.png` | 64×64 | `#5f7355` bog green | `zombie/mire_husk.png` |
+| Dune Husk | `enemy.dune_husk` | `zombie/husk.png` | 64×64 | `#b9a065` sun-dried | `zombie/dune_husk.png` |
+| Glacial Wight | `enemy.glacial_wight` | `zombie/husk.png` | 64×64 | `#bcd6e6` frozen | `zombie/glacial_wight.png` |
+| Grave Shambler | `enemy.grave_shambler` | `zombie/zombie.png` | 64×64 | `#4a5548` graveyard | `zombie/grave_shambler.png` |
+| Hollow Wight | `enemy.hollow_wight` | `zombie/zombie.png` | 64×64 | `#9fb8c9` spectral | `zombie/hollow_wight.png` |
+| Spore Shambler | `enemy.spore_shambler` | `zombie/zombie.png` | 64×64 | `#b9a6c4` fungal | `zombie/spore_shambler.png` |
+| Prairie Bull | `enemy.prairie_bull` | `cow/cow.png` | 64×32 | `#7a5a3a` tawny | `cow/prairie_bull.png` |
+| Wild Boar | `enemy.boar` | `pig/pig.png` | 64×32 | `#6b4a34` bristle brown | `pig/boar.png` |
+| Barrow Lord (boss) | `enemy.barrow_lord` | `skeleton/skeleton.png` | 64×32 | `#c8ccd6` bone pale | `skeleton/barrow_lord.png` |
+| Canyon Construct (boss) | `enemy.canyon_construct` | iron-golem-ish | 64×64 | `#9c6b4a` red rock | `golem/canyon_construct.png` |
+| Rust-seized Construct | `enemy.rust_construct` | iron-golem-ish | 64×64 | `#7a6355` rust | `golem/rust_construct.png` |
+| Rootbound Warden | `enemy.rootbound_warden` | iron-golem-ish | 64×64 | `#4f6b3a` overgrown | `golem/rootbound_warden.png` |
+| Moss Golem | `enemy.moss_golem` | iron-golem-ish | 64×64 | `#4f7a3a` mossy | `golem/moss_golem.png` |
+| Stone Sentinel | `enemy.stone_sentinel` | iron-golem-ish | 64×64 | `#7a7a7a` granite | `golem/stone_sentinel.png` |
+| The Liftworks Overseer (boss) | `enemy.liftworks_overseer` | iron-golem-ish | 64×64 | `#5a6a72` machined steel | `golem/liftworks_overseer.png` |
+
+> Note on the six construct/golem skins: the construct rig is painted boxes
+> today (no UV mapping yet). Deliver the art on the iron-golem layout and the
+> rig gets UV-mapped to it when the files land — everything else in this
+> table applies the moment the file exists.
+>
+> `enemy.timber_wolf` intentionally shares the base `wolf/wolf.png` — it *is*
+> the plain wolf. Everything else above stops being a palette swap once its
+> file is delivered.
+
 ---
 
 ## 3. Voxel props → per-face block textures  (needs a decision)

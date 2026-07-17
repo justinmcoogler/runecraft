@@ -23,6 +23,18 @@ import {
   type EditorTreePlacement,
 } from "./layer";
 
+/** Dev mode unlocks owner-only tooling (the world editor with its
+ *  delete-asset-from-game switch). Playtesters never see it: enable with
+ *  ?dev in the URL, or localStorage.setItem("runecraft.dev", "1"). */
+export function isDevMode(): boolean {
+  try {
+    if (/[?&#]dev(?:[=&#]|$)/.test(window.location.search + window.location.hash)) return true;
+    return window.localStorage.getItem("runecraft.dev") === "1";
+  } catch {
+    return false;
+  }
+}
+
 interface PaletteEntry {
   label: string;
   kind: "tree" | "structure" | "node" | "object" | "enemy";
@@ -134,7 +146,13 @@ export class WorldEditor implements EditorInputTarget {
     this.panel.className = "editor-panel";
     this.panel.style.display = "none";
     this.buildPanel();
-    (deps.hudRoot.querySelector(".settings-actions") ?? deps.hudRoot).append(this.toggleButton);
+    // The world editor (including the delete-asset-from-game tool) is a dev
+    // tool: its toggle only appears in dev mode, so playtesters can't reach
+    // it. Turn it on with ?dev in the URL, or from the console with
+    // localStorage.setItem("runecraft.dev", "1") and a refresh.
+    if (isDevMode()) {
+      (deps.hudRoot.querySelector(".settings-actions") ?? deps.hudRoot).append(this.toggleButton);
+    }
     deps.hudRoot.append(this.banner, this.panel);
   }
 
