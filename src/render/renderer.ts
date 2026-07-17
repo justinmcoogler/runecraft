@@ -4111,6 +4111,27 @@ export class GameRenderer {
     if (mobModelId) {
       const built = buildBBModel(mobModelId);
       if (built) {
+        // The baked sheep model carries only the shorn-skin texture, so its
+        // wool-overlay cubes (baked with the same UVs as the body underneath)
+        // sampled bare skin — the sheep looked shorn. Rebind exactly those
+        // cubes (identified by their unique wool-shell dimensions) to the real
+        // sheep_wool texture: same layout, so the baked UVs land on the fleece.
+        if (mobModelId === "mob.sheep") {
+          const wool = this.materials.entitySkin("entity.sheep.wool");
+          if (wool) {
+            const woolMat = new THREE.MeshLambertMaterial({ map: wool.texture, alphaTest: 0.05 });
+            const WOOL_DIMS = new Set(["12x20x9", "7x6.5x7", "5x6x5"]);
+            built.group.traverse((o) => {
+              const mesh = o as THREE.Mesh;
+              const geo = mesh.geometry as THREE.BoxGeometry | undefined;
+              if (!mesh.isMesh || !geo?.parameters) return;
+              const px = [geo.parameters.width, geo.parameters.height, geo.parameters.depth]
+                .map((v) => Math.round((v / P) * 2) / 2).join("x");
+              if (WOOL_DIMS.has(px)) mesh.material = woolMat;
+            });
+            built.materials.push(woolMat); // variant tints recolor the fleece too
+          }
+        }
         // When a variant's own skin has been delivered (an `entity.<name>`
         // texture — see ASSETS_NEEDED.md §2b), lay it over the model instead
         // of tint-recoloring the base mob's baked art.

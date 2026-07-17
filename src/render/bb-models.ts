@@ -53,6 +53,31 @@ const MODELS: Map<string, BBModel> = new Map(
   ].map((m) => [m.id, m]),
 );
 
+// ── Baked-data fixups ────────────────────────────────────────────────────
+// The BetaSharp pig exports its snout with box-UV at (24,0) — an empty region
+// of the Faithful pig texture, so alphaTest discarded the whole nose. The
+// painted snout art lives at the vanilla texOffs (16,16) as a 4×3×1 region;
+// stretch its rects over the model's 4×4×2 snout cube per face.
+{
+  const pig = MODELS.get("mob.pig");
+  const snout = pig
+    ? Object.values(pig.elements).find(
+      (c) => c.uv?.[0] === 24 && c.uv?.[1] === 0 && c.t[0] - c.f[0] === 4 && c.t[2] - c.f[2] === 2,
+    )
+    : undefined;
+  if (snout) {
+    delete snout.uv;
+    snout.fuv = {
+      north: [17, 17, 21, 20], // nose front (nostrils)
+      south: [22, 17, 26, 20],
+      east: [16, 17, 17, 20],
+      west: [21, 17, 22, 20],
+      up: [17, 16, 21, 17],
+      down: [21, 16, 25, 17],
+    };
+  }
+}
+
 export function bbModelIds(): string[] {
   return [...MODELS.keys()];
 }
