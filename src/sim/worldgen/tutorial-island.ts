@@ -21,7 +21,7 @@ const BASE = 6; // walk-surface of the sunken path
 const BANK = BASE + 2; // the field on either side — two blocks up, so unwalkable
 const HALF = 3; // path half-width (7-wide path)
 const CLEAR_R = 9; // clearing radius at each master (a roomy 19-cell area)
-const STOPS = 32; // camp + 30 tutors + gate
+const STOPS = 30; // camp + 28 tutors + gate
 const LEGS = 5; // sweeping passes down the island
 const LEG_GAP = 42; // vertical spacing between passes
 const Z_TOP = 30;
@@ -68,6 +68,9 @@ interface Tutor {
   skin: string;
   ground: BlockType;
   station?: string;
+  /** A second workstation in the same bay (the smith's furnace, the
+   *  herbalist's cauldron) — merged skills teach both halves at one stop. */
+  extra?: string;
   pen?: string;
   water?: boolean;
   combat?: boolean;
@@ -80,16 +83,14 @@ const TUTORS: Tutor[] = [
   { skill: "skill.foraging", skin: "forager", ground: "grass", station: "resource.bush.berry" },
   { skill: "skill.fishing", skin: "angler", ground: "sand", station: "resource.fishing.pond", water: true },
   { skill: "skill.cooking", skin: "cook", ground: "coarsedirt", station: "object.campfire.basic" },
-  { skill: "skill.smelting", skin: "smelter", ground: "stonebrick", station: "object.furnace.basic" },
-  { skill: "skill.smithing", skin: "smith", ground: "stonebrick", station: "object.anvil.basic" },
+  { skill: "skill.smithing", skin: "smith", ground: "stonebrick", station: "object.anvil.basic", extra: "object.furnace.basic" },
   { skill: "skill.attack", skin: "warrior", ground: "coarsedirt", pen: "enemy.pig", combat: true },
   { skill: "skill.farming", skin: "farmer", ground: "dirt", station: "resource.plot.wheat" },
-  { skill: "skill.herblore", skin: "herbalist", ground: "grass", station: "resource.herb.sage" },
+  { skill: "skill.herblore", skin: "herbalist", ground: "grass", station: "resource.herb.sage", extra: "object.cauldron.basic" },
   { skill: "skill.crafting", skin: "crafter", ground: "coarsedirt", station: "object.workbench.basic" },
   { skill: "skill.archaeology", skin: "scholar", ground: "sand", station: "resource.digsite.basic" },
   { skill: "skill.archery", skin: "ranger", ground: "grass", pen: "enemy.target_dummy" },
   { skill: "skill.construction", skin: "builder", ground: "coarsedirt", station: "object.buildsite.ramp" },
-  { skill: "skill.brewing", skin: "brewer", ground: "grass", station: "object.cauldron.basic" },
   { skill: "skill.enchanting", skin: "enchanter", ground: "purpur", station: "object.enchanter.basic" },
   { skill: "skill.hunting", skin: "hunter", ground: "grass", station: "resource.trail.rabbit", pen: "enemy.chicken" },
   { skill: "skill.thieving", skin: "rogue", ground: "coarsedirt", station: "resource.stall.market" },
@@ -271,6 +272,13 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
         } else {
           objects.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell });
         }
+      }
+      // A second workstation beside the first (the smith's furnace, the
+      // herbalist's cauldron): merged skills teach both halves at one stop.
+      if (t.extra) {
+        const ecell = off(CLEAR_R - 4, 1);
+        disc(ecell.x, ecell.z, 2, "coarsedirt");
+        objects.push({ instanceId: `tut.extra.${short}`, defId: t.extra, cell: ecell });
       }
     }
 

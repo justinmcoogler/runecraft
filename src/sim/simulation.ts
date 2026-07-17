@@ -959,7 +959,9 @@ export class GameSimulation {
         if (this.minion.strikeCooldownS <= 0) {
           // The minion worries whatever the player is fighting.
           const targetId = this.actions.currentTargetId();
-          if (targetId && this.enemies.minionStrike(targetId, this.minion.dmg)) {
+          // Mastery sharpens every servant: +1 damage per 12 Necromancy levels.
+          const dmg = this.minion.dmg + Math.floor(this.skills.levelOf("skill.necromancy") / 12);
+          if (targetId && this.enemies.minionStrike(targetId, dmg)) {
             this.minion.strikeCooldownS = 2.4;
             this.skills.grantXp("skill.necromancy", 2);
           } else {

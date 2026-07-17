@@ -288,3 +288,58 @@ pack's `torch.png` also overrides them):
   ranger, sailor…), but bespoke 64×64 skins would look sharper.
 - The trail zones reuse existing props; dedicated art for an **archery range**,
   **spirit grove**, **graveyard** and **dig site** would sell those zones more.
+
+## Mob skin variations to generate (2026-07-17)
+
+Rigs are shared; today the variants below differ only by a flat color tint on
+the base skin. Each needs its own generated texture (same UV layout as the
+base Minecraft-style skin for that rig).
+
+**Spider rig** (base: spider) — 6 variants:
+- Cave Spider (teal-blue, venomous look)
+- Gloom Spinner (purple, faint glow markings)
+- Dust Scuttler (sandy tan, desert-dusted)
+- Vine Stalker (leafy green, vine wraps)
+- Thornback (brown, thorned carapace)
+- Ember Crawler (charred black + ember-orange cracks)
+
+**Husk/zombie-body rig** (base: zombie/husk) — 6 variants:
+- Grave Shambler (rotted grey-green, torn shroud)
+- Hollow Wight (pale blue-white, ghostly hollow eyes)
+- Mire Husk (swamp green, moss + dripping mud)
+- Dune Husk (sun-dried tan, sand-cracked)
+- Spore Shambler (lavender fungus, mushroom growths)
+- Glacial Wight (ice blue-white, frost crystals)
+
+**Construct/golem rig** — 6 variants:
+- Canyon Construct (red-brown sandstone slabs)
+- Rust Construct (corroded iron plates)
+- Rootbound Warden (bark + roots, green moss joints)
+- Liftworks Overseer (slate + brass machinery)
+- Moss Golem (mossy stone, leafy shoulders)
+- Stone Sentinel (plain grey stone, runic seams)
+
+**Slime rig** — 5 variants:
+- Bog Slime (murky green), Blight Slime (corrupt purple),
+  Silt King (muddy gold, crown marking — boss), Bramble Slime (green with
+  thorn flecks), Marsh Lurker (dark reed-green, eyes only)
+
+**Wolf rig** — 4 variants + 1 spirit:
+- Timber Wolf (grey-brown), Frost Wolf (white-blue), Dire Wolf (near-black,
+  scarred), Ash Hound (soot + ember eyes)
+- Spirit mount overlay style (translucent blue glow) is applied in-engine —
+  no extra texture needed.
+
+**Skeleton rig** — 2 variants:
+- Skeleton (bone white), Barrow Lord (silvered bone, crowned, gold trim — boss)
+
+**Cattle/pig rigs** — 2 variants:
+- Prairie Bull (dark horns, brown coat) on the cow rig
+- Boar (dark bristled coat, tusks) on the pig rig
+
+**Necromancy minions / undead servants** (reuse skeleton, stray, drowned,
+hollow-wight, grave-shambler, barrow-lord skins; the necrotic green glow is
+applied in-engine — no extra texture needed).
+
+Priority order: husk rig, spider rig, construct rig (most on-screen overlap
+today), then slimes, wolves, skeleton, cattle.

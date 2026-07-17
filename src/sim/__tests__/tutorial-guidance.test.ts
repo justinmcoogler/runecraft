@@ -40,15 +40,15 @@ describe("tutorial guidance resilience", () => {
   it("guidance re-pins the next lesson even if tracking is lost after construction", () => {
     const sim = GameSimulation.createTutorial(7);
     sim.tick();
-    completeThrough(sim, "quest.tut_brewing");
+    completeThrough(sim, "quest.tut_enchanting");
     expect(sim.quests.states["quest.tut_construction"].status).toBe("completed");
     // Simulate the tracked quest getting lost (reload quirk / dropped event).
     sim.trackedQuestId = null;
     sim.tick();
-    expect(sim.trackedQuestId).toBe("quest.tut_brewing");
+    expect(sim.trackedQuestId).toBe("quest.tut_enchanting");
     const target = activeQuestTarget(sim);
     expect(target, "guidance should point at the next master").not.toBeNull();
-    expect(target!.label).toContain("Hops");
+    expect(target!.label).toContain("Lumen");
   });
 
   it("the enchanting lesson completes through the REAL craft pipeline", () => {
