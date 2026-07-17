@@ -1607,19 +1607,27 @@ function stampFarmyard(
       });
     }
   } else {
-    // A tilled field: coarse-earth rows with plots (and ready crops) planted
-    // every other cell, so it reads as worked farmland from above.
+    // A tilled field that reads as FARMLAND, not a dirt patch: alternating
+    // furrows — dark watered rows (mud) between coarse-earth walking rows —
+    // with the watered rows full of standing, already-grown crops (the
+    // ready-to-harvest crop nodes) and a couple of plantable Farming plots
+    // mixed in for the skill.
     const pick = FIELD_CROPS[Math.floor(cellHash(cx * 7 + k, cz * 11 + k * 5, salt(seed, 125)) * FIELD_CROPS.length)];
     for (let dz = 0; dz < d; dz++) {
-      for (let dx = 0; dx < w; dx++) blocks[(pz + dz) * ECHUNK + (px + dx)] = BLOCK_ID.coarsedirt;
+      const row = BLOCK_ID[dz % 2 === 1 ? "mud" : "coarsedirt"];
+      for (let dx = 0; dx < w; dx++) blocks[(pz + dz) * ECHUNK + (px + dx)] = row;
     }
+    // Fields whose plot kind has no standing-crop art (carrot/potato/corn)
+    // still show golden wheat rows — a mixed smallholding.
+    const standing = pick.crop ?? "resource.crop.wheat";
+    const pumpkin = standing === "resource.crop.pumpkin";
     let n = 0;
     for (let dz = 1; dz < d - 1; dz += 2) {
-      for (let dx = 1; dx < w - 1; dx += 2) {
-        const ready = pick.crop && (n + dz) % 2 === 0;
+      for (let dx = 1; dx < w - 1; dx += pumpkin ? 2 : 1) {
+        const isPlot = (dx + dz) % 3 === 0; // a few plantable plots among the crop
         nodes.push({
           instanceId: `${pre}.c${n++}`,
-          defId: ready ? pick.crop! : pick.plot,
+          defId: isPlot ? pick.plot : standing,
           cell: { x: x0 + px + dx, z: z0 + pz + dz },
         });
       }
