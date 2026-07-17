@@ -2666,14 +2666,16 @@ export class GameRenderer {
           const wood = this.lambert("resource.tree.log.side");
           const leaf = new THREE.Group();
           leaf.position.set(-0.5, 0, 0); // hinge at the left fence post
-          for (const py of [0.6, 1.15]) {
+          // Rails at the fence's own rail heights (0.469 / 0.844) so the gate
+          // hangs level with the run instead of floating above the posts.
+          for (const py of [0.469, 0.844]) {
             const rail = new THREE.Mesh(new THREE.BoxGeometry(1, 0.16, 0.16), wood);
             rail.position.set(0.5, py, 0); // spans post to post
             leaf.add(rail);
           }
           for (const sx of [0.15, 0.5, 0.85]) {
-            const slat = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.62, 0.13), wood);
-            slat.position.set(sx, 0.875, 0);
+            const slat = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.55, 0.13), wood);
+            slat.position.set(sx, 0.657, 0);
             leaf.add(slat);
           }
           leaf.userData.doorLeaf = true;
