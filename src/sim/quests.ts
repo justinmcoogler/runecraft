@@ -163,6 +163,24 @@ export class QuestService {
       }
       const objective = this.activeObjective(id);
       if (!objective) continue;
+      // Reporting back to the giver with the lesson already done: a "train"
+      // objective normally ticks on the xpGained event the moment the craft
+      // happens, but if that beat was ever missed (a reload between the deed
+      // and the report, doing the craft before formally accepting), the quest
+      // would wedge forever on a step the player has already performed. The
+      // giver checks the ledger instead: any xp in the skill counts the deed.
+      if (objective.type === "train" && def.giverNpcId === npcId &&
+        (this.deps.skills.xp[objective.skillId!] ?? 0) > 0) {
+        this.advance(id);
+        this.autoAdvance(id);
+        // The same conversation satisfies an immediately-following report step.
+        const next = this.activeObjective(id);
+        if (next?.type === "talk" && next.npcId === npcId) {
+          this.advance(id);
+          this.autoAdvance(id);
+        }
+        continue;
+      }
       if (objective.type === "talk" && objective.npcId === npcId) {
         this.advance(id);
         this.autoAdvance(id);

@@ -824,6 +824,7 @@ export class GameSimulation {
     // walk straight through a newly-streamed tree or rock.
     this.revalidatePath();
     this.unstickFromBlockers();
+    this.healTutorialTracking();
     const commands = this.queue;
     this.queue = [];
     for (const c of commands) this.route(c);
@@ -972,15 +973,37 @@ export class GameSimulation {
    *  (welcome → each lesson → graduation) so the guidance beacon and map marker
    *  lead straight on to the following master. */
   private trackNextTutorialQuest(completedId: string): void {
-    const chain = [
-      "quest.tut_welcome",
-      ...TUTORIAL_ORDER.map((s) => `quest.tut_${s.slice("skill.".length)}`),
-      "quest.tut_graduation",
-    ];
+    const chain = GameSimulation.tutorialChain();
     const idx = chain.indexOf(completedId);
     if (idx < 0) return; // not a tutorial-chain quest
     const next = chain[idx + 1];
     this.trackedQuestId = next && this.quests.states[next]?.status !== "completed" ? next : null;
+  }
+
+  private static tutorialChainCache: string[] | null = null;
+  private static tutorialChain(): string[] {
+    return (GameSimulation.tutorialChainCache ??= [
+      "quest.tut_welcome",
+      ...TUTORIAL_ORDER.map((s) => `quest.tut_${s.slice("skill.".length)}`),
+      "quest.tut_graduation",
+    ]);
+  }
+
+  /** On the island the guidance beacon must never go dark: if tracking is
+   *  unset or stale (points at a finished lesson) and no lesson is active,
+   *  re-pin the next quest in the trail. The completion hook normally does
+   *  this, but any missed beat — a reload at the wrong moment, an event
+   *  dropped between systems — used to kill guidance for the rest of the
+   *  trail. This heals it every tick. */
+  private healTutorialTracking(): void {
+    if (this.world.region.id !== "region.tutorial") return;
+    const tracked = this.trackedQuestId;
+    if (tracked && this.quests.states[tracked] && this.quests.states[tracked].status !== "completed") return;
+    const next = GameSimulation.tutorialChain().find((id) => {
+      const st = this.quests.states[id]?.status;
+      return st === "active" || (st === "available" && this.quests.isAvailable(id));
+    });
+    if (next) this.trackedQuestId = next;
   }
 
   /** Set a persistent world flag and apply its terrain repair immediately. */
