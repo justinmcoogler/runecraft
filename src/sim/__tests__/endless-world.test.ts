@@ -176,3 +176,43 @@ describe("shoreline reeds", () => {
     expect(seen, "reeds should still exist on shorelines").toBeGreaterThan(0);
   });
 });
+
+describe("buildings and scatter keep their distance", () => {
+  it("no tree trunk lands within a crown's reach of a house", () => {
+    setValeActive(false);
+    let houses = 0;
+    for (const seed of SEEDS) {
+      // Collect houses and trees across a block of chunks (catches border leaks).
+      const boxes: Array<{ x0: number; z0: number; x1: number; z1: number }> = [];
+      const trees: Array<{ x: number; z: number; defId: string }> = [];
+      const boxIds: string[] = [];
+      for (let dz = -5; dz <= 5; dz++) {
+        for (let dx = -5; dx <= 5; dx++) {
+          const ch = generateChunk(seed, cc + dx, cc + dz);
+          for (const o of ch.objects) {
+            if (!o.defId.startsWith("object.house.")) continue;
+            houses++;
+            boxIds.push(o.instanceId);
+            const cells = [o.cell, ...(o.footprint ?? [])];
+            boxes.push({
+              x0: Math.min(...cells.map((c) => c.x)), x1: Math.max(...cells.map((c) => c.x)),
+              z0: Math.min(...cells.map((c) => c.z)), z1: Math.max(...cells.map((c) => c.z)),
+            });
+          }
+          for (const n of ch.nodes) {
+            if (n.defId.startsWith("resource.tree.")) trees.push({ ...n.cell, defId: n.defId });
+          }
+        }
+      }
+      const MARGIN = 2; // crowns overhang ~2+ cells; a trunk this close clips the roof
+      for (const t of trees) {
+        const hitIdx = boxes.findIndex((b) =>
+          t.x >= b.x0 - MARGIN && t.x <= b.x1 + MARGIN &&
+          t.z >= b.z0 - MARGIN && t.z <= b.z1 + MARGIN);
+        const hit = hitIdx >= 0 ? boxes[hitIdx] : undefined;
+        expect(hit, `${seed}: ${t.defId} at ${t.x},${t.z} inside ${hitIdx >= 0 ? boxIds[hitIdx] : ""} zone ${JSON.stringify(hit)}`).toBeUndefined();
+      }
+    }
+    expect(houses, "the sweep saw real houses").toBeGreaterThan(0);
+  });
+});

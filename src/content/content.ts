@@ -6629,6 +6629,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
     id: "enemy.bat", name: "Bat", level: 1, maxHealth: 6,
     attack: { cadenceS: 3.5, accuracy: 0.5, dmgMin: 1, dmgMax: 1 },
     aggroRadiusCells: 0, leashRadiusCells: 4, wanderRadiusCells: 4, respawnS: 45, xpOnDefeat: 15,
+    // The baked bat rig is genuinely tiny; scaled up so it reads on screen
+    // (it was a near-invisible dark blob, especially on cave stone).
+    scale: 1.8,
     loot: [], view: "bat",
   },
   "enemy.allay": {

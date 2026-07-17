@@ -1102,10 +1102,15 @@ export class GameRenderer {
       if (!near(cell, keep)) this.disposeObjectVisual(id, group);
     }
 
-    for (const placement of this.sim.world.region.enemies ?? []) {
+    // Stream enemy visuals from the LIVE system, not the build-time placement
+    // list — runtime spawns (hunt packs, world events, editor drops) must
+    // appear the moment they exist, not stay simulated-but-invisible.
+    for (const [id, enemy] of this.sim.enemies.enemies) {
       if (budget <= 0) break;
-      if (near(placement.cell, ENTITY_RADIUS) && !this.enemyViews.has(placement.instanceId)) {
-        this.addEnemyVisual(placement);
+      if (this.enemyViews.has(id)) continue;
+      const cell = enemy.movement.currentCell();
+      if (near(cell, ENTITY_RADIUS)) {
+        this.addEnemyVisual({ instanceId: id, defId: enemy.defId, cell });
         budget--;
       }
     }
@@ -3454,32 +3459,45 @@ export class GameRenderer {
           break;
         }
         case "object.portal.cave": {
-          // Cave mouth in the rock outcrop: the walls around this cell are
-          // real terrain blocks (see makeValeRegion); here we add the unit
-          // stone roof block bridging them, the dark void beneath it, and
-          // stalactite teeth — all axis-aligned to the grid.
-          const stone = this.lambert("terrain.stone");
-          const roof = this.tiledBox(1, 1, 1, stone);
-          roof.position.y = 2.5;
+          // A dungeon gateway built as a BLOCK PORTAL: two pillars and a
+          // lintel of the dungeon style's own material, with a color-coded
+          // glowing core — mineshafts read timber-and-gold, crypts bone-pale,
+          // seacaves teal, foundries ember-red — so you can tell what kind of
+          // crawl a gate drops into before you step through.
+          const style = /^dyn_([a-z]+)_/.exec(obj.portal?.targetRegionId ?? "")?.[1] ?? "crypt";
+          const PORTAL_STYLES: Record<string, { frame: string; core: string }> = {
+            mine: { frame: "resource.tree.log.side", core: "#ffb238" },
+            foundry: { frame: "terrain.netherbrick", core: "#ff5a2a" },
+            vault: { frame: "terrain.stonebrick", core: "#ffd84a" },
+            crypt: { frame: "terrain.calcite", core: "#cfe8ef" },
+            catacomb: { frame: "terrain.calcite", core: "#9fb8c9" },
+            warren: { frame: "terrain.coarsedirt", core: "#8ad251" },
+            hive: { frame: "terrain.terracotta", core: "#e8a13a" },
+            sanctum: { frame: "terrain.prismarine", core: "#c451ff" },
+            seacave: { frame: "terrain.prismarine", core: "#3fd6c4" },
+            frostwarren: { frame: "terrain.ice", core: "#9fd8ff" },
+          };
+          const ps = PORTAL_STYLES[style] ?? PORTAL_STYLES.crypt;
+          const frameMat = this.lambert(ps.frame);
+          for (const px of [-0.85, 0.85]) {
+            const pillar = this.tiledBox(0.7, 3, 0.7, frameMat);
+            pillar.position.set(px, 1.5, 0);
+            group.add(pillar);
+          }
+          const lintel = this.tiledBox(2.4, 0.7, 0.7, frameMat);
+          lintel.position.y = 3.3;
+          group.add(lintel);
           const void_ = new THREE.Mesh(
-            new THREE.BoxGeometry(0.96, 2.0, 0.96),
+            new THREE.BoxGeometry(1.0, 2.9, 0.5),
             new THREE.MeshBasicMaterial({ color: "#04060a" }),
           );
-          void_.position.y = 1.0;
-          group.add(roof, void_);
-          // Teeth hang from the roof over the open south face.
-          for (const [x, z, len] of [
-            [-0.32, 0.48, 0.28], [0.05, 0.48, 0.2], [0.34, 0.48, 0.26],
-          ] as const) {
-            const tooth = this.tiledBox(0.14, len, 0.14, stone);
-            tooth.position.set(x, 2.0 - len / 2, z);
-            group.add(tooth);
-          }
+          void_.position.y = 1.45;
+          group.add(void_);
           // A glowing portal membrane fills the mouth so the gate reads as
           // an active, lit entrance (not a dead dark hole). MeshBasic ignores
           // scene lighting → always full-bright, i.e. self-illuminated.
           const glowMat = new THREE.MeshBasicMaterial({
-            color: "#d63be0",
+            color: ps.core,
             transparent: true,
             opacity: 0.72,
             side: THREE.DoubleSide,
@@ -4487,7 +4505,10 @@ export class GameRenderer {
     // no keyframe animation), but a clear upgrade over the approximate rigs.
     const mobModelId = GameRenderer.MOB_VIEW_MODEL[kind];
     if (mobModelId) {
-      const built = buildBBModel(mobModelId, rigSkin?.material.map ?? undefined);
+      // NOTE: never feed pack/original rig skins into baked BB models — their
+      // UV islands are baked for their own texture layout, and an override
+      // atlas garbles them (the skeleton turned into white noise).
+      const built = buildBBModel(mobModelId);
       if (built) {
         // The baked sheep model carries only the shorn-skin texture, so its
         // wool-overlay cubes (baked with the same UVs as the body underneath)

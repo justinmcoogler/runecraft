@@ -1634,7 +1634,7 @@ function dressSkillHome(
     [ox - 2, oz + 1], [ox - 2, oz + d - 2], [ox + w + 1, oz + 1], [ox + w + 1, oz + d - 2],
     [ox + 1, oz + d + 1], [ox + w - 2, oz + d + 1], [ox + 1, oz - 2], [ox + w - 2, oz - 2],
   ];
-  const spots = ring.filter(([sx, sz]) => {
+  const usable = ([sx, sz]: [number, number]): boolean => {
     if (sx < 1 || sz < 1 || sx >= ECHUNK - 1 || sz >= ECHUNK - 1) return false;
     if (sx >= ox && sx < ox + w && sz >= oz && sz < oz + d) return false; // on the house
     const b = BLOCK_LIST[blocks[sz * ECHUNK + sx]];
@@ -1642,7 +1642,15 @@ function dressSkillHome(
     if (Math.abs(heights[sz * ECHUNK + sx] - anchor) > 2) return false;
     if (inStarterTown(seed, x0 + sx, z0 + sz)) return false;
     return true;
-  });
+  };
+  const spots = ring.filter(usable);
+  // Trees stand a full crown away from the walls — a trunk two cells out
+  // hangs its canopy straight through the roof.
+  const treeRing: Array<[number, number]> = [
+    [ox - 5, oz + 1], [ox + w + 4, oz + d - 2], [ox + 1, oz + d + 4], [ox + w - 2, oz - 5],
+    [ox - 5, oz + d + 4], [ox + w + 4, oz - 5],
+  ];
+  const treeSpots = treeRing.filter(usable);
   if (spots.length === 0) return;
   const fixtures: Array<{ kind: "node" | "obj"; defId: string }> = [
     ...theme.stations.map((s) => ({ kind: "obj" as const, defId: s })),
@@ -1650,13 +1658,21 @@ function dressSkillHome(
     ...theme.props.map((p) => ({ kind: "obj" as const, defId: p })),
   ];
   let si = 0;
+  let ti = 0;
   for (const fx of fixtures) {
-    if (si >= spots.length) break;
-    const [sx, sz] = spots[si++];
+    const isTree = fx.kind === "node" && fx.defId.startsWith("resource.tree.");
+    let sx: number, sz: number;
+    if (isTree) {
+      if (ti >= treeSpots.length) continue; // no clear ground: skip the tree
+      [sx, sz] = treeSpots[ti++];
+    } else {
+      if (si >= spots.length) break;
+      [sx, sz] = spots[si++];
+    }
     heights[sz * ECHUNK + sx] = anchor; // sit level with the yard
     const cell = { x: x0 + sx, z: z0 + sz };
-    if (fx.kind === "node") nodes.push({ instanceId: `${pre}.sk${si}`, defId: fx.defId, cell });
-    else objects.push({ instanceId: `${pre}.sk${si}`, defId: fx.defId, cell });
+    if (fx.kind === "node") nodes.push({ instanceId: `${pre}.sk${si + ti}`, defId: fx.defId, cell });
+    else objects.push({ instanceId: `${pre}.sk${si + ti}`, defId: fx.defId, cell });
   }
   // The resident stands in the yard (a spare spot, else the first).
   const [nx, nz] = spots[Math.min(si, spots.length - 1)];
@@ -2567,8 +2583,14 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
       }
     }
   }
+  // Clearance includes a margin: a trunk one cell outside a wall still hangs
+  // its crown through the roof (grand crowns reach ~4 cells), so scatter keeps
+  // a respectful distance from every stamped building, not just its footprint.
+  const HOUSE_MARGIN = 4;
   const inHouse = (lx: number, lz: number) =>
-    houseBoxes.some((b) => lx >= b.x0 && lx <= b.x1 && lz >= b.z0 && lz <= b.z1);
+    houseBoxes.some((b) =>
+      lx >= b.x0 - HOUSE_MARGIN && lx <= b.x1 + HOUSE_MARGIN &&
+      lz >= b.z0 - HOUSE_MARGIN && lz <= b.z1 + HOUSE_MARGIN);
 
   const step = 7;
   for (let gz = 2; gz < ECHUNK - 2; gz += step) {
