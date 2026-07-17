@@ -327,10 +327,24 @@ type HeightCache = Map<number, number>;
 const MAX_BRIDGE_SPAN = 40;
 
 /** Open, unfrozen water at this cell (river channel, lake or pool — not ocean-vs
- *  -inland distinction; used only to measure how wide a crossing is). */
-function isOpenWater(seed: number, x: number, z: number): boolean {
+ *  -inland distinction; used only to measure how wide a crossing is).
+ *  Memoized: the dock/bridge predicates re-probe the same cells hundreds of
+ *  times per chunk, and heightFields is the expensive part. */
+let waterCacheSeed = Number.NaN;
+const waterCache = new Map<number, boolean>();
+export function isOpenWater(seed: number, x: number, z: number): boolean {
+  if (waterCacheSeed !== seed) {
+    waterCache.clear();
+    waterCacheSeed = seed;
+  }
+  const key = x * 2097152 + z;
+  const hit = waterCache.get(key);
+  if (hit !== undefined) return hit;
   const f = heightFields(seed, x, z);
-  return f.ocean || f.riverCore > 0 || f.lake || f.pool;
+  const open = f.ocean || f.riverCore > 0 || f.lake || f.pool;
+  if (waterCache.size > 500_000) waterCache.clear();
+  waterCache.set(key, open);
+  return open;
 }
 
 /** Count contiguous open-water cells through (x,z) along a unit direction. */
@@ -369,78 +383,146 @@ function bridgeCrossingOk(seed: number, x: number, z: number, maxSpan: number): 
   const gx = dpx - dmx, gz = dpz - dmz;
   const len = Math.hypot(gx, gz);
   if (len < 1e-6) return narrowWaterCrossing(seed, x, z, maxSpan);
-  // Travel direction = perpendicular to the distance gradient.
+  // Travel direction = perpendicular to the distance gradient, snapped to its
+  // dominant axis and marched in whole cells. The exact integer run is stable
+  // from cell to cell, so wide water can't flicker orphan deck strips into
+  // existence the way the noisy float direction used to. A real crossing must
+  // also LAND ON THE ROAD on both banks — a road that merely brushes along a
+  // river never marches out onto it.
   const ux = -gz / len, uz = gx / len;
-  return waterRunAlong(seed, x, z, ux, uz, maxSpan) <= maxSpan;
+  const [sx, sz] = Math.abs(ux) >= Math.abs(uz) ? [1, 0] : [0, 1];
+  let span = 1;
+  for (const sgn of [1, -1]) {
+    let k = 1;
+    while (k <= maxSpan + 1 && isOpenWater(seed, x + sx * sgn * k, z + sz * sgn * k)) k++;
+    if (k > maxSpan) return false;
+    if (roadDist(seed, x + sx * sgn * k, z + sz * sgn * k) >= 4) return false;
+    span += k - 1;
+  }
+  return span <= maxSpan;
 }
 
 // A plank jetty length: where a road's line meets water too wide to bridge,
 // the first few water cells from the bank become a dock instead of dead-ending.
 const DOCK_LEN = 5;
 
-/** The road's travel direction at (x,z) (perpendicular to the distance-to-road
- *  gradient), or null off the road field. Shared by the dock deck and its
- *  fishing spot so they always agree. */
-function roadTravelDir(seed: number, x: number, z: number): { ux: number; uz: number } | null {
-  const s = 2;
-  const dpx = roadDist(seed, x + s, z), dmx = roadDist(seed, x - s, z);
-  const dpz = roadDist(seed, x, z + s), dmz = roadDist(seed, x, z - s);
-  if (![dpx, dmx, dpz, dmz].every(Number.isFinite)) return null;
-  const gx = dpx - dmx, gz = dpz - dmz;
-  const len = Math.hypot(gx, gz);
-  if (len < 1e-6) return null;
-  return { ux: -gz / len, uz: gx / len };
+// Pier proportions: a narrow walkway (5 wide) out from the bank, the last two
+// rows widening into the flat head (9 wide) where the fishing spot waits.
+const DOCK_WALK_HALF = 2;
+const DOCK_HEAD_HALF = 4;
+const DOCK_DIRS = [
+  { ax: 1, az: 0 }, { ax: -1, az: 0 }, { ax: 0, az: 1 }, { ax: 0, az: -1 },
+] as const;
+type DockDir = (typeof DOCK_DIRS)[number];
+
+/** True when (wx,wz) is THE anchor of a pier whose land lies along `d`: the
+ *  shore-hugging water cell on the road's centerline. One canonical anchor
+ *  exists per road dead-end (roadDist-minimal among its shore neighbors,
+ *  leftward neighbor winning ties), and the whole deck is stamped as a rigid
+ *  rectangle from it — so every pier comes out straight with a flat end. */
+export let anchorCacheSeed = Number.NaN;
+const anchorCache = new Map<number, boolean>();
+function isDockAnchor(seed: number, wx: number, wz: number, d: DockDir): boolean {
+  // Every cell of a pier probes the same handful of anchor slots, so the
+  // verdict is memoized — the pier costs one full evaluation, not dozens.
+  if (anchorCacheSeed !== seed) {
+    anchorCache.clear();
+    anchorCacheSeed = seed;
+  }
+  const key = (wx * 2097152 + wz) * 4 + DOCK_DIRS.indexOf(d);
+  const hit = anchorCache.get(key);
+  if (hit !== undefined) return hit;
+  const verdict = isDockAnchorUncached(seed, wx, wz, d);
+  if (anchorCache.size > 200_000) anchorCache.clear();
+  anchorCache.set(key, verdict);
+  return verdict;
 }
 
-/** How far along the jetty this water cell sits: the distance (in cells) to
- *  dry land along the road's travel direction, or 0 when no shore lies within
- *  DOCK_LEN either way (open water — not a dock cell). */
-function dockShoreK(seed: number, x: number, z: number): number {
-  const dir = roadTravelDir(seed, x, z);
-  if (!dir) return 0;
-  for (const sgn of [1, -1]) {
-    for (let k = 1; k <= DOCK_LEN; k++) {
-      if (!isOpenWater(seed, Math.round(x + dir.ux * sgn * k), Math.round(z + dir.uz * sgn * k))) {
-        return k;
+function isDockAnchorUncached(seed: number, wx: number, wz: number, d: DockDir): boolean {
+  if (!isOpenWater(seed, wx, wz) || isOpenWater(seed, wx + d.ax, wz + d.az)) return false;
+  // The pier must have room to run its full length over open water.
+  for (let k = 1; k < DOCK_LEN; k++) {
+    if (!isOpenWater(seed, wx - d.ax * k, wz - d.az * k)) return false;
+  }
+  const rd = roadDist(seed, wx, wz);
+  if (!(rd < 2.5)) return false;
+  // Exclusivity: within a 9-cell Chebyshev neighborhood, only the single best
+  // shore-water cell (lowest roadDist, position breaking ties) may anchor a
+  // pier — whatever direction its land lies. Diagonal staircase shores offer
+  // many candidate cells; without this each stamps a pier of its own and the
+  // decks telescope into a staircase.
+  for (let dz2 = -9; dz2 <= 9; dz2++) {
+    for (let dx2 = -9; dx2 <= 9; dx2++) {
+      if (dx2 === 0 && dz2 === 0) continue;
+      const nx = wx + dx2, nz = wz + dz2;
+      if (!isOpenWater(seed, nx, nz)) continue;
+      let touchesLand = false;
+      for (const d2 of DOCK_DIRS) {
+        if (!isOpenWater(seed, nx + d2.ax, nz + d2.az)) { touchesLand = true; break; }
+      }
+      if (!touchesLand) continue;
+      const nrd = roadDist(seed, nx, nz);
+      if (!(nrd < 2.5)) continue;
+      if (nrd < rd - 1e-9 || (Math.abs(nrd - rd) <= 1e-9 && (dz2 < 0 || (dz2 === 0 && dx2 < 0)))) {
+        return false;
       }
     }
   }
-  return 0;
+  // A concave-corner cell can hug land along two directions; the first viable
+  // direction in DOCK_DIRS order owns the pier so only one rectangle stamps.
+  for (const d2 of DOCK_DIRS) {
+    if (d2 === d) break;
+    if (isOpenWater(seed, wx + d2.ax, wz + d2.az)) continue;
+    let clear = true;
+    for (let k = 1; k < DOCK_LEN; k++) {
+      if (!isOpenWater(seed, wx - d2.ax * k, wz - d2.az * k)) { clear = false; break; }
+    }
+    if (clear) return false;
+  }
+  return true;
 }
 
-/** True when this water cell carries dock decking: a T-shaped pier — a narrow
- *  walkway out from the bank widening into a flat head at the end, where the
- *  fishing spot waits. */
-function dockCell(seed: number, x: number, z: number): boolean {
-  const rd = roadDist(seed, x, z);
-  if (rd >= 5) return false;
-  const k = dockShoreK(seed, x, z);
-  if (k === 0) return false;
-  // Near the bank the pier is a narrow walkway; the last two rows widen into
-  // the flat head.
-  return k >= DOCK_LEN - 1 ? rd < 5 : rd < 3;
+/** True when this water cell carries dock decking: it lies inside the rigid
+ *  T-shaped rectangle stamped seaward from some pier anchor. */
+export function dockCell(seed: number, x: number, z: number): boolean {
+  if (!isOpenWater(seed, x, z)) return false;
+  if (roadDist(seed, x, z) >= 8) return false; // cheap prefilter
+  // A pier cell always has land within DOCK_LEN straight along some cardinal
+  // (its own column reaches the shore) — open expanses reject right here.
+  let nearLand = false;
+  for (const d of DOCK_DIRS) {
+    for (let k = 1; k <= DOCK_LEN && !nearLand; k++) {
+      if (!isOpenWater(seed, x + d.ax * k, z + d.az * k)) nearLand = true;
+    }
+    if (nearLand) break;
+  }
+  if (!nearLand) return false;
+  for (const d of DOCK_DIRS) {
+    const px = d.az !== 0 ? 1 : 0;
+    const pz = d.az !== 0 ? 0 : 1;
+    // If the cell sits r rows seaward and w columns across from the anchor,
+    // the anchor is at cell + d*r + p*w — try every slot the cell could fill.
+    for (let r = 0; r < DOCK_LEN; r++) {
+      const half = r >= DOCK_LEN - 2 ? DOCK_HEAD_HALF : DOCK_WALK_HALF;
+      for (let w = -half; w <= half; w++) {
+        if (isDockAnchor(seed, x + d.ax * r + px * w, z + d.az * r + pz * w, d)) return true;
+      }
+    }
+  }
+  return false;
 }
 
-/** For a dock-head cell on the pier's centerline, the open-water cell just off
- *  the flat end — where the dock's fishing spot bobs. Null everywhere else, so
- *  each dock gets exactly one spot. */
+/** For the head-center cell of a pier, the open-water cell just off the flat
+ *  end — where the dock's fishing spot bobs. Null everywhere else, so each
+ *  dock gets exactly one spot. */
 function dockFishingCell(seed: number, x: number, z: number): Cell | null {
-  if (roadDist(seed, x, z) >= 1.3) return null; // centerline cells only
   // Bridges carry the road right across — only true dead-end piers (water too
   // wide to bridge) put out a fishing spot.
   if (bridgeCrossingOk(seed, x, z, MAX_BRIDGE_SPAN)) return null;
-  const dir = roadTravelDir(seed, x, z);
-  if (!dir) return null;
-  for (const sgn of [1, -1]) {
-    for (let k = 1; k <= DOCK_LEN; k++) {
-      if (!isOpenWater(seed, Math.round(x + dir.ux * sgn * k), Math.round(z + dir.uz * sgn * k))) {
-        if (k !== DOCK_LEN) return null; // not the head row
-        // Shore lies sgn-ward; the open water continues the other way.
-        const fx = Math.round(x - dir.ux * sgn * 2);
-        const fz = Math.round(z - dir.uz * sgn * 2);
-        return isOpenWater(seed, fx, fz) ? { x: fx, z: fz } : null;
-      }
-    }
+  for (const d of DOCK_DIRS) {
+    if (!isDockAnchor(seed, x + d.ax * (DOCK_LEN - 1), z + d.az * (DOCK_LEN - 1), d)) continue;
+    const fx = x - d.ax * 2, fz = z - d.az * 2;
+    return isOpenWater(seed, fx, fz) ? { x: fx, z: fz } : null;
   }
   return null;
 }
