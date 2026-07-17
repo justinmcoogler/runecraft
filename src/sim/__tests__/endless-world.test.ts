@@ -151,3 +151,28 @@ describe("the endless world", () => {
     expect(homes + structures, "wild homesteads/structures").toBeGreaterThan(0);
   }, 90000);
 });
+
+describe("shoreline reeds", () => {
+  it("root only on sand or dirt with water on a cardinal side", () => {
+    setValeActive(false);
+    let seen = 0;
+    for (const seed of SEEDS) {
+      for (let dz = -4; dz <= 4; dz++) {
+        for (let dx = -4; dx <= 4; dx++) {
+          const ch = generateChunk(seed, cc + dx, cc + dz);
+          for (const o of ch.objects) {
+            if (o.defId !== "object.reeds.water") continue;
+            seen++;
+            const here = terrainAt(seed, o.cell.x, o.cell.z);
+            expect(["sand", "dirt"], `${seed}: reed on ${here.block} at ${o.cell.x},${o.cell.z}`).toContain(here.block);
+            const wet = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(
+              ([ax, az]) => terrainAt(seed, o.cell.x + ax, o.cell.z + az).water,
+            );
+            expect(wet, `${seed}: reed away from water at ${o.cell.x},${o.cell.z}`).toBe(true);
+          }
+        }
+      }
+    }
+    expect(seen, "reeds should still exist on shorelines").toBeGreaterThan(0);
+  });
+});

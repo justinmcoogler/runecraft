@@ -36,3 +36,26 @@ describe("grid A*", () => {
     expect(findPath(world, { x: 0, z: 0 }, { x: 6, z: 0 })).toBeNull();
   });
 });
+
+describe("multi-registrant blockers", () => {
+  it("a cell stays blocked while any registrant remains", () => {
+    const world = new WorldState(makeTestRegion());
+    const cell = { x: 2, z: 2 };
+    // An ore and an overlapping tree footprint claim the same cell (this
+    // happens across chunk borders); retiring one must not free the other.
+    world.registerBlocker("ore.1", cell);
+    world.registerBlocker("tree.7", cell);
+    world.unregisterBlocker(cell, "tree.7");
+    expect(world.walkable(cell), "ore still stands — cell must stay blocked").toBe(false);
+    world.unregisterBlocker(cell, "ore.1");
+    expect(world.walkable(cell)).toBe(true);
+  });
+
+  it("unregistering a non-registrant is a no-op", () => {
+    const world = new WorldState(makeTestRegion());
+    const cell = { x: 5, z: 5 };
+    world.registerBlocker("ore.1", cell);
+    world.unregisterBlocker(cell, "someone.else");
+    expect(world.walkable(cell)).toBe(false);
+  });
+});

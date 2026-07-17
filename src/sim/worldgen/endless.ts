@@ -1586,7 +1586,7 @@ const SKILL_HOME_THEMES: SkillHomeTheme[] = [
     props: ["object.crate.wood", "object.barrel.wood"],
     npcName: "Blacksmith", lines: ["Steel doesn't forge itself.", "Fresh bars? I'll hammer you a blade."] },
   { id: "fishing", biomes: [4, 27, 35], stations: [], node: "resource.fishing.pond",
-    props: ["object.barrel.wood", "object.reeds.water"],
+    props: ["object.barrel.wood", "object.crate.wood"],
     npcName: "Angler", lines: ["The pond's biting today.", "Patience lands the big ones."] },
   { id: "cooking", biomes: [0, 6, 21], stations: ["object.campfire.basic"],
     props: ["object.barrel.wood", "object.crate.wood"],
@@ -1960,8 +1960,8 @@ export const SETTLEMENTS: Record<SettlementKind, SettlementDef> = {
   fishing_wharf: {
     dress: [
       { defId: "object.store.basic", dx: 0, dz: 0 },
-      { defId: "object.reeds.water", dx: -5, dz: 5 },
-      { defId: "object.reeds.water", dx: 5, dz: 5 },
+      { defId: "object.log.fallen", dx: -5, dz: 5 },
+      { defId: "object.crate.wood", dx: 5, dz: 5 },
       { defId: "object.barrel.wood", dx: 4, dz: 2 },
       { defId: "object.barrel.wood", dx: -4, dz: 2 },
       { defId: "object.crate.wood", dx: 5, dz: -3 },
@@ -2846,7 +2846,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
         case 27: // mangrove coast — brackish root-tangles
           if (r < 0.18) nodes.push({ instanceId: id(), defId: "resource.tree.willow", cell });
           else if (r < 0.28) nodes.push({ instanceId: id(), defId: "resource.tree.jungle", cell });
-          else if (r < 0.33) objects.push({ instanceId: id(), defId: "object.reeds.water", cell });
+          else if (r < 0.33) objects.push({ instanceId: id(), defId: "object.flora.wild", cell });
           else if (r < 0.35) nodes.push({ instanceId: id(), defId: "resource.herb.duskcap", cell });
           else if (r < 0.356) enemies.push({ instanceId: id(), defId: "enemy.bog_slime", cell });
           else if (r < 0.362) enemies.push({ instanceId: id(), defId: "enemy.marsh_lurker", cell });
@@ -3062,6 +3062,16 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
         }
         continue;
       }
+      // Reeds grow like sugar cane: rooted on sand or dirt at the water's
+      // edge, never floating in open water or scattered up on dry grass.
+      if (block === "sand" || block === "dirt") {
+        const touchesWater =
+          BLOCK_LIST[blocks[i - 1]] === "water" || BLOCK_LIST[blocks[i + 1]] === "water" ||
+          BLOCK_LIST[blocks[i - ECHUNK]] === "water" || BLOCK_LIST[blocks[i + ECHUNK]] === "water";
+        if (touchesWater && cellHash(wx, wz, salt(seed, 44)) < 0.3) {
+          objects.push({ instanceId: id(), defId: "object.reeds.water", cell });
+        }
+      }
       if (block !== "water") continue;
       const nearLand =
         BLOCK_LIST[blocks[i - 1]] !== "water" || BLOCK_LIST[blocks[i + 1]] !== "water" ||
@@ -3097,8 +3107,6 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
                 ? "resource.fishing.marsh"
                 : "resource.fishing.pond");
         nodes.push({ instanceId: id(), defId, cell });
-      } else if (r < 0.17) {
-        objects.push({ instanceId: id(), defId: "object.reeds.water", cell });
       }
       // River crossings, fired once per channel from its western land edge: a
       // fallen-log Agility hop over a narrow channel, so Agility trains out in

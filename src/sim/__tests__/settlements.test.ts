@@ -28,7 +28,7 @@ describe("settlement types", () => {
     expect(has("farmstead", "object.workbench.basic")).toBe(true);
     expect(has("monastery", "object.enchanter.basic")).toBe(true);
     expect(has("lumber_camp", "object.log.fallen")).toBe(true);
-    expect(has("fishing_wharf", "object.reeds.water")).toBe(true);
+    expect(has("fishing_wharf", "object.store.basic")).toBe(true);
     // A trade post fields more than one stall.
     expect(SETTLEMENTS.trade_post.dress.filter((d) => d.defId === "object.stall.market").length).toBeGreaterThan(1);
   });

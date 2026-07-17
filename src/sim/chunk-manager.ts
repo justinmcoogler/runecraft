@@ -106,9 +106,9 @@ export class ChunkManager {
       const obj = region.objects[i];
       if (!obj.instanceId.startsWith(prefix)) continue;
       if (OBJECTS[obj.defId].blocksNav) {
-        if (this.sim.world.blockerAt(obj.cell) === obj.instanceId) this.sim.world.unregisterBlocker(obj.cell);
+        this.sim.world.unregisterBlocker(obj.cell, obj.instanceId);
         for (const cell of obj.footprint ?? []) {
-          if (this.sim.world.blockerAt(cell) === obj.instanceId) this.sim.world.unregisterBlocker(cell);
+          this.sim.world.unregisterBlocker(cell, obj.instanceId);
         }
       }
       this.sim.containers.delete(obj.instanceId);

@@ -97,3 +97,35 @@ describe("tutorial guidance resilience", () => {
     expect(sim.quests.states["quest.tut_enchanting"].status).toBe("completed");
   });
 });
+
+  it("guidance survives the REAL construction repair (world-flag object removal)", () => {
+    const sim = GameSimulation.createTutorial(7);
+    sim.tick();
+    completeThrough(sim, "quest.tut_construction");
+    const def = QUESTS["quest.tut_construction"];
+    talk(sim, def.giverNpcId); // accept: gifts the bricks + planks
+    expect(sim.quests.states["quest.tut_construction"].status).toBe("active");
+    expect(activeQuestTarget(sim), "trail target after accepting").not.toBeNull();
+    // Walk to the wreck and actually rebuild it (the real build pipeline —
+    // grants XP, sets the completion flag, and REMOVES the buildsite object).
+    const site = sim.world.region.objects.find((o) => o.instanceId === "tut.station.construction")!;
+    expect(site, "buildsite exists").toBeTruthy();
+    sim.movement.setCellPosition(sim.world.nearestWalkable(site.cell, 4)!);
+    sim.enqueue({ type: "interact", targetId: "tut.station.construction" });
+    for (let i = 0; i < 200; i++) {
+      sim.tick();
+      const target = activeQuestTarget(sim);
+      expect(target, `trail target during/after repair (tick ${i})`).not.toBeNull();
+      // The dot trail also needs a walkable approach to the target.
+      expect(sim.world.nearestWalkable(target!.cell, 8), `approach reachable (tick ${i})`).not.toBeNull();
+    }
+    expect(sim.world.region.objects.find((o) => o.instanceId === "tut.station.construction"),
+      "buildsite consumed by the repair").toBeUndefined();
+    expect(sim.quests.states["quest.tut_construction"].objectiveIndex, "repair objective ticked").toBeGreaterThan(0);
+    // Report back — quest completes, pin hands on, trail still lit.
+    talk(sim, def.giverNpcId);
+    sim.tick();
+    expect(sim.quests.states["quest.tut_construction"].status).toBe("completed");
+    const after = activeQuestTarget(sim);
+    expect(after, "trail target after completion").not.toBeNull();
+  });

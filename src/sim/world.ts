@@ -165,7 +165,12 @@ export interface TerrainSource {
 
 export class WorldState {
   readonly region: RegionSpec;
-  private blockers = new Map<string, string>(); // cellKey -> instanceId
+  // cellKey -> every instance blocking that cell. A cell can host several
+  // registrants (a tree footprint spilling over an ore's cell across a chunk
+  // border, a solid build overlapping scatter) — a single-slot map let the
+  // second overwrite the first, and when the overwriter retired it freed the
+  // cell while the first blocker still stood there (players walked onto ores).
+  private blockers = new Map<string, Set<string>>();
   /** Absolute walk-surface height for cells inside imported structures (their
    *  floors/steps), so a build's blocks are climbable like Minecraft blocks
    *  rather than one flat blob. Terrain rendering still uses heightAt. */
@@ -227,15 +232,30 @@ export class WorldState {
   }
 
   registerBlocker(instanceId: string, cell: Cell): void {
-    this.blockers.set(cellKey(cell), instanceId);
+    const key = cellKey(cell);
+    const set = this.blockers.get(key);
+    if (set) set.add(instanceId);
+    else this.blockers.set(key, new Set([instanceId]));
   }
 
-  unregisterBlocker(cell: Cell): void {
-    this.blockers.delete(cellKey(cell));
+  /** Remove one registrant's claim on a cell — the cell stays blocked while
+   *  any other registrant remains. Without an instanceId, clears the cell. */
+  unregisterBlocker(cell: Cell, instanceId?: string): void {
+    const key = cellKey(cell);
+    if (instanceId === undefined) {
+      this.blockers.delete(key);
+      return;
+    }
+    const set = this.blockers.get(key);
+    if (!set) return;
+    set.delete(instanceId);
+    if (set.size === 0) this.blockers.delete(key);
   }
 
+  /** One of the instances blocking this cell (undefined when clear). */
   blockerAt(c: Cell): string | undefined {
-    return this.blockers.get(cellKey(c));
+    const set = this.blockers.get(cellKey(c));
+    return set ? set.values().next().value : undefined;
   }
 
   /** Debug: when on, movement ignores collision and elevation — walk anywhere,

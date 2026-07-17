@@ -628,6 +628,18 @@ export class GameRenderer {
     this.streamCenter = { x: -9999, z: -9999 };
     this.terrainMaxHeight = 0;
     this.terrainFaded = new Set();
+    // Quest-guidance visuals live in the scene that was just cleared — drop
+    // the handles too, or the beacon and dot trail keep pointing at orphaned
+    // meshes and the trail never shows again after a rebind (the construction
+    // repair's worldFlagSet rebind used to kill the trail for good).
+    if (this.tutorialBeacon) (this.tutorialBeacon.material as THREE.Material).dispose();
+    this.tutorialBeacon = null;
+    for (const d of this.questDots) (d.material as THREE.Material).dispose();
+    this.questDots = [];
+    this.guidePathKey = "";
+    this.guidePath = null;
+    this.guideWorld = null;
+    this.guideWorldFor = null;
 
     // Region mood: sky + light intensities (dungeons are dim).
     const theme = sim.world.region.theme ?? DEFAULT_THEME;
@@ -2185,22 +2197,37 @@ export class GameRenderer {
         case "object.buildsite.footbridge":
         case "object.buildsite.ford":
         case "object.buildsite.ramp": {
-          // A construction site: stacked materials and corner scaffold poles.
+          // A collapsed structure to repair: a low wreck — tilted fallen
+          // planks over a spill of stone-brick rubble, with a short marker
+          // stake — instead of the old two-storey scaffold arch that towered
+          // over everything and read as a weird gateway.
           const plankMat = this.lambert("terrain.plank");
-          const pile = this.tiledBox(1, 1, 1, plankMat);
-          pile.position.y = 0.5;
-          const halfPile = this.tiledBox(1, 0.5, 0.5, plankMat);
-          halfPile.position.set(0, 1.25, -0.2);
-          group.add(pile, halfPile);
-          const pole = this.lambert("resource.tree.log.side");
-          for (const [px, pz] of [[-0.6, -0.6], [0.6, 0.6]] as const) {
-            const scaffold = this.tiledBox(0.25, 2.2, 0.25, pole);
-            scaffold.position.set(px, 1.1, pz);
-            group.add(scaffold);
+          const brickMat = this.lambert("terrain.stonebrick");
+          // Rubble spill: offset brick chunks at jumbled angles.
+          for (const [bx, bz, s, ry] of [
+            [-0.25, 0.2, 0.42, 0.3], [0.3, -0.1, 0.36, 1.1], [0.05, 0.35, 0.3, 0.7],
+            [-0.35, -0.3, 0.3, 1.9], [0.4, 0.3, 0.26, 0.5],
+          ] as const) {
+            const chunk = this.tiledBox(s, s * 0.7, s, brickMat);
+            chunk.position.set(bx, s * 0.35, bz);
+            chunk.rotation.y = ry;
+            group.add(chunk);
           }
-          const beam = this.tiledBox(1.7, 0.25, 0.25, pole);
-          beam.position.set(0, 2.1, 0);
-          group.add(beam);
+          // Fallen planks leaning across the rubble.
+          const plankA = this.tiledBox(1.1, 0.09, 0.3, plankMat);
+          plankA.position.set(-0.1, 0.42, -0.05);
+          plankA.rotation.set(0, 0.5, -0.35);
+          const plankB = this.tiledBox(0.9, 0.09, 0.28, plankMat);
+          plankB.position.set(0.25, 0.3, 0.25);
+          plankB.rotation.set(0.15, -0.8, 0.2);
+          group.add(plankA, plankB);
+          // A short work stake with a plank marker — clickable, human-scale.
+          const pole = this.lambert("resource.tree.log.side");
+          const stake = this.tiledBox(0.16, 1.0, 0.16, pole);
+          stake.position.set(-0.55, 0.5, -0.45);
+          const marker = this.tiledBox(0.5, 0.22, 0.06, plankMat);
+          marker.position.set(-0.55, 0.85, -0.38);
+          group.add(stake, marker);
           break;
         }
         case "object.enchanter.basic": {
@@ -2771,24 +2798,32 @@ export class GameRenderer {
           // either side (which supply the posts, so we add none of our own).
           // Same log wood as object.fence.wood, so the fence line reads as one
           // build. The leaf is a doorLeaf so click-to-open/close rotates it.
-          const wood = this.lambert("resource.tree.log.side");
+          // Same pale plank as the oak_fence terrain blocks, and rails at the
+          // terrain fence's own band heights (0.5–0.7 / 1.05–1.25), so the
+          // gate reads as one build with the run it hangs in.
+          const wood = this.lambert("terrain.plank");
           const leaf = new THREE.Group();
           leaf.position.set(-0.5, 0, 0); // hinge at the left fence post
-          // Rails at the fence's own rail heights (0.469 / 0.844) so the gate
-          // hangs level with the run instead of floating above the posts.
-          for (const py of [0.469, 0.844]) {
-            const rail = new THREE.Mesh(new THREE.BoxGeometry(1, 0.16, 0.16), wood);
+          for (const py of [0.6, 1.15]) {
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(1, 0.2, 0.16), wood);
             rail.position.set(0.5, py, 0); // spans post to post
             leaf.add(rail);
           }
           for (const sx of [0.15, 0.5, 0.85]) {
-            const slat = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.55, 0.13), wood);
-            slat.position.set(sx, 0.657, 0);
+            const slat = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.75, 0.13), wood);
+            slat.position.set(sx, 0.875, 0);
             leaf.add(slat);
           }
           leaf.userData.doorLeaf = true;
           this.doorLeaves.set(obj.instanceId, leaf);
           group.add(leaf, makeBlobShadow(0.5));
+          // A fence neighbour is an object fence/gate OR a terrain fence/wall
+          // block (the tutorial pens are built from oak_fence terrain).
+          const fenceAt = (x: number, z: number): boolean => {
+            if (fenceCells.has(`${x},${z}`)) return true;
+            const shape = blockShape(this.sim.world.blockAt({ x, z }));
+            return shape === "fence" || shape === "wall";
+          };
           if (obj.facing) {
             group.rotation.y = obj.facing === "south" ? Math.PI
               : obj.facing === "east" ? -Math.PI / 2
@@ -2798,8 +2833,8 @@ export class GameRenderer {
             // No authored facing (worldgen pens): hang the leaf along the
             // fence line it sits in — fences north/south mean the run goes
             // that way, so the gate spans z instead of the default x.
-            const ns = fenceCells.has(`${obj.cell.x},${obj.cell.z - 1}`) || fenceCells.has(`${obj.cell.x},${obj.cell.z + 1}`);
-            const ew = fenceCells.has(`${obj.cell.x - 1},${obj.cell.z}`) || fenceCells.has(`${obj.cell.x + 1},${obj.cell.z}`);
+            const ns = fenceAt(obj.cell.x, obj.cell.z - 1) || fenceAt(obj.cell.x, obj.cell.z + 1);
+            const ew = fenceAt(obj.cell.x - 1, obj.cell.z) || fenceAt(obj.cell.x + 1, obj.cell.z);
             if (ns && !ew) group.rotation.y = Math.PI / 2;
           }
           break;

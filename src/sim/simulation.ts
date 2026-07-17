@@ -391,7 +391,7 @@ export class GameSimulation {
     if (!obj) return;
     const cells = [obj.cell, ...(obj.footprint ?? [])];
     for (const cell of cells) {
-      if (this.world.blockerAt(cell) === instanceId) this.world.unregisterBlocker(cell);
+      this.world.unregisterBlocker(cell, instanceId);
     }
     this.openDoors.set(instanceId, { cell: obj.cell, footprint: obj.footprint ?? [], remainS: DOOR_OPEN_S });
     this.events.emit({ type: "doorOpened", instanceId, cell: obj.cell });
@@ -691,13 +691,13 @@ export class GameSimulation {
         // Solid landmark: its whole mass was blocked (solidColumns) — free it.
         for (const col of solidColumns(asset)) {
           const cell = { x: placement.cell.x + col.x, z: placement.cell.z + col.z };
-          if (this.world.blockerAt(cell) === instanceId) this.world.unregisterBlocker(cell);
+          this.world.unregisterBlocker(cell, instanceId);
         }
       } else {
         const { surfaces, blocked } = walkableSurfaces(asset);
         for (const col of blocked) {
           const cell = { x: placement.cell.x + col.x, z: placement.cell.z + col.z };
-          if (this.world.blockerAt(cell) === instanceId) this.world.unregisterBlocker(cell);
+          this.world.unregisterBlocker(cell, instanceId);
         }
         for (const s of surfaces) {
           this.world.clearSurface({ x: placement.cell.x + s.x, z: placement.cell.z + s.z });
@@ -757,9 +757,9 @@ export class GameSimulation {
     // Drop any open-door timer for this object, or tickDoors would re-register
     // a blocker for a door that no longer exists.
     this.openDoors.delete(instanceId);
-    if (this.world.blockerAt(placement.cell) === instanceId) this.world.unregisterBlocker(placement.cell);
+    this.world.unregisterBlocker(placement.cell, instanceId);
     for (const cell of placement.footprint ?? []) {
-      if (this.world.blockerAt(cell) === instanceId) this.world.unregisterBlocker(cell);
+      this.world.unregisterBlocker(cell, instanceId);
     }
     list.splice(index, 1);
     return true;
@@ -1121,8 +1121,8 @@ export class GameSimulation {
     const region = this.world.region;
     for (const obj of [...region.objects]) {
       if (OBJECTS[obj.defId].completionFlag !== flag) continue;
-      this.world.unregisterBlocker(obj.cell);
-      for (const cell of obj.footprint ?? []) this.world.unregisterBlocker(cell);
+      this.world.unregisterBlocker(obj.cell, obj.instanceId);
+      for (const cell of obj.footprint ?? []) this.world.unregisterBlocker(cell, obj.instanceId);
       region.objects.splice(region.objects.indexOf(obj), 1);
     }
     this.events.emit({ type: "worldFlagSet", flag });

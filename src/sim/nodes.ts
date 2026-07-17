@@ -80,7 +80,7 @@ export class ResourceNodeSystem {
     const instance = this.instances.get(instanceId);
     if (!instance) return false;
     for (const cell of this.blockerCells(instance)) {
-      if (this.world.blockerAt(cell) === instanceId) this.world.unregisterBlocker(cell);
+      this.world.unregisterBlocker(cell, instanceId);
     }
     this.instances.delete(instanceId);
     return true;
