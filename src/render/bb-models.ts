@@ -218,10 +218,10 @@ export class BBAnimator {
 }
 
 /** Build a model instance: shared geometry is NOT used (bones own cubes). */
-export function buildBBModel(id: string): BuiltBBModel | null {
+export function buildBBModel(id: string, textureOverride?: THREE.Texture): BuiltBBModel | null {
   const model = MODELS.get(id);
   if (!model) return null;
-  const tex = bbTexture(model);
+  const tex = textureOverride ?? bbTexture(model);
   const material = new THREE.MeshLambertMaterial(
     tex ? { map: tex, alphaTest: 0.05 } : { color: "#a04040" },
   );
