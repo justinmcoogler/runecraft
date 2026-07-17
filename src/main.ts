@@ -184,7 +184,7 @@ async function boot(): Promise<void> {
   if (currentRegionId === "region.tutorial") {
     hud.toast("Welcome to Runecraft! Learn the ropes in the vale, then step through the glowing gateway to enter your own world.", "info");
   } else if (restored) hud.toast("Welcome back — progress restored.", "info");
-  else if (endlessMode) hud.toast("Grab the tools from the camp chest, then explore the wilds!", "info");
+  else if (endlessMode) hud.toast("Your pack holds a starter kit of tools — tap a tree or rock to get working, and follow the roads to find villages.", "info");
   else hud.toast("Tap a tree to start chopping!", "info");
 
   // The world editor: place and remove imported structures live.

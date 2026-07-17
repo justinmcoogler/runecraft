@@ -188,6 +188,7 @@ export function questLog(sim: GameSimulation): QuestLogEntry[] {
   const entries: QuestLogEntry[] = [];
   const here = sim.world.region.npcs;
   const over = buildOverworld().region.npcs;
+  const inTutorial = sim.world.region.id === "region.tutorial";
   for (const questId of sim.quests.allIds()) {
     const def = sim.quests.defOf(questId) as QuestDef;
     const state = sim.quests.states[questId];
@@ -195,6 +196,9 @@ export function questLog(sim: GameSimulation): QuestLogEntry[] {
     // villager accepts them) — an endless world holds endless "available"
     // errands, and listing them all would drown the real to-do list.
     if (questId.startsWith("vq.") && state?.status !== "active" && state?.status !== "completed") continue;
+    // Outside the tutorial, its ~35 island lessons can never be started —
+    // only ones the player actually did (or skipped past) belong in the log.
+    if (!inTutorial && questId.startsWith("quest.tut_") && state?.status !== "active" && state?.status !== "completed") continue;
     const npc = here.find((n) => n.instanceId === def.giverNpcId) ?? over.find((n) => n.instanceId === def.giverNpcId);
     const giverName = npc?.name ?? "someone";
     const where = npc ? giverName : "the vale";

@@ -174,8 +174,10 @@ export class InputController {
       case " ":
         this.renderer.rig.center();
         break;
-      case "r":
-      case "R":
+      // R belongs to the HUD's run/walk toggle. Camera tilt lives in the
+      // camera popup (and V), so the two no longer fight over one key.
+      case "v":
+      case "V":
         this.renderer.rig.orbitBy(0, 0.06); // tilt toward top-down
         break;
       case "f":

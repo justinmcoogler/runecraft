@@ -447,7 +447,16 @@ export class GameSimulation {
       this.actions.cancel();
       this.enemies.disengageAll();
       this.hp = this.maxHp();
-      const home = this.homePoint;
+      let home = this.homePoint;
+      // A graduate's respawn must never point back at the tutorial island:
+      // the trail sets homePoint to each master as you learn, and it rides
+      // the save into the endless world — so the first death out in the wild
+      // used to teleport the player back to the island. Once you're in the
+      // endless world, a stale tutorial home is dropped for the world spawn.
+      if (home?.regionId === "region.tutorial" && this.world.region.id === "region.endless") {
+        this.homePoint = null;
+        home = null;
+      }
       if (home && home.regionId !== this.world.region.id) {
         // Died far from home (a dungeon): the app shell walks us back to the
         // bed's region; position there is set on arrival.
@@ -1423,7 +1432,16 @@ export class GameSimulation {
           break;
         }
         this.inventory.removeFromSlot(c.slot, 1);
-        this.inventory.add("item.coin", price);
+        // Removing the item may have freed the slot the coins need; if the
+        // payout STILL can't fit, undo the sale — never destroy goods unpaid.
+        const paid = this.inventory.add("item.coin", price);
+        if (paid < price) {
+          if (paid > 0) this.inventory.removeItemById("item.coin", paid);
+          this.inventory.add(s.itemId, 1);
+          this.events.emit({ type: "inventoryFull" });
+          this.events.emit({ type: "inventoryChanged" });
+          break;
+        }
         this.events.emit({ type: "itemGained", itemId: "item.coin", qty: price });
         this.events.emit({ type: "inventoryChanged" });
         break;

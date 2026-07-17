@@ -8,6 +8,7 @@ import type { GameRenderer } from "../render/renderer";
 import type { GameSimulation } from "../sim/simulation";
 import { DAY_LENGTH_S } from "../sim/simulation";
 import { activeQuestTarget, questLog } from "./quest-helper";
+import { isDevMode } from "../editor/panel";
 import { treeTapLabel } from "../render/tree-models";
 import type { AttackStyle, SimEvent } from "../sim/types";
 import type { ImportedPack } from "../texturepacks/importer";
@@ -248,7 +249,7 @@ export class Hud {
         <div class="settings-actions">
           <button class="btn small" data-cmd="skin" data-testid="skin-toggle">${uiIconHtml("skin")} Character skin…</button>
           <button class="btn small" data-cmd="packs" data-testid="pack-toggle">${uiIconHtml("pack")} Texture pack…</button>
-          <button class="btn small" data-cmd="debug" data-testid="debug-toggle">🐞 Debug…</button>
+          ${isDevMode() ? `<button class="btn small" data-cmd="debug" data-testid="debug-toggle">🐞 Debug…</button>` : ""}
         </div>
         <div class="help-text">
           <b>How to play:</b> tap the ground to walk; tap trees, rocks and
