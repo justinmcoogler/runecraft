@@ -37,4 +37,43 @@ describe("quest guidance in the endless world", () => {
       expect(target.cell.z).toBeGreaterThan(ENDLESS_CENTER - 5000);
     }
   });
+
+  it("an errand's guidance points at the giver's remembered home when unstreamed", () => {
+    const sim = GameSimulation.createEndless(42);
+    sim.tick();
+    const home = { x: ENDLESS_CENTER + 300, z: ENDLESS_CENTER + 120 };
+    sim.quests.addDef({
+      id: "vq.end.7.7.res",
+      name: "Herb Basket",
+      giverNpcId: "end.7.7.res",
+      giverCell: home,
+      giverName: "Wren",
+      objectives: [
+        { id: "back", type: "talk", npcId: "end.7.7.res", label: "Bring the basket back" },
+      ],
+      rewards: [],
+    } as never);
+    sim.quests.states["vq.end.7.7.res"] = { status: "active", objectiveIndex: 0, progress: 0 };
+    sim.trackedQuestId = "vq.end.7.7.res";
+    const target = activeQuestTarget(sim);
+    expect(target, "guidance must not go dark").not.toBeNull();
+    expect(target!.cell).toEqual(home);
+  });
+
+  it("tracking self-heals in the wild: a completed quest hands the pin on", () => {
+    const sim = GameSimulation.createEndless(42);
+    sim.tick();
+    for (const [id, status] of [["vq.a", "completed"], ["vq.b", "active"]] as const) {
+      sim.quests.addDef({
+        id, name: id, giverNpcId: "end.1.1.res",
+        giverCell: { x: ENDLESS_CENTER, z: ENDLESS_CENTER },
+        objectives: [{ id: "t", type: "talk", npcId: "end.1.1.res", label: "talk" }],
+        rewards: [],
+      } as never);
+      sim.quests.states[id] = { status, objectiveIndex: 0, progress: 0 };
+    }
+    sim.trackedQuestId = "vq.a"; // finished — stale pin
+    sim.tick();
+    expect(sim.trackedQuestId).toBe("vq.b");
+  });
 });

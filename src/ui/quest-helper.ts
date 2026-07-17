@@ -24,10 +24,12 @@ export function npcCell(sim: GameSimulation, npcId: string): Cell | null {
   return over ? over.cell : null;
 }
 
-/** Home cell of a quest giver. */
+/** Home cell of a quest giver. Endless-world errands remember where their
+ *  giver lives, so guidance still points home when the chunk isn't streamed. */
 export function giverCell(sim: GameSimulation, questId: string): Cell | null {
   const def = sim.quests.defOf(questId);
-  return def ? npcCell(sim, def.giverNpcId) : null;
+  if (!def) return null;
+  return npcCell(sim, def.giverNpcId) ?? def.giverCell ?? null;
 }
 
 /** Cell of any world instance in the current region (node, station object,
@@ -73,8 +75,10 @@ function giverName(sim: GameSimulation, questId: string): string {
   const def = sim.quests.defOf(questId);
   if (!def) return "the quest giver";
   const here = sim.world.region.npcs.find((n) => n.instanceId === def.giverNpcId);
-  const over = buildOverworld().region.npcs.find((n) => n.instanceId === def.giverNpcId);
-  return here?.name ?? over?.name ?? "the quest giver";
+  if (here) return here.name;
+  if (def.giverName) return def.giverName;
+  if (sim.world.region.id === "region.endless") return "the quest giver";
+  return buildOverworld().region.npcs.find((n) => n.instanceId === def.giverNpcId)?.name ?? "the quest giver";
 }
 
 /** Quest ids ordered so the player's pinned (tracked) quest is considered first. */
@@ -169,7 +173,9 @@ export function activeQuestTarget(sim: GameSimulation): QuestTarget | null {
     }
 
     cell = cell ?? fallback;
-    if (!cell) return null;
+    // This quest can't resolve to a spot right now (giver unstreamed with no
+    // remembered home) — try the next active quest rather than going dark.
+    if (!cell) continue;
     return { cell, questName: def.name, label: objective.label, overworld };
   }
   return null;

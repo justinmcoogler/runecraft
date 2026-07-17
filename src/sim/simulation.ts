@@ -1096,13 +1096,19 @@ export class GameSimulation {
    *  dropped between systems — used to kill guidance for the rest of the
    *  trail. This heals it every tick. */
   private healTutorialTracking(): void {
-    if (this.world.region.id !== "region.tutorial") return;
     const tracked = this.trackedQuestId;
     if (tracked && this.quests.states[tracked] && this.quests.states[tracked].status !== "completed") return;
-    const next = GameSimulation.tutorialChain().find((id) => {
-      const st = this.quests.states[id]?.status;
-      return st === "active" || (st === "available" && this.quests.isAvailable(id));
-    });
+    if (this.world.region.id === "region.tutorial") {
+      const next = GameSimulation.tutorialChain().find((id) => {
+        const st = this.quests.states[id]?.status;
+        return st === "active" || (st === "available" && this.quests.isAvailable(id));
+      });
+      if (next) this.trackedQuestId = next;
+      return;
+    }
+    // Everywhere else: guidance must never go dark while a quest is active —
+    // a finished (or lost) tracked quest hands the pin to the next active one.
+    const next = this.quests.allIds().find((id) => this.quests.states[id]?.status === "active");
     if (next) this.trackedQuestId = next;
   }
 

@@ -5693,6 +5693,11 @@ export interface QuestDef {
   id: string;
   name: string;
   giverNpcId: string;
+  /** Where the giver lives (endless-world errands): guidance can point home
+   *  even when the giver's chunk isn't streamed in. */
+  giverCell?: { x: number; z: number };
+  /** Giver's display name for guidance labels when the NPC isn't streamed. */
+  giverName?: string;
   /** Offered only once these quests are completed. */
   prereqQuestIds?: string[];
   /** Spoken when the quest is accepted / while active / on completion. */

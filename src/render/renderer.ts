@@ -480,20 +480,23 @@ export class GameRenderer {
       this.guideWorldFor = world;
     }
     // The dot trail re-paths only when the player or goal cell changes (never
-    // per-frame), skips far targets outright (the beacon still points), and
-    // runs on a tight A* budget — guidance must never be able to freeze the
-    // game chasing an objective across half the world.
+    // per-frame) and runs on a tight A* budget — guidance must never be able
+    // to freeze the game chasing an objective across half the world. A FAR
+    // target still gets dots: they path toward a waypoint ~120 cells along
+    // the way, so the trail always shows the direction to set out in.
     const targetDist = Math.max(Math.abs(goal.x - player.x), Math.abs(goal.z - player.z));
     const guideKey = `${player.x},${player.z}>${goal.x},${goal.z}`;
     let path: Cell[] | null;
-    if (targetDist > 180) {
-      path = null;
-      this.guidePathKey = guideKey;
-      this.guidePath = null;
-    } else if (guideKey === this.guidePathKey) {
+    if (guideKey === this.guidePathKey) {
       path = this.guidePath;
     } else {
-      const approach = this.walkableNear(goal);
+      let aim = goal;
+      if (targetDist > 150) {
+        const dx = goal.x - player.x, dz = goal.z - player.z;
+        const len = Math.hypot(dx, dz) || 1;
+        aim = { x: Math.round(player.x + (dx / len) * 120), z: Math.round(player.z + (dz / len) * 120) };
+      }
+      const approach = this.walkableNear(aim) ?? this.sim.world.nearestWalkable?.(aim, 8) ?? null;
       path = approach ? findPath(this.guideWorld!, player, approach, 12_000) : null;
       this.guidePathKey = guideKey;
       this.guidePath = path;
