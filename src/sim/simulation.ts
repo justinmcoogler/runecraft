@@ -237,6 +237,7 @@ export class GameSimulation {
       groundItems: this.groundItems,
       spawnGroundItem: (cell, itemId, qty) => this.spawnGroundItem(cell, itemId, qty),
       attackLevel: () => this.skills.levelOf(this.combatSkillId()),
+      claimShortcutXp: (instanceId) => this.claimShortcutXp(instanceId),
       weaponBonus: () =>
         (this.equippedTool ? ITEMS[this.equippedTool].damageBonus ?? 0 : 0) +
         aggregateMods(this.equippedToolMods, "weapon").dmg +
@@ -454,6 +455,16 @@ export class GameSimulation {
       thorns += aggregateMods(this.equippedArmorMods[slot], "armor").thorns;
     }
     return thorns;
+  }
+
+  /** Per-shortcut Agility-XP cooldown: the hop always works, but the same
+   *  obstacle only pays XP once a minute — no click-looping a log to 99. */
+  private shortcutXpAt = new Map<string, number>();
+  claimShortcutXp(instanceId: string): boolean {
+    const last = this.shortcutXpAt.get(instanceId);
+    if (last !== undefined && this.timeS - last < 60) return false;
+    this.shortcutXpAt.set(instanceId, this.timeS);
+    return true;
   }
 
   /** Standing beside an enchanter's table (where mods are applied). */
@@ -1737,9 +1748,15 @@ export class GameSimulation {
         if (!recipe) break; // not a smeltable ore
         if (this.skills.levelOf("skill.magic") < SUPERHEAT.level) break;
         if (this.inventory.count(SUPERHEAT.rune) < 1) break; // no Blaze Rune
-        // Burn one Blaze Rune and one ore; a bar out, Magic + Smithing XP.
+        // Same ore cost as the furnace (2) — Superheat's edge is casting
+        // anywhere without a furnace, not a cheaper bar.
+        if (this.inventory.count(s.itemId) < 2) {
+          this.events.emit({ type: "actionRejected", reason: "missing_inputs" });
+          break;
+        }
+        // Burn one Blaze Rune and two ore; a bar out, Magic + Smithing XP.
         this.inventory.removeItemById(SUPERHEAT.rune, 1);
-        this.inventory.removeFromSlot(c.slot, 1);
+        this.inventory.removeItemById(s.itemId, 2);
         this.inventory.add(recipe.bar, 1);
         this.skills.grantXp("skill.magic", SUPERHEAT.magicXp);
         this.skills.grantXp("skill.smelting", recipe.xp);

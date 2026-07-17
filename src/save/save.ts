@@ -511,20 +511,28 @@ export function deleteEndlessWorld(seed: number): void {
   }
 }
 
-export function saveEndlessToStorage(sim: GameSimulation, slotSeed?: number, regionId?: string): boolean {
+export function saveEndlessToStorage(
+  sim: GameSimulation,
+  slotSeed?: number,
+  regionId?: string,
+  cellOverride?: { x: number; z: number },
+): boolean {
   try {
     const containers: Record<string, Slots> = {};
     for (const [id, inv] of sim.containers) containers[id] = inv.slots;
     // Mid-tutorial the sim's own seed is the fixed tutorial seed; the slot is
     // keyed by the WORLD's seed (the one the player will graduate into), so
     // the save lands in — and resumes from — their world's slot.
+    // cellOverride: mid-dungeon saves anchor at the surface entrance (dungeon
+    // floors are transient), so a refresh resumes at the dungeon door with
+    // everything earned so far instead of losing the run.
     const worldSeed = slotSeed ?? sim.seed;
     const data: EndlessSaveData = {
       save_format_version: SAVE_FORMAT_VERSION,
       endless: true,
       seed: worldSeed,
       updated_utc: new Date().toISOString(),
-      player: { cell: sim.movement.currentCell(), facing: sim.movement.facing },
+      player: { cell: cellOverride ?? sim.movement.currentCell(), facing: sim.movement.facing },
       timeS: sim.timeS,
       shared: captureSharedState(sim),
       containers,

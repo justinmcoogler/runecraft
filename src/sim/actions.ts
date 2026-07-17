@@ -87,6 +87,8 @@ export interface ActionDeps {
   /** Drop a stack on the ground (loot that won't fit a full pack). */
   spawnGroundItem(cell: Cell, itemId: string, qty: number): void;
   attackLevel(): number;
+  /** True when this shortcut's Agility XP is off cooldown (and stamps it). */
+  claimShortcutXp(instanceId: string): boolean;
   /** Damage bonus of the equipped weapon (0 when unarmed). */
   weaponBonus(): number;
   /** Aggregated enchant + socket effects on the equipped weapon. */
@@ -665,7 +667,10 @@ export class ActionController {
       const def = placement ? OBJECTS[placement.defId].shortcut : undefined;
       if (placement?.portal && def && d.world.walkable(placement.portal.targetCell)) {
         d.movement.setCellPosition(placement.portal.targetCell);
-        d.skills.grantXp("skill.agility", def.xp);
+        // The traversal always works, but each shortcut only pays Agility XP
+        // once per cooldown — hopping the same log in a loop is a commute,
+        // not a training montage.
+        if (d.claimShortcutXp(placement.instanceId)) d.skills.grantXp("skill.agility", def.xp);
         d.events.emit({ type: "shortcutUsed", instanceId: placement.instanceId });
       }
       this.pipeline = null;

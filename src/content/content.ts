@@ -5577,6 +5577,10 @@ export const SHOPS: Record<string, ShopDef> = {
       { itemId: "tool.trap.box", price: 60 },
       { itemId: "item.seed.corn", price: 12 },
       { itemId: "item.seed.sunfruit", price: 20 },
+      // Blaze Runes so Magic (Low Alch at L1 burns one per cast) is playable
+      // from day one — without these, the first fire rune sits behind
+      // Runecrafting 14 and hours of essence grinding.
+      { itemId: "item.rune.fire", price: 10 },
     ],
   },
   "shop.tanglewood": {

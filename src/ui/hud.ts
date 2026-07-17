@@ -234,6 +234,8 @@ export class Hud {
           <button class="btn" data-cmd="run" title="Toggle run/walk (R)" data-testid="run-toggle">🏃</button>
           <button class="btn" data-cmd="camera" title="Camera controls" data-testid="camera-btn">${uiIconHtml("center")}</button>
           <button class="btn" data-cmd="settings" title="Settings" data-testid="settings-toggle">⚙</button>
+          <button class="btn" data-cmd="travel" title="Fast travel (T)" data-testid="travel-toggle">🧭</button>
+          <button class="btn" data-cmd="factions" title="Factions (G)" data-testid="factions-toggle">🚩</button>
           <button class="btn" data-cmd="questlog" title="Quest log (J)" data-testid="questlog-toggle">${uiIconHtml("quest")}</button>
           <button class="btn" data-cmd="skills" title="Skills (K)" data-testid="skills-toggle">${uiIconHtml("skills")}</button>
           <button class="btn" data-cmd="inv" title="Inventory (I)" data-testid="inv-toggle">${uiIconHtml("inv")}</button>
@@ -400,6 +402,10 @@ export class Hud {
           break;
         }
         case "questlog": this.toggleMenu(".questlog-panel", () => this.refreshQuestLog()); break;
+        // Fast travel + factions are separate self-managed panels that toggle
+        // on T/G — the buttons make them reachable on touch screens too.
+        case "travel": window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyT" })); break;
+        case "factions": window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyG" })); break;
         case "depositAll": this.sim.enqueue({ type: "depositAll" }); break;
         case "closeChest": this.sim.enqueue({ type: "closeContainer" }); break;
         case "skin": this.toggleMenu(".skin-panel"); break;
@@ -1317,14 +1323,21 @@ export class Hud {
         },
       };
     } else if (SUPERHEAT.bars[slot.itemId] !== undefined) {
-      // Superheat: an ore in the pack can be smelted to a bar by Magic.
+      // Superheat: ore in the pack smelted to a bar by Magic — same 2-ore
+      // cost as the furnace; the spell's edge is casting anywhere.
       const magic = this.sim.skills.levelOf("skill.magic");
-      const canCast = magic >= SUPERHEAT.level && this.sim.inventory.count(SUPERHEAT.rune) > 0;
+      const canCast = magic >= SUPERHEAT.level && this.sim.inventory.count(SUPERHEAT.rune) > 0 &&
+        this.sim.inventory.count(slot.itemId) >= 2;
       action = {
-        label: canCast ? "Superheat" : `Superheat (Magic ${SUPERHEAT.level})`,
+        label: canCast ? "Superheat (2 ore)" : `Superheat (Magic ${SUPERHEAT.level})`,
         run: () => {
           if (!canCast) {
-            this.toast(magic < SUPERHEAT.level ? `Magic ${SUPERHEAT.level} needed to Superheat.` : "You need a Blaze Rune to Superheat.", "info");
+            this.toast(
+              magic < SUPERHEAT.level ? `Magic ${SUPERHEAT.level} needed to Superheat.`
+                : this.sim.inventory.count(SUPERHEAT.rune) < 1 ? "You need a Blaze Rune to Superheat."
+                : "Superheat needs 2 of the ore, like the furnace.",
+              "info",
+            );
           } else this.sim.enqueue({ type: "superheatSlot", slot: this.selectedSlot! });
         },
       };

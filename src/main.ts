@@ -299,13 +299,20 @@ async function boot(): Promise<void> {
 
   // Persist: the endless world stores seed + player state (chunks regrow on
   // reload until per-chunk diffs land); the province stores everything.
+  // The last spot the player stood on the surface — mid-dungeon saves anchor
+  // here, so a refresh resumes at the dungeon door with all loot and XP kept.
+  let lastSurface: { regionId: string; cell: { x: number; z: number } } | null = null;
   const doSave = () => {
     if (endlessMode) {
       // The boundless overworld AND the tutorial persist (quitting mid-tutorial
-      // must not lose the run); dungeon floors are transient (their loot lands
-      // in the shared inventory, saved on the way out).
+      // must not lose the run). Dungeon floors themselves are transient, but
+      // the RUN is not: while underground, the save still lands — anchored at
+      // the surface entrance — on every floor transition and autosave tick.
       if (currentRegionId === "region.endless" || currentRegionId === "region.tutorial") {
+        lastSurface = { regionId: currentRegionId, cell: sim.movement.currentCell() };
         hud.markSaved(saveEndlessToStorage(sim, endlessSeed, currentRegionId));
+      } else if (lastSurface) {
+        hud.markSaved(saveEndlessToStorage(sim, endlessSeed, lastSurface.regionId, lastSurface.cell));
       }
     } else {
       hud.markSaved(saveToStorage(sim, regionStore));
@@ -324,6 +331,10 @@ async function boot(): Promise<void> {
 
   function enterRegion(targetRegionId: string, targetCell: { x: number; z: number }): void {
     const shared = captureSharedState(sim);
+    // Stepping off the surface: remember the doorstep for mid-dungeon saves.
+    if (currentRegionId === "region.endless" || currentRegionId === "region.tutorial") {
+      lastSurface = { regionId: currentRegionId, cell: sim.movement.currentCell() };
+    }
     // Graduation: stepping from the tutorial vale into the wild finishes the
     // tutorial for good and drops the player into their own random world.
     const graduating = currentRegionId === "region.tutorial" && targetRegionId === "region.endless";
