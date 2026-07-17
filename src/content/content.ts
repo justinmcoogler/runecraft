@@ -2666,9 +2666,11 @@ export const RECIPES: Record<string, RecipeDef> = {
     ],
     outputs: [{ itemId: "tool.axe.runed", qty: 1 }],
     failOutputs: [],
-    successBase: 0.9,
-    successPerLevel: 0.01,
-    successMax: 0.99,
+    // Never fails: the tutorial gifts exactly one axe + idol, and a botched
+    // roll would eat them and strand the lesson forever.
+    successBase: 1,
+    successPerLevel: 0,
+    successMax: 1,
     xp: 90,
   },
   "recipe.runed_pickaxe": {
@@ -5745,6 +5747,9 @@ export interface QuestDef {
   /** Where the giver lives (endless-world errands): guidance can point home
    *  even when the giver's chunk isn't streamed in. */
   giverCell?: { x: number; z: number };
+  /** Slay errands: where the quarry prowls — a hunt pack spawns here on
+   *  accept, and guidance points here when none are streamed in. */
+  huntCell?: { x: number; z: number };
   /** Giver's display name for guidance labels when the NPC isn't streamed. */
   giverName?: string;
   /** Offered only once these quests are completed. */
@@ -5874,32 +5879,32 @@ interface Lesson {
   note?: string;
 }
 const LESSONS: Record<string, Lesson> = {
-  "skill.woodcutting": { deliver: { itemId: "item.log.basic", qty: 2 }, gift: [{ itemId: "tool.axe.copper", qty: 1 }], note: "Here's a copper axe — fell a couple of logs and bring them back to me." },
+  "skill.woodcutting": { deliver: { itemId: "item.log.basic", qty: 2 }, gift: [{ itemId: "tool.axe.copper", qty: 1 }], note: "Here's a copper axe — fell a couple of logs and bring them back to me. Hold on to your axe: everything on this island builds on what the last master taught." },
   "skill.mining": { deliver: { itemId: "item.ore.copper", qty: 2 }, gift: [{ itemId: "tool.pickaxe.copper", qty: 1 }], note: "Take this pickaxe — mine a couple of copper ore and bring them to me." },
   "skill.foraging": { deliver: { itemId: "item.berry.basic", qty: 2 }, note: "Pick a couple of berries from the bush and bring them to me." },
   "skill.fishing": { deliver: { itemId: "item.fish.raw", qty: 2 }, gift: [{ itemId: "tool.fishingrod.basic", qty: 1 }], note: "Here's a rod — catch a couple of fish and bring them back." },
   "skill.cooking": { action: [train("skill.cooking", "Cook a fish on the campfire")], gift: [{ itemId: "item.fish.raw", qty: 2 }], note: "Here's a raw fish — cook it on the campfire." },
   "skill.smithing": { action: [train("skill.smithing", "Smelt copper bars at the furnace"), train("skill.smithing", "Hammer a blade on the anvil")], gift: [{ itemId: "tool.hammer.basic", qty: 1 }, { itemId: "item.ore.copper", qty: 4 }], note: "Smithing starts at the fire. Here's a hammer and copper ore — smelt bars in my furnace, then hammer them into a blade on the anvil." },
-  "skill.attack": { action: [train("skill.attack", "Strike a pig on Accurate style — trains Attack"), train("skill.strength", "Tap the attack-style button to Aggressive, then strike — trains Strength")], gift: [{ itemId: "tool.sword.copper", qty: 1 }] },
+  "skill.attack": { action: [{ id: "arm", label: "Equip a sword (the blade you forged will do)", type: "equipTag", toolTag: "weapon" }, train("skill.attack", "Strike a pig on Accurate style — trains Attack"), train("skill.strength", "Tap the attack-style button to Aggressive, then strike — trains Strength")], gift: [{ itemId: "tool.sword.copper", qty: 1 }] },
   "skill.farming": { deliver: { itemId: "item.wheat", qty: 2 }, gift: [{ itemId: "tool.hoe.basic", qty: 1 }, { itemId: "item.seed.wheat", qty: 3 }], note: "Here's a hoe and wheat seeds. First PLOW a plot: click my field plot (or till fresh grass with the hoe) and your hoe will break the soil into furrows. Only plowed furrows take seed — sow one, wait for it to grow, then harvest the wheat and bring me two. Harvests give seed back, so keep replanting." },
   "skill.herblore": { action: [train("skill.herblore", "Brew a draught in the cauldron")], deliver: { itemId: "item.herb.sage", qty: 2 }, gift: [{ itemId: "item.herb.sage", qty: 1 }, { itemId: "item.feather", qty: 1 }], note: "Herblore is picking AND brewing. Take this sage and feather — brew a draught in my cauldron, then pick two fresh sage from my patch and bring them to me." },
   "skill.crafting": { action: [train("skill.crafting", "Cut planks at the workbench")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "Here's some timber — cut it into planks at the workbench." },
   "skill.archaeology": { action: [train("skill.archaeology", "Dig at the excavation")], note: "Take a trowel to the dig site and see what you turn up." },
-  "skill.archery": { action: [{ id: "do", label: "Fell a target dummy", type: "slay", enemyDefId: "enemy.target_dummy", qty: 1 }], gift: [{ itemId: "tool.bow.oak", qty: 1 }, { itemId: "item.arrow.bronze", qty: 30 }], note: "Here's a bow and arrows — equip the bow and loose at the dummy." },
+  "skill.archery": { action: [{ id: "do", label: "Fell a target dummy", type: "slay", enemyDefId: "enemy.target_dummy", qty: 1 }], gift: [{ itemId: "tool.bow.oak", qty: 1 }, { itemId: "item.arrow.bronze", qty: 30 }], note: "Ash cut you shafts, so here's a bow and bronze heads to finish the job — equip the bow and loose at the dummy." },
   "skill.construction": { action: [train("skill.construction", "Repair the collapsed ramp")], gift: [{ itemId: "item.brick.stone", qty: 6 }, { itemId: "item.plank.cut", qty: 4 }], note: "See that scaffolded wreck beside me? The ramp collapsed in the last storm. Take these bricks and planks, click the broken ramp, and build it back up" },
   "skill.enchanting": { action: [train("skill.enchanting", "Rune the axe at the table")], gift: [{ itemId: "tool.axe.iron", qty: 1 }, { itemId: "item.relic.idol", qty: 1 }], note: "An iron axe and a relic idol — rune the axe at the table." },
   "skill.hunting": { action: [{ id: "do", label: "Catch a chicken", type: "slay", enemyDefId: "enemy.chicken", qty: 1 }] },
   "skill.thieving": { action: [train("skill.thieving", "Filch from the market stall")], note: "See that stall? Lift something from it when the keeper looks away." },
   "skill.agility": { action: [train("skill.agility", "Vault the log shortcut")], note: "Limber up — vault the fallen log to feel the Agility of it." },
   "skill.slaying": { action: [{ id: "do", label: "Slay a penned beast", type: "slay", enemyDefId: "enemy.sheep", qty: 1 }] },
-  "skill.boating": { action: [train("skill.boating", "Lash a raft together at the bench")], gift: [{ itemId: "item.plank.cut", qty: 4 }], note: "Four planks — lash a raft together at the boatwright's bench." },
-  "skill.firemaking": { action: [train("skill.firemaking", "Light a log from your pack")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "Two logs — set light to one straight from your pack." },
+  "skill.boating": { action: [train("skill.boating", "Lash a raft together at the bench")], gift: [{ itemId: "item.plank.cut", qty: 4 }], note: "Tilda's planks and Mortar's joinery come together here — four planks, lash a raft at my bench and the water's yours." },
+  "skill.firemaking": { action: [train("skill.firemaking", "Light a log from your pack")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "Those logs you felled for Finn? Wood warms no one until it burns. Here are two more — set light to one straight from your pack and watch the fire take." },
   "skill.prayer": { action: [train("skill.prayer", "Bury the old bones")], gift: [{ itemId: "item.bone.old", qty: 2 }], note: "Old bones — bury them from your pack to honour the fallen." },
-  "skill.runecrafting": { action: [train("skill.runecrafting", "Bind a rune at the altar")], gift: [{ itemId: "item.essence.rune", qty: 1 }], note: "Rune essence — bind it into a rune at the altar." },
-  "skill.fletching": { action: [train("skill.fletching", "Cut arrow shafts at the workbench")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "Timber — cut arrow shafts at the workbench." },
-  "skill.magic": { action: [train("skill.magic", "Cast Low Alchemy on the bar")], gift: [{ itemId: "item.bar.copper", qty: 1 }, { itemId: "item.rune.fire", qty: 1 }], note: "A copper bar and a fire rune — cast Low Alchemy on the bar from your pack." },
+  "skill.runecrafting": { action: [train("skill.runecrafting", "Bind a rune at the altar")], gift: [{ itemId: "item.essence.rune", qty: 1 }], note: "Rune essence — bind it into a rune at the altar. Runes power everything arcane ahead: casting, enchanting, even raising the dead." },
+  "skill.fletching": { action: [train("skill.fletching", "Cut arrow shafts at the workbench")], gift: [{ itemId: "item.log.basic", qty: 2 }], note: "You can fell timber — now make it bite. Cut arrow shafts at my workbench; the bowyer up the trail will want them." },
+  "skill.magic": { action: [train("skill.magic", "Cast Low Alchemy on the bar")], gift: [{ itemId: "item.bar.copper", qty: 1 }, { itemId: "item.rune.fire", qty: 1 }], note: "A copper bar and a fire rune like the one Ansel taught you to bind — cast Low Alchemy on the bar from your pack and turn metal to coin." },
   "skill.dungeoneering": { action: [train("skill.dungeoneering", "Fell the pit-beast")], note: "Every delver bloods themselves — put down the beast in the pit." },
-  "skill.summoning": { action: [train("skill.summoning", "Bind spirit reins at the obelisk")], gift: [{ itemId: "item.charm.bone", qty: 1 }, { itemId: "item.essence.rune", qty: 3 }], note: "A bone charm and rune essence — bind Spirit Wolf Reins at the obelisk, then tap them in your pack to RIDE. A mount carries you faster than any boot leather." },
+  "skill.summoning": { action: [train("skill.summoning", "Bind spirit reins at the obelisk"), train("skill.summoning", "Tap the reins in your pack and RIDE your mount")], gift: [{ itemId: "item.charm.bone", qty: 1 }, { itemId: "item.essence.rune", qty: 3 }], note: "A bone charm and rune essence — bind Spirit Wolf Reins at the obelisk, then tap them in your pack to RIDE. A mount carries you faster than any boot leather." },
   "skill.necromancy": { action: [{ id: "do", label: "Fell a skeleton", type: "slay", enemyDefId: "enemy.skeleton", qty: 1 }], gift: [{ itemId: "item.rite.skeleton", qty: 1 }], note: "Take this rite — use it from your pack and a risen skeleton will fight at your side. Prove yourselves: fell the skeleton in my pen together." },
   "skill.invention": { action: [train("skill.invention", "Salvage parts at the workbench")], gift: [{ itemId: "item.bar.iron", qty: 1 }], note: "An iron bar — salvage it into components at the workbench." },
 };
@@ -5907,13 +5912,18 @@ const LESSONS: Record<string, Lesson> = {
 // The teaching order down the trail (Attack folds in Strength/Defence/
 // Constitution as the Combat Instructor). Lessons unlock one at a time: each is
 // gated behind the previous, so only the next master up the trail offers a quest.
+// The trail teaches in cause-and-effect chains: fell wood and burn it; mine
+// ore, smelt and forge a blade, then FIGHT with that blade; forage/fish/cook;
+// farm then brew; craft planks, build, launch a boat; fletch a bow then
+// shoot it; the rogue arts; then the arcane arc (runes -> casting ->
+// enchanting -> mounts -> minions) before slaying, the depths and invention.
 export const TUTORIAL_ORDER = [
-  "skill.woodcutting", "skill.mining", "skill.foraging", "skill.fishing", "skill.cooking",
-  "skill.smithing", "skill.attack", "skill.farming", "skill.herblore",
-  "skill.crafting", "skill.archaeology", "skill.archery", "skill.construction",
-  "skill.enchanting", "skill.hunting", "skill.thieving", "skill.agility", "skill.slaying",
-  "skill.boating", "skill.firemaking", "skill.prayer", "skill.runecrafting", "skill.fletching",
-  "skill.magic", "skill.dungeoneering", "skill.summoning", "skill.necromancy", "skill.invention",
+  "skill.woodcutting", "skill.firemaking", "skill.mining", "skill.smithing", "skill.attack",
+  "skill.foraging", "skill.fishing", "skill.cooking", "skill.farming", "skill.herblore",
+  "skill.crafting", "skill.construction", "skill.boating", "skill.fletching", "skill.archery",
+  "skill.hunting", "skill.thieving", "skill.agility", "skill.archaeology", "skill.prayer",
+  "skill.runecrafting", "skill.magic", "skill.enchanting", "skill.summoning", "skill.necromancy",
+  "skill.slaying", "skill.dungeoneering", "skill.invention",
 ] as const;
 
 TUTORIAL_ORDER.forEach((skill, i) => {
@@ -5946,7 +5956,7 @@ TUTORIAL_ORDER.forEach((skill, i) => {
     prereqQuestIds: [prereq],
     startItems: gift?.items,
     intro: combat
-      ? `Sergeant Gareth: "One instructor, all of melee. Here's a bronze sword — equip it. See the attack-style button on your bar? It picks which skill your blows train: Accurate for Attack, Aggressive for Strength, Defensive for Defence — and Constitution grows no matter what. Strike a pig on Accurate, then tap the button to Aggressive and strike again, so you feel the difference. Then report back to me."`
+      ? `Sergeant Gareth: "One instructor, all of melee. Bran had you forge a copper blade — equip it (here's a spare if you lost yours). See the attack-style button on your bar? It picks which skill your blows train: Accurate for Attack, Aggressive for Strength, Defensive for Defence — and Constitution grows no matter what. Strike a pig on Accurate, then tap the button to Aggressive and strike again, so you feel the difference. Then report back to me."`
       : lesson.note
         ? `${m.name}: "Well met. ${lesson.note} Then come back to me and I'll sign your ${skillName} lesson off."`
         : `${m.name}: "Well met. Words won't teach you ${skillName} — give it a try right here, then come back to me."`,

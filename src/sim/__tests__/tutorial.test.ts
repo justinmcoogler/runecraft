@@ -58,11 +58,13 @@ describe("Tutor's Trail", () => {
   it("an out-of-order master points you back to the lesson you still owe", () => {
     const sim = GameSimulation.createTutorial(TUTORIAL_SEED);
     const mining = masterNpcId("skill.mining");
-    // Nothing done: the miner's lesson is gated behind the woodcutter's.
-    expect(sim.quests.blockedByFor(mining)).toBe("quest.tut_woodcutting");
+    // Nothing done: the miner's lesson is gated behind the firewarden's
+    // (the trail now runs woodcutting -> firemaking -> mining).
+    expect(sim.quests.blockedByFor(mining)).toBe("quest.tut_firemaking");
     // Clear the way and the miner opens up — no longer blocked.
     sim.quests.states["quest.tut_welcome"].status = "completed";
     sim.quests.states["quest.tut_woodcutting"].status = "completed";
+    sim.quests.states["quest.tut_firemaking"].status = "completed";
     expect(sim.quests.blockedByFor(mining)).toBeNull();
     expect(sim.quests.isAvailable("quest.tut_mining")).toBe(true);
   });

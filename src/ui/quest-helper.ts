@@ -95,6 +95,8 @@ function trackedFirst(sim: GameSimulation): string[] {
  * its giver so the guidance line leads you there to begin it.
  */
 export function activeQuestTarget(sim: GameSimulation): QuestTarget | null {
+  // The player explicitly untracked: no beacon, no dots, no marker.
+  if (sim.trackingMuted) return null;
   const region = sim.world.region.id;
   const inOverworld = region === "region.vale_clearing" || region === "region.tutorial" || region === "region.endless";
   for (const questId of trackedFirst(sim)) {
@@ -147,6 +149,9 @@ export function activeQuestTarget(sim: GameSimulation): QuestTarget | null {
       if (best) {
         cell = best;
         overworld = inOverworld;
+      } else if (def.huntCell) {
+        // No quarry streamed in: lead to the hunt spot where the pack prowls.
+        cell = def.huntCell;
       } else if (sim.world.region.id !== "region.endless") {
         // Foreign-coordinate fallback is only valid in the authored provinces.
         const spawn = buildOverworld().region.enemies?.find((e) => e.defId === objective.enemyDefId);

@@ -77,3 +77,60 @@ describe("quest guidance in the endless world", () => {
     expect(sim.trackedQuestId).toBe("vq.b");
   });
 });
+
+describe("slay errands always point somewhere", () => {
+  const slayDef = {
+    id: "vq.end.5.5.res",
+    name: "Spider Trouble",
+    giverNpcId: "end.5.5.res",
+    giverCell: { x: ENDLESS_CENTER + 10, z: ENDLESS_CENTER + 10 },
+    giverName: "Tess",
+    huntCell: { x: ENDLESS_CENTER + 30, z: ENDLESS_CENTER + 24 },
+    objectives: [
+      { id: "kill", type: "slay", enemyDefId: "enemy.spider", qty: 3, label: "Slay 3 spiders" },
+      { id: "back", type: "talk", npcId: "end.5.5.res", label: "Report back" },
+    ],
+    rewards: [],
+  };
+
+  it("guidance leads to the hunt spot when no quarry is streamed", () => {
+    const sim = GameSimulation.createEndless(42);
+    sim.tick();
+    sim.quests.addDef(slayDef as never);
+    sim.quests.states[slayDef.id] = { status: "active", objectiveIndex: 0, progress: 0 };
+    sim.trackedQuestId = slayDef.id;
+    const target = activeQuestTarget(sim);
+    expect(target, "slay guidance must not go dark").not.toBeNull();
+    expect(target!.cell).toEqual(slayDef.huntCell);
+  });
+
+  it("a hunt pack materialises at the spot (idempotently)", () => {
+    const sim = GameSimulation.createEndless(42);
+    sim.tick();
+    sim.spawnHuntPack(slayDef as never);
+    sim.spawnHuntPack(slayDef as never); // second call must not double it
+    const spiders = [...sim.enemies.enemies.values()].filter(
+      (e) => e.defId === "enemy.spider" && e.instanceId.startsWith("hunt."),
+    );
+    expect(spiders.length).toBe(4); // qty 3 + one spare
+  });
+
+  it("untracking mutes the beacon until the player pins again", () => {
+    const sim = GameSimulation.createEndless(42);
+    sim.tick();
+    sim.quests.addDef(slayDef as never);
+    sim.quests.states[slayDef.id] = { status: "active", objectiveIndex: 0, progress: 0 };
+    sim.trackedQuestId = slayDef.id;
+    expect(activeQuestTarget(sim)).not.toBeNull();
+    // Player clicks the tracked quest off.
+    sim.trackedQuestId = null;
+    sim.trackingMuted = true;
+    sim.tick(); // the self-healing re-pin must stay quiet
+    expect(sim.trackedQuestId, "no auto re-pin while muted").toBeNull();
+    expect(activeQuestTarget(sim), "no dots while muted").toBeNull();
+    // Pinning something again lifts the mute (the HUD does both together).
+    sim.trackedQuestId = slayDef.id;
+    sim.trackingMuted = false;
+    expect(activeQuestTarget(sim)).not.toBeNull();
+  });
+});

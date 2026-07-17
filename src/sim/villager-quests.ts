@@ -87,12 +87,20 @@ export function villagerQuestFor(seed: number, npc: NpcPlacement): QuestDef | nu
     const pool = SLAY_TIERS[Math.min(tier, SLAY_TIERS.length - 1)];
     const spec = pool[Math.floor(hash01(key, 3) * pool.length)];
     const qty = span(hash01(key, 4), spec.qty);
+    // The quarry prowls a deterministic spot outside the houses: guidance
+    // leads there, and a hunt pack spawns there the moment you accept.
+    const ang = hash01(key, 8) * Math.PI * 2;
+    const huntCell = {
+      x: npc.cell.x + Math.round(Math.cos(ang) * 26),
+      z: npc.cell.z + Math.round(Math.sin(ang) * 26),
+    };
     return {
       id,
       name: `${npc.name}'s Trouble`,
       giverNpcId: npc.instanceId,
       giverCell: { ...npc.cell },
       giverName: npc.name,
+      huntCell,
       intro: `${spec.noun[0].toUpperCase()}${spec.noun.slice(1)} have been prowling too close. Cull ${qty} of them and I'll make it worth your while.`,
       reminder: `Those ${spec.noun} won't cull themselves — ${qty} of them, then come back to me.`,
       outro: `That's the countryside breathing easier. Take this.`,

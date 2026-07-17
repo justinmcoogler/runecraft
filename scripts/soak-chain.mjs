@@ -24,7 +24,19 @@ const result = await page.evaluate(async () => {
   const chainIds = sim.quests.allIds().filter((q) => q.startsWith("quest.tut_"));
   talk("tutorial.guide");
   await sleep(120);
-  for (const qid of chainIds) {
+  // Lessons unlock strictly in prereq order; walk the list by chain, not id.
+  const ordered = [];
+  const remaining = new Set(chainIds);
+  while (remaining.size) {
+    let moved = false;
+    for (const qid of [...remaining]) {
+      const d = sim.quests.defOf(qid);
+      const pre = d?.prereqQuestIds?.[0];
+      if (!pre || !remaining.has(pre)) { ordered.push(qid); remaining.delete(qid); moved = true; }
+    }
+    if (!moved) { ordered.push(...remaining); break; }
+  }
+  for (const qid of ordered) {
     const def = sim.quests.defOf(qid);
     if (!def) continue;
     talk(def.giverNpcId);
@@ -40,7 +52,7 @@ const result = await page.evaluate(async () => {
         sim.events.emit({ type: "enemyDied", instanceId: eid });
       } else if (obj.type === "deliver") { sim.inventory.add(obj.itemId, obj.qty ?? 1); talk(obj.npcId ?? def.giverNpcId); }
       else if (obj.type === "talk") talk(obj.npcId ?? def.giverNpcId);
-      else if (obj.type === "equipTag") sim.events.emit({ type: "equipmentChanged" });
+      else if (obj.type === "equipTag") { sim.equippedTool = "tool.sword.copper"; sim.events.emit({ type: "equipmentChanged" }); }
       await sleep(60);
     }
     log.push(`${qid}: ${sim.quests.states[qid]?.status}`);

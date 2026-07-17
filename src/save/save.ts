@@ -48,6 +48,7 @@ interface SaveDataV1 {
   discoveredBiomes?: string[];
   /** Quest the player has pinned to track (guidance line + map marker). */
   trackedQuestId?: string | null;
+  trackingMuted?: boolean;
   /** Chosen melee attack style (accurate/aggressive/defensive/controlled). */
   attackStyle?: string;
   /** Run/walk preference. */
@@ -94,6 +95,7 @@ export interface SharedState {
   discoveredBiomes?: string[];
   /** Quest the player has pinned to track. */
   trackedQuestId?: string | null;
+  trackingMuted?: boolean;
   /** Chosen melee attack style. */
   attackStyle?: string;
   /** Run/walk preference. */
@@ -172,6 +174,7 @@ export function captureSharedState(sim: GameSimulation): SharedState {
     reputation: { ...sim.reputation },
     discoveredBiomes: [...sim.discoveredBiomes],
     trackedQuestId: sim.trackedQuestId,
+    trackingMuted: sim.trackingMuted,
     attackStyle: sim.attackStyle,
     running: sim.running,
   };
@@ -208,6 +211,7 @@ export function applySharedState(sim: GameSimulation, shared: SharedState): void
   if (shared.reputation) for (const [k, v] of Object.entries(shared.reputation)) if (k in sim.reputation) sim.reputation[k] = v;
   if (shared.discoveredBiomes) for (const b of shared.discoveredBiomes) sim.discoveredBiomes.add(b);
   if (shared.trackedQuestId !== undefined) sim.trackedQuestId = shared.trackedQuestId;
+  if (typeof shared.trackingMuted === "boolean") sim.trackingMuted = shared.trackingMuted;
   if (isAttackStyle(shared.attackStyle)) sim.attackStyle = shared.attackStyle;
   if (typeof shared.running === "boolean") sim.running = shared.running;
   if (shared.homePoint !== undefined) {
@@ -275,6 +279,7 @@ export function serialize(
     reputation: { ...sim.reputation },
     discoveredBiomes: [...sim.discoveredBiomes],
     trackedQuestId: sim.trackedQuestId,
+    trackingMuted: sim.trackingMuted,
     attackStyle: sim.attackStyle,
     running: sim.running,
   };

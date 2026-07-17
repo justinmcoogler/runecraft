@@ -150,6 +150,9 @@ export class GameSimulation {
   minion: { itemId: string; defId: string; remainS: number; dmg: number; strikeCooldownS: number } | null = null;
   /** Shared cooldown for the slot rites (burying bones, striking a fire). */
   private riteCooldownS = 0;
+  /** The player explicitly untracked their quest: no pin, no dots, and the
+   *  self-healing re-pin stays quiet until they track something again. */
+  trackingMuted = false;
   /** Seconds of wild travel left before the next roaming world event may fire. */
   private worldEventCdS = 90;
   hp: number;
@@ -287,7 +290,24 @@ export class GameSimulation {
       hasEquippedTag: (tag) =>
         this.equippedTool !== null && (ITEMS[this.equippedTool].toolTags ?? []).includes(tag),
       enemyDefOf: (instanceId) => this.enemies.get(instanceId)?.defId,
+      spawnHuntPack: (def) => this.spawnHuntPack(def),
     });
+  }
+
+  /** Materialise a slay errand's quarry around its hunt spot (one extra over
+   *  the required count, so a stray death can't strand the quest). Idempotent
+   *  per quest — re-accepting or self-healing never doubles the pack. */
+  spawnHuntPack(def: { id: string; huntCell?: { x: number; z: number }; objectives: Array<{ type: string; enemyDefId?: string; qty?: number }> }): void {
+    const slay = def.objectives.find((o) => o.type === "slay" && o.enemyDefId);
+    if (!slay || !def.huntCell) return;
+    const count = (slay.qty ?? 3) + 1;
+    for (let i = 0; i < count; i++) {
+      const id = `hunt.${def.id}.${i}`;
+      if (this.enemies.get(id)) continue;
+      const near = this.world.nearestWalkable(
+        { x: def.huntCell.x + (i % 3) - 1, z: def.huntCell.z + Math.floor(i / 3) - 1 }, 8);
+      if (near) this.enemies.addPlacement({ instanceId: id, defId: slay.enemyDefId!, cell: near }, this.rng);
+    }
   }
 
   /** Drop a stack on the ground at a cell (overflow loot, laid eggs). */
@@ -941,6 +961,23 @@ export class GameSimulation {
     this.revalidatePath();
     this.unstickFromBlockers();
     this.healTutorialTracking();
+    // Every few seconds, make sure active slay errands still have quarry in
+    // the world (reloads and streaming culls can eat a hunt pack).
+    if (this.tickCount % 80 === 0) {
+      for (const id of this.quests.allIds()) {
+        if (!id.startsWith("vq.") || this.quests.states[id]?.status !== "active") continue;
+        const def = this.quests.defOf(id);
+        const st = this.quests.states[id];
+        const obj = def?.objectives[st.objectiveIndex];
+        if (def && obj?.type === "slay" && obj.enemyDefId) {
+          let alive = 0;
+          for (const e of this.enemies.enemies.values()) {
+            if (e.defId === obj.enemyDefId && e.hp > 0) alive++;
+          }
+          if (alive < (obj.qty ?? 1) - st.progress) this.spawnHuntPack(def);
+        }
+      }
+    }
     const commands = this.queue;
     this.queue = [];
     for (const c of commands) this.route(c);
@@ -1142,6 +1179,7 @@ export class GameSimulation {
    *  dropped between systems — used to kill guidance for the rest of the
    *  trail. This heals it every tick. */
   private healTutorialTracking(): void {
+    if (this.trackingMuted) return; // the player asked for quiet
     const tracked = this.trackedQuestId;
     if (tracked && this.quests.states[tracked] && this.quests.states[tracked].status !== "completed") return;
     if (this.world.region.id === "region.tutorial") {

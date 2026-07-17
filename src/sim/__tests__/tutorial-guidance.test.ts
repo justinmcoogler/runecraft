@@ -31,7 +31,7 @@ function completeThrough(sim: GameSimulation, stopAt: string): void {
         sim.tick();
       } else if (obj.type === "deliver") { sim.inventory.add(obj.itemId!, obj.qty ?? 1); talk(sim, obj.npcId ?? def.giverNpcId); }
       else if (obj.type === "talk") talk(sim, obj.npcId ?? def.giverNpcId);
-      else if (obj.type === "equipTag") { sim.events.emit({ type: "equipmentChanged" }); sim.tick(); }
+      else if (obj.type === "equipTag") { sim.equippedTool = "tool.sword.copper"; sim.events.emit({ type: "equipmentChanged" }); sim.tick(); }
     }
   }
 }

@@ -15,6 +15,8 @@ export interface QuestState {
 }
 
 export interface QuestDeps {
+  /** Spawn a slay errand's quarry near its huntCell (endless world). */
+  spawnHuntPack?: (def: QuestDef) => void;
   inventory: Inventory;
   skills: SkillService;
   events: SimEventBus;
@@ -149,6 +151,9 @@ export class QuestService {
         }
         state.status = "active";
         this.deps.events.emit({ type: "questStarted", questId: id, name: def.name });
+        // A slay errand's quarry materialises at its hunt spot right away, so
+        // the trail always has somewhere real to point.
+        this.deps.spawnHuntPack?.(def);
         // A tutor hands over the tool the lesson needs the moment you accept.
         for (const grant of def.startItems ?? []) {
           this.deps.inventory.add(grant.itemId, grant.qty);

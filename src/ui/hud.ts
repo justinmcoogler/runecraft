@@ -422,7 +422,14 @@ export class Hud {
           const qid = btn.dataset.qid;
           if (qid) {
             // Tap the tracked quest again to un-pin it (back to auto-tracking).
-            this.sim.trackedQuestId = this.sim.trackedQuestId === qid ? null : qid;
+            if (this.sim.trackedQuestId === qid) {
+              // Untrack: quiet the beacon and dot trail until re-pinned.
+              this.sim.trackedQuestId = null;
+              this.sim.trackingMuted = true;
+            } else {
+              this.sim.trackedQuestId = qid;
+              this.sim.trackingMuted = false;
+            }
             this.refreshQuestLog();
             this.updateQuestTracker();
           }
