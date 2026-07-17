@@ -33,6 +33,12 @@ layouts, so use the SAME layout as the vanilla mob named:
 - **Priority list with per-variant look notes:** ASSETS_NEEDED.md §"Mob skin
   variations" (husk family first, then spider, construct, slime, wolf,
   skeleton-variants, cattle).
+- **New creature roster (fox, rabbit, stag/doe, crab, duck, goat, frog,
+  squirrel, rat, wisp, mimic):** per-creature atlas specs with exact sizes,
+  region lists and palette notes in ASSETS_NEEDED.md §"New creature roster —
+  texture atlases needed". These are project-original rigs — follow the
+  region grids there, not vanilla layouts (except duck = chicken layout,
+  bandit = pillager layout).
 
 ## 3. Baked BB-models (creeper/skeleton/squid/ghast/warden/dragons…)
 - These carry their own baked textures inside

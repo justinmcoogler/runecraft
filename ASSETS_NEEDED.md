@@ -343,3 +343,57 @@ applied in-engine — no extra texture needed).
 
 Priority order: husk rig, spider rig, construct rig (most on-screen overlap
 today), then slimes, wolves, skeleton, cattle.
+
+## New creature roster — texture atlases needed (2026-07-17, batch 2)
+
+The twelve new creatures (fox, rabbit, stag/doe, shore crab, duck, goat,
+frog, squirrel, giant rat, bandit, will-o'-wisp, mimic) currently render
+with flat-color boxes. Each needs ONE pixel-art atlas; the engine maps
+per-face regions onto the rig (same pipeline as `entities/construct.png` /
+`entities/dummy.png`). Hard pixels only, fully-transparent background,
+drop into `src/render/art/entities/<name>.png`.
+
+Layout convention for every atlas below: a grid of named regions, each a
+flat pixel painting of that face. Keep regions in the stated grid cells so
+wiring is mechanical. 1 game block = 16 px.
+
+- **fox.png — 64x32.** Row 1: body side L/R (each 9x4 area painted at
+  16px scale), body top, head front (white muzzle, dark nose, amber eyes).
+  Row 2: head side, legs (dark socks), tail side (russet with white tip),
+  ears inner/outer. Palette: russet #c25a28, soot legs, cream underside.
+- **rabbit.png — 32x32.** Body side/top, head front (big dark eye, split
+  lip), ear front/back (pink inner), haunch, cotton tail. Warm tan, cream
+  belly. Optional 2nd colorway: snow rabbit (white/grey) as rabbit_snow.png.
+- **stag.png — 64x64.** Body side (visible ribs/shoulder shading), body
+  top, neck, head front + side (dark liquid eye, grey muzzle), legs
+  (darker below the knee), tail, antler texture strip (pale bone with
+  darker base). **doe.png — 64x64**, same regions, no antler strip,
+  softer fawn coat with faint dappling on the rump.
+- **crab.png — 32x32.** Shell top (mottled red-pink with darker rim and
+  speckle), shell side, claw outer/inner (banded), leg strip, eye stalks.
+- **duck.png — 64x32.** Uses the CHICKEN layout (vanilla chicken atlas
+  positions) — green mallard head, yellow bill, brown breast, white neck
+  ring, grey-brown wings.
+- **goat.png — 64x64.** Shaggy off-white coat with visible fur direction,
+  grey-brown face, rectangular pupils (goat eyes!), horn strip (ridged
+  amber-grey), beard tuft, dark hooves.
+- **frog.png — 32x32.** Mottled green back with darker blotches, pale
+  throat, gold eyes with horizontal pupils, webbed foot strip.
+- **squirrel.png — 32x32.** Chestnut back / cream belly split, tiny face
+  with black bead eye, and the star: a fluffy tail region with layered
+  fur strokes fading lighter at the edge.
+- **rat.png — 64x32.** Greasy grey-brown fur, pale naked tail (ring
+  segments), pink ears and feet, red eyes, bared yellow teeth.
+- **wisp.png — 32x32.** Core glow gradient tile (white→pale blue) plus a
+  wispy flame-tongue sprite (used as drifting motes). Soft alpha edges
+  allowed here as the ONE exception — it's a light, not a surface.
+- **mimic.png — 64x64.** Chest wood grain (aged oak, iron banding), gold
+  clasp/trim, open-lid inner face: black gullet, rows of needle fangs,
+  one round red eye, and a long tongue strip (pink-purple) for a future
+  lunge animation.
+- **bandit** needs NO atlas (rides the baked pillager model, tinted) —
+  but a 64x64 bandit.png in vanilla PILLAGER layout (hood, face-scarf,
+  leather tunic) would let us give him a real look later; low priority.
+
+Priority: mimic, fox, stag/doe, goat (biggest on-screen presence), then
+crab/rat/rabbit, then the small ambients (frog, squirrel, duck, wisp).
