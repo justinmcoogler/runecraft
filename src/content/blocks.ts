@@ -11,7 +11,7 @@ export type NaturalBlock =
   | "mud" | "redsand" | "mycelium" | "drygrass" | "stonebrick" | "gravel"
   | "coarsedirt" | "podzol" | "clay" | "moss" | "andesite" | "calcite"
   | "terracotta" | "redterracotta" | "orangeterracotta" | "whiteterracotta"
-  | "bridge" | "gatearch";
+  | "bridge" | "gatearch" | "farmland";
 
 /** Solid stone/building blocks whose Faithful textures are already baked. */
 export type StoneBlock =
@@ -103,6 +103,7 @@ const NATURAL: BlockDef[] = [
   uniform("stonebrick", "Stone Bricks", "terrain.stonebrick"),
   uniform("gravel", "Gravel", "terrain.gravel"),
   { id: "coarsedirt", name: "Coarse Dirt", solid: true, top: "terrain.coarsedirt", strata: [{ upTo: 2, tile: "terrain.coarsedirt" }] },
+  { id: "farmland", name: "Farmland", solid: true, top: "terrain.farmland", strata: [{ upTo: 2, tile: "terrain.dirt" }] },
   soil("podzol", "Podzol", "terrain.podzol"),
   uniform("clay", "Clay", "terrain.clay"),
   soil("moss", "Moss Block", "terrain.moss"),

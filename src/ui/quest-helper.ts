@@ -12,10 +12,14 @@ export function zoneNameAt(x: number, z: number): string {
 }
 
 /** The live cell of an NPC — the current region first (tutorial/endless quest
- *  givers live there), falling back to the authored overworld (province mode). */
+ *  givers live there), falling back to the authored overworld (province mode).
+ *  NEVER falls back in the endless region: overworld cells live in a different
+ *  coordinate space, and pointing guidance at one once sent the pathfinder on
+ *  a 30,000-cell march that froze and crashed the game. */
 export function npcCell(sim: GameSimulation, npcId: string): Cell | null {
   const here = sim.world.region.npcs.find((n) => n.instanceId === npcId);
   if (here) return here.cell;
+  if (sim.world.region.id === "region.endless") return null;
   const over = buildOverworld().region.npcs.find((n) => n.instanceId === npcId);
   return over ? over.cell : null;
 }
@@ -139,7 +143,8 @@ export function activeQuestTarget(sim: GameSimulation): QuestTarget | null {
       if (best) {
         cell = best;
         overworld = inOverworld;
-      } else {
+      } else if (sim.world.region.id !== "region.endless") {
+        // Foreign-coordinate fallback is only valid in the authored provinces.
         const spawn = buildOverworld().region.enemies?.find((e) => e.defId === objective.enemyDefId);
         if (spawn) cell = spawn.cell;
       }

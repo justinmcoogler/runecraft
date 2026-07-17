@@ -479,8 +479,25 @@ export class GameRenderer {
       this.guideWorld = gw;
       this.guideWorldFor = world;
     }
-    const approach = this.walkableNear(goal);
-    const path = approach ? findPath(this.guideWorld!, player, approach) : null;
+    // The dot trail re-paths only when the player or goal cell changes (never
+    // per-frame), skips far targets outright (the beacon still points), and
+    // runs on a tight A* budget — guidance must never be able to freeze the
+    // game chasing an objective across half the world.
+    const targetDist = Math.max(Math.abs(goal.x - player.x), Math.abs(goal.z - player.z));
+    const guideKey = `${player.x},${player.z}>${goal.x},${goal.z}`;
+    let path: Cell[] | null;
+    if (targetDist > 180) {
+      path = null;
+      this.guidePathKey = guideKey;
+      this.guidePath = null;
+    } else if (guideKey === this.guidePathKey) {
+      path = this.guidePath;
+    } else {
+      const approach = this.walkableNear(goal);
+      path = approach ? findPath(this.guideWorld!, player, approach, 12_000) : null;
+      this.guidePathKey = guideKey;
+      this.guidePath = path;
+    }
     if (!path || path.length === 0) {
       for (const d of this.questDots) d.visible = false;
       return;
@@ -508,6 +525,9 @@ export class GameRenderer {
     }
     for (; di < this.questDots.length; di++) this.questDots[di].visible = false;
   }
+
+  private guidePathKey = "";
+  private guidePath: Cell[] | null = null;
 
   /** The cell itself if walkable, else a walkable neighbour, else null. */
   private walkableNear(cell: { x: number; z: number }): { x: number; z: number } | null {
@@ -1223,10 +1243,11 @@ export class GameRenderer {
             if (nh < h) pushQuad(side.corners(deckBot, h), plankSide, side.shade, x, z); // exposed deck edge
           }
           pushQuad([[x, deckBot, z], [x + 1, deckBot, z], [x + 1, deckBot, z + 1], [x, deckBot, z + 1]], plankSide, 0.55, x, z); // underside
-          // A pier every few cells: a full 1×1 stone column from the bed to the
-          // deck — one Minecraft block thick, stacked cubes, not a thin post.
+          // A pier every few cells: a full 1×1 oak-plank column from the bed
+          // to the deck — one Minecraft block thick, stacked cubes, matching
+          // the wooden deck it carries.
           if (((x * 2 + z * 3) & 3) === 0) {
-            pushBox(x, x + 1, z, z + 1, BED_Y, deckBot, topTile("stone"), x, z);
+            pushBox(x, x + 1, z, z + 1, BED_Y, deckBot, topTile("plank"), x, z);
           }
         } else {
           for (const side of sides) {
@@ -1744,9 +1765,9 @@ export class GameRenderer {
           // (the olive base muddies pure scarlet), so it reads as fall gold.
           // A low warm emissive lifts the tint past what a plain multiply can
           // reach, so the canopy blazes vividly instead of muddying to olive.
-          leavesMat.color.setHSL(0.045 + variety * 0.055, 1.0, 0.68 + variety * 0.07);
-          leavesMat.emissive = new THREE.Color().setHSL(0.045 + variety * 0.05, 0.95, 0.35);
-          leavesMat.emissiveIntensity = 0.5;
+          leavesMat.color.setHSL(0.045 + variety * 0.055, 0.95, 0.62 + variety * 0.07);
+          leavesMat.emissive = new THREE.Color().setHSL(0.045 + variety * 0.05, 0.9, 0.3);
+          leavesMat.emissiveIntensity = 0.25;
         } else if (species === "pine") {
           leavesMat.color.setHSL(0.36, 0.5, 0.7); // deep blue-green needles
         } else if (species === "willow") {

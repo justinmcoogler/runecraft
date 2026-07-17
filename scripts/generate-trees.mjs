@@ -127,45 +127,53 @@ const GRAMMARS = {
     if (grand) t.blob(top.x, top.y + 1, top.z, rad - 1, 1.4, rad - 1, r, 0.4);
     return t;
   },
-  // Tall, narrow, papery white — a slim ellipsoid riding a thin trunk.
+  // Papery white broadleaf: a full, softly rounded crown on a clean trunk —
+  // slim, but never the bare pole with a pinhead it used to be.
   birch(r, grand) {
     const t = new Tree();
-    const h = grand ? pick(r, 12, 16) : pick(r, 6, 9);
+    const h = grand ? pick(r, 9, 12) : pick(r, 5, 8);
     const top = t.trunk(h, 1);
-    const rad = grand ? 3 : 2;
-    t.blob(top.x, top.y - 1, top.z, rad, grand ? 4 : 3, rad, r, 0.3);
+    const rad = grand ? 3 : pick(r, 2, 3);
+    t.blob(top.x, top.y, top.z, rad, grand ? 3.2 : 2.6, rad, r, 0.24);
+    t.blob(top.x, top.y + 2, top.z, Math.max(1, rad - 1), 1.6, Math.max(1, rad - 1), r, 0.3);
     return t;
   },
-  // Conifer: stacked disks tapering to a point, gaps between the tiers.
+  // Conifer: stacked disks tapering to a point — the lowest tier stays well
+  // off the ground so the cone never wears a grass-level skirt.
   spruce(r, grand) {
     const t = new Tree();
-    const h = grand ? pick(r, 14, 20) : pick(r, 7, 11);
+    const h = grand ? pick(r, 12, 17) : pick(r, 7, 11);
     t.trunk(h, 1);
-    const tiers = Math.floor(h / 2);
     const baseR = grand ? 4 : 3;
+    const lowest = 3;
+    const tiers = Math.max(2, Math.floor((h - 1 - lowest) / 2) + 1);
     for (let i = 0; i < tiers; i++) {
       const y = h - 1 - i * 2;
-      const rad = Math.max(0, Math.round(baseR * (i / (tiers - 1))));
+      if (y < lowest) break;
+      const rad = Math.max(1, Math.round(baseR * ((i + 1) / tiers)));
       t.disk(y, 0, 0, rad, r, 0.2, 1);
-      if (rad > 1) t.disk(y - 1, 0, 0, Math.max(0, rad - 1), r, 0.3, 1);
+      if (rad > 1) t.disk(y - 1, 0, 0, rad - 1, r, 0.3, 1);
     }
     t.putLeaf(0, h, 0); t.putLeaf(0, h + 1, 0); // sharp crown
     return t;
   },
-  // Bare-trunked pine: a long clean bole with a compact tuft up top only.
+  // Pine: a clean bole under a proper deep conifer crown — every tier carries
+  // real width, so it reads as a tree, not a flagpole with a tuft.
   pine(r, grand) {
     const t = new Tree();
-    const h = grand ? pick(r, 16, 24) : pick(r, 9, 14);
-    t.trunk(h, grand ? 1 : 1);
-    const crown = Math.floor(h * (grand ? 0.42 : 0.5));
+    const h = grand ? pick(r, 12, 16) : pick(r, 8, 11);
+    t.trunk(h, 1);
+    const crownBase = Math.max(3, Math.floor(h * 0.45));
     const baseR = grand ? 4 : 3;
-    const tiers = Math.floor((h - crown) / 2) + 1;
+    const tiers = Math.max(2, Math.floor((h + 1 - crownBase) / 2) + 1);
     for (let i = 0; i < tiers; i++) {
-      const y = h - i * 2;
-      const rad = Math.max(0, Math.round(baseR * (i / tiers)));
-      t.disk(y, 0, 0, rad, r, 0.28, 1);
+      const y = h + 1 - i * 2;
+      if (y < crownBase) break;
+      const rad = Math.max(1, Math.round(baseR * ((i + 1) / tiers)));
+      t.disk(y, 0, 0, rad, r, 0.24, 1);
+      if (rad > 1) t.disk(y - 1, 0, 0, rad - 1, r, 0.32, 1);
     }
-    t.putLeaf(0, h + 1, 0);
+    t.putLeaf(0, h + 1, 0); t.putLeaf(0, h + 2, 0);
     return t;
   },
   // Rainforest giant: a very tall bole, a high spreading umbrella, and vines.

@@ -731,6 +731,8 @@ export const TERRAIN_ATLAS_ORDER = [
   "terrain.cobble",
   ...DYE_COLORS.map((c) => `block.wool.${c}`),
   ...DYE_COLORS.map((c) => `block.concrete.${c}`),
+  // Synthesized tiles (scripts/make-farmland-tile.mjs) — append-only.
+  "terrain.farmland",
 ];
 
 /** A resolved entity texture (mob skin / chest atlas) at native size. */

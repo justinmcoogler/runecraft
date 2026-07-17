@@ -170,6 +170,8 @@ const BLOCK_LIST: BlockType[] = [
   "bridge",
   // Castle-gate thresholds (gravel floor with a cobble arch drawn over it).
   "gatearch",
+  // Tilled ridge-and-trench soil under farm crop rows.
+  "farmland",
 ];
 const BLOCK_ID: Record<string, number> = Object.fromEntries(BLOCK_LIST.map((b, i) => [b, i]));
 
@@ -403,8 +405,9 @@ function bridgeCrossingOk(seed: number, x: number, z: number, maxSpan: number): 
 }
 
 // A plank jetty length: where a road's line meets water too wide to bridge,
-// the first few water cells from the bank become a dock instead of dead-ending.
-const DOCK_LEN = 5;
+// the first stretch of water from the bank becomes a dock instead of
+// dead-ending — long enough to feel like a real pier reaching open water.
+const DOCK_LEN = 8;
 
 // Pier proportions: a narrow walkway (5 wide) out from the bank, the last two
 // rows widening into the flat head (9 wide) where the fishing spot waits.
@@ -1736,14 +1739,13 @@ function stampFarmyard(
       });
     }
   } else {
-    // A tilled field that reads as FARMLAND, not a dirt patch: alternating
-    // furrows — dark watered rows (mud) between coarse-earth walking rows —
-    // with the watered rows full of standing, already-grown crops (the
-    // ready-to-harvest crop nodes) and a couple of plantable Farming plots
-    // mixed in for the skill.
+    // A tilled field that reads as FARMLAND: crop rows on furrowed farmland
+    // (a dedicated ridge-and-trench tile) with plain dirt walking aisles
+    // between them, the crop rows full of standing, already-grown crops and
+    // a couple of plantable Farming plots mixed in for the skill.
     const pick = FIELD_CROPS[Math.floor(cellHash(cx * 7 + k, cz * 11 + k * 5, salt(seed, 125)) * FIELD_CROPS.length)];
     for (let dz = 0; dz < d; dz++) {
-      const row = BLOCK_ID[dz % 2 === 1 ? "mud" : "coarsedirt"];
+      const row = BLOCK_ID[dz % 2 === 1 ? "farmland" : "dirt"];
       for (let dx = 0; dx < w; dx++) blocks[(pz + dz) * ECHUNK + (px + dx)] = row;
     }
     // Fields whose plot kind has no standing-crop art (carrot/potato/corn)
@@ -3103,10 +3105,20 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
         const flat = Math.abs(heights[nearI] - heights[farI]) <= 1;
         if (span >= 1 && span <= 2 && farBlock !== "water" && farBlock !== "ice" && flat &&
           cellHash(wx, wz, salt(seed, 84)) < 0.4) {
-          objects.push({
-            instanceId: id(), defId: "object.shortcut.log", cell: { x: wx - 1, z: wz },
-            portal: { targetRegionId: "region.endless", targetCell: { x: wx + span, z: wz } },
-          });
+          // Not beside a dock or bridge: a fallen log leaning against real
+          // carpentry looks like debris someone forgot to clear.
+          let nearDeck = false;
+          for (let sz = Math.max(0, jz - 6); sz <= Math.min(ECHUNK - 1, jz + 6) && !nearDeck; sz++) {
+            for (let sx = Math.max(0, jx - 6); sx <= Math.min(ECHUNK - 1, jx + 6); sx++) {
+              if (blocks[sz * ECHUNK + sx] === BLOCK_ID.bridge) { nearDeck = true; break; }
+            }
+          }
+          if (!nearDeck) {
+            objects.push({
+              instanceId: id(), defId: "object.shortcut.log", cell: { x: wx - 1, z: wz },
+              portal: { targetRegionId: "region.endless", targetCell: { x: wx + span, z: wz } },
+            });
+          }
         }
       }
     }
