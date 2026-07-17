@@ -1098,8 +1098,16 @@ function valeWall(seed: number, x: number, z: number): { h: number; block: Block
 // wholly inside its own chunk, so the pure-function seam holds.
 // ---------------------------------------------------------------------------
 
-const VILLAGE_L = 176; // spacing between village anchors
-const VILLAGE_R = 96; // how far a village's homestead boost reaches
+const VILLAGE_L = 168; // spacing between village anchors (tighter = villages a touch more common)
+const VILLAGE_R = 120; // how far a village's homestead boost reaches (bigger = more homes per village)
+// Per-chunk homestead roll thresholds. Lone wild homes are uncommon; inside a
+// village's reach the roll is boosted so a dense cluster of homes grows around
+// the plaza. These live as named constants because BOTH the placement gate
+// (generateChunk) and the lane replay (onVillageLane / villageHomeStamps) key
+// off them — they must stay identical or lanes lead to empty lots (or homes
+// get no lane). Bumped up to populate villages and the countryside more richly.
+const WILD_HOME_ROLL = 0.09; // lone homesteads out in the wild
+const VILLAGE_HOME_ROLL = 0.82; // homes in a village's reach
 const villageAnchorCache = new Map<number, { x: number; z: number; ok: boolean }>();
 
 function villageAnchor(seed: number, gx: number, gz: number): { x: number; z: number; ok: boolean } {
@@ -1190,7 +1198,7 @@ function onVillageLane(seed: number, x: number, z: number): boolean {
       // Mirror generateChunk's homestead gate: the boosted 0.6 roll only when
       // this neighbour is itself within a village's reach, else the wild 0.05.
       const boosted = villageNear(seed, ncx * ECHUNK + 32, ncz * ECHUNK + 32) !== null;
-      if (cellHash(ncx * 40987, ncz * 90001, salt(seed, 58)) >= (boosted ? 0.6 : 0.05)) continue;
+      if (cellHash(ncx * 40987, ncz * 90001, salt(seed, 58)) >= (boosted ? VILLAGE_HOME_ROLL : WILD_HOME_ROLL)) continue;
       const hc = villageHomeStamps(seed, ncx, ncz);
       if (!hc) continue; // roll passed but the pad test rejects the home — no lane
       if (segDist(x, z, v.x, v.z, hc.x, hc.z) < 2.1) return true;
@@ -1861,6 +1869,56 @@ function stampVillagePlaza(
       lines: settle.lines[linesI],
     });
   }
+  // A tight ring of cottages hugging the plaza, so a village reads as a real
+  // cluster of homes at its core — not just a green ringed by distant
+  // farmsteads. These sit wholly inside the plaza chunk (no cross-chunk lane to
+  // replay), each on its own flattened pad with a resident by the door. Any
+  // slot that lands wet, steep, on the starter town, or atop a neighbour is
+  // skipped, so the ring gracefully thins on awkward ground.
+  const RING_N = 7;
+  for (let k = 0; k < RING_N; k++) {
+    const ang = (k / RING_N) * Math.PI * 2 + 0.45;
+    const big = cellHash(cx * 3 + k * 5, cz * 7 + k * 2, salt(seed, 111)) < 0.3;
+    const hw = big ? 6 : 5, hd = big ? 5 : 4;
+    const rr = 18 + Math.round(cellHash(cx + k * 9, cz + k * 4, salt(seed, 112)) * 4);
+    const hx = px + Math.round(Math.cos(ang) * rr) - (hw >> 1);
+    const hz = pz + Math.round(Math.sin(ang) * rr) - (hd >> 1);
+    if (hx < 2 || hz < 2 || hx + hw >= ECHUNK - 2 || hz + hd >= ECHUNK - 2) continue;
+    let plo = Infinity, phi = -Infinity, bad = false;
+    for (let dz = 0; dz < hd && !bad; dz++) {
+      for (let dx = 0; dx < hw; dx++) {
+        const i = (hz + dz) * ECHUNK + (hx + dx);
+        const b = BLOCK_LIST[blocks[i]];
+        if (b === "water" || b === "ice" || inStarterTown(seed, x0 + hx + dx, z0 + hz + dz)) { bad = true; break; }
+        plo = Math.min(plo, heights[i]); phi = Math.max(phi, heights[i]);
+      }
+    }
+    if (bad || phi - plo > 3) continue;
+    if (houseBoxes.some((b) => hx <= b.x1 && hx + hw - 1 >= b.x0 && hz <= b.z1 && hz + hd - 1 >= b.z0)) continue;
+    const ha = heights[(hz + (hd >> 1)) * ECHUNK + (hx + (hw >> 1))];
+    const fp: Array<{ x: number; z: number }> = [];
+    for (let dx = 0; dx < hw; dx++) {
+      for (let dz = 0; dz < hd; dz++) {
+        heights[(hz + dz) * ECHUNK + (hx + dx)] = ha;
+        if (dx === 0 && dz === 0) continue;
+        fp.push({ x: x0 + hx + dx, z: z0 + hz + dz });
+      }
+    }
+    objects.push({
+      instanceId: `end.${cx}.${cz}.pr${k}`,
+      defId: big ? "object.house.big" : "object.house.small",
+      cell: { x: x0 + hx, z: z0 + hz },
+      footprint: fp,
+    });
+    houseBoxes.push({ x0: hx, z0: hz, x1: hx + hw - 1, z1: hz + hd - 1 });
+    npcs.push({
+      instanceId: `end.${cx}.${cz}.pr${k}.res`,
+      name: VILLAGER_NAMES[(k * 3 + 1) % VILLAGER_NAMES.length],
+      cell: { x: x0 + hx + (hw >> 1), z: z0 + hz + hd },
+      wanderRadius: 3,
+      lines: settle.lines[k % settle.lines.length],
+    });
+  }
   return true;
 }
 
@@ -2128,7 +2186,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   }
   // Wild homesteads: the interiored homes, found out in the world. The roll is
   // boosted around a village anchor so several cluster into a settlement.
-  if (!stamped && cellHash(cx * 40987, cz * 90001, salt(seed, 58)) < (village ? 0.6 : 0.05)) {
+  if (!stamped && cellHash(cx * 40987, cz * 90001, salt(seed, 58)) < (village ? VILLAGE_HOME_ROLL : WILD_HOME_ROLL)) {
     stamped = tryStampHouse(seed, cx, cz, heights, blocks, biomes, x0, z0, structures, objects, houseBoxes, nodes, npcs);
   }
 
