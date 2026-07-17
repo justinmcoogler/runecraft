@@ -336,6 +336,9 @@ describe("slayer assignments are always completable", () => {
     for (const id of Object.keys(REGION_BUILDERS)) {
       for (const e of buildRegion(id).enemies ?? []) spawned.add(e.defId);
     }
+    // The endless wild spawns its beasts from the danger-tier pools.
+    const { DANGER_MOBS } = await import("../worldgen/endless");
+    for (const pool of DANGER_MOBS) for (const id of pool) spawned.add(id);
     const { ASSIGNMENTS } = await import("../taskmasters");
     expect(ASSIGNMENTS.length).toBeGreaterThan(0);
     for (const a of ASSIGNMENTS) {

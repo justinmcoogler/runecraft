@@ -570,12 +570,15 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
   // Climate drives biomes; altitude cools. Flora noise splits the woods
   // into oak forest, birch groves and dark forest, and dots the plains
   // with flower meadows, so same-climate country still changes character.
-  // Per-cell dither raggeds the biome borders so they read as gradual
-  // transitions instead of drawn lines; water decisions (freezing) use
-  // the undithered climate so lake lids stay coherent.
+  // Border dither raggeds the biome edges so they read as gradual
+  // transitions instead of drawn lines — sampled on a 4-cell lattice, NOT
+  // per cell: per-cell dither turned every climate boundary into biome
+  // confetti (a flip every ~9 cells on a straight walk). Water decisions
+  // (freezing) use the undithered climate so lake lids stay coherent.
   const tempBase = f.temp - Math.max(0, f.h - 14) * 0.011;
-  const temp = tempBase + (cellHash(x, z, salt(seed, 26)) - 0.5) * 0.05;
-  const moist = f.moist + (cellHash(z, x, salt(seed, 27)) - 0.5) * 0.05;
+  const qx = x >> 2, qz = z >> 2;
+  const temp = tempBase + (cellHash(qx, qz, salt(seed, 26)) - 0.5) * 0.05;
+  const moist = f.moist + (cellHash(qz, qx, salt(seed, 27)) - 0.5) * 0.05;
   // Corruption: rare blighted country where the land itself turned. The
   // fights are harder and the ground is stingier, but the loot is richer.
   const corrupt = fbm(x, z, 1400, salt(seed, 39)) > 0.81;
@@ -2500,10 +2503,11 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
     stamped = tryStampHouse(seed, cx, cz, heights, blocks, biomes, x0, z0, structures, objects, houseBoxes, nodes, npcs, enemies);
   }
 
-  // Dungeon gates: a rare crimson portal-arch on a flattened pad that drops
-  // into an endlessly-descending dungeon. The clickable mouth sits one row in
-  // front (south) of the arch, so the approach is always walkable.
-  if (!stamped && cellHash(cx * 70001, cz * 30011, salt(seed, 63)) < 0.03) {
+  // Dungeon gates: cave mouths on flattened pads that drop into generated
+  // dungeons — mineshafts under rocky country, warrens and crypts under the
+  // green, most a finite 2-5-floor crawl, a rare few endless. Dense enough
+  // that a wandering player actually stumbles onto them.
+  if (!stamped && cellHash(cx * 70001, cz * 30011, salt(seed, 63)) < 0.06) {
     // No imported arch — the clickable cave-mouth portal (a code object) is the
     // whole gate now, on a modest cleared pad.
     const w = 11, d = 11;

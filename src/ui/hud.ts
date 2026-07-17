@@ -1332,7 +1332,7 @@ export class Hud {
       const magic = this.sim.skills.levelOf("skill.magic");
       // Pick the strongest alchemy tier the caster can actually afford.
       const tier = ALCHEMY_TIERS.find((t) => magic >= ALCHEMY[t].level && this.sim.inventory.count(ALCHEMY[t].rune) > 0);
-      const label: Record<AlchemyTier, string> = { low: "Low Alch", high: "High Alch", grand: "Grand Alch" };
+      const label: Record<AlchemyTier, string> = { low: "Low Alch", high: "High Alch", grand: "Grand Alch", master: "Master Alch" };
       const coins = tier ? Math.max(1, Math.round(ALCH_VALUES[slot.itemId] * ALCHEMY[tier].factor)) : 0;
       action = {
         label: tier ? `${label[tier]} (+${coins})` : "Alchemise",

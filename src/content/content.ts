@@ -1685,6 +1685,8 @@ export const ITEMS: Record<string, ItemDef> = {
   // ---- bones for Prayer (bury them) ----
   "item.bone.big": { id: "item.bone.big", name: "Big Bones", icon: "🦴", stackable: true, maxStack: 50 },
   "item.bone.dragon": { id: "item.bone.dragon", name: "Dragon Bones", icon: "🐉", stackable: true, maxStack: 50 },
+  "item.bone.ancient": { id: "item.bone.ancient", name: "Ancient Bones", icon: "💀", stackable: true, maxStack: 50 },
+  "item.bone.warden": { id: "item.bone.warden", name: "Warden Remains", icon: "🌑", stackable: true, maxStack: 50 },
   // ---- Runecrafting: arcane essence bound into Minecraft magic reagents ----
   "item.essence.rune": { id: "item.essence.rune", name: "Arcane Essence", icon: "🪨", stackable: true, maxStack: 99 },
   "item.rune.air": { id: "item.rune.air", name: "Wind Rune", icon: "🌬️", stackable: true, maxStack: 99 },
@@ -1786,6 +1788,8 @@ export const ITEMS: Record<string, ItemDef> = {
   // ---- Herblore: two campfire salves that consume the orphan herbs ----
   "item.salve.frost": { id: "item.salve.frost", name: "Frostbloom Salve", icon: "🧊", stackable: true, maxStack: 50, healAmount: 24 },
   "item.salve.dusk": { id: "item.salve.dusk", name: "Duskcap Poultice", icon: "🍯", stackable: true, maxStack: 50, healAmount: 40 },
+  "item.salve.ember": { id: "item.salve.ember", name: "Emberleaf Liniment", icon: "🫙", stackable: true, maxStack: 50, healAmount: 55 },
+  "item.salve.kings": { id: "item.salve.kings", name: "King's Tincture", icon: "🏺", stackable: true, maxStack: 50, healAmount: 75 },
   // ---- Runecrafting: four mid-tier runes filling the Fire->Nature dead zone ----
   "item.rune.body": { id: "item.rune.body", name: "Copper Rune", icon: "🟫", stackable: true, maxStack: 99 },
   "item.rune.cosmic": { id: "item.rune.cosmic", name: "Star Rune", icon: "✨", stackable: true, maxStack: 99 },
@@ -1893,6 +1897,8 @@ const BONE_PRAYER: Record<string, { level: number; xp: number }> = {
   "item.bone.old": { level: 1, xp: 15 },
   "item.bone.big": { level: 20, xp: 45 },
   "item.bone.dragon": { level: 40, xp: 180 },
+  "item.bone.ancient": { level: 60, xp: 340 },
+  "item.bone.warden": { level: 80, xp: 620 },
 };
 for (const [id, p] of Object.entries(BONE_PRAYER)) ITEMS[id].prayer = p;
 
@@ -1916,10 +1922,11 @@ export const ALCHEMY = {
   low: { level: 1, xp: 31, rune: "item.rune.fire", factor: 0.55 },
   high: { level: 21, xp: 65, rune: "item.rune.nature", factor: 1.0 },
   grand: { level: 44, xp: 90, rune: "item.rune.law", factor: 1.5 },
+  master: { level: 68, xp: 140, rune: "item.rune.death", factor: 2.1 },
 };
 /** Ordered best-first, so the HUD/handler can pick the strongest tier the
  *  caster can afford. */
-export const ALCHEMY_TIERS = ["grand", "high", "low"] as const;
+export const ALCHEMY_TIERS = ["master", "grand", "high", "low"] as const;
 export type AlchemyTier = (typeof ALCHEMY_TIERS)[number];
 
 /** Superheat (Magic L35): smelt an ore straight to its bar without a furnace,
@@ -3197,6 +3204,8 @@ function ladderRecipes(): Record<string, RecipeDef> {
   // ---- Herblore: two salves at the campfire ----
   R({ id: "recipe.frost_salve", name: "Frostbloom Salve", skillId: "skill.herblore", requiredLevel: 20, cycleTimeS: 3.4, inputs: inp("item.herb.frostbloom", 1, "item.herb.sage", 2), outputs: [{ itemId: "item.salve.frost", qty: 1 }], successBase: 0.74, successPerLevel: 0.012, successMax: 0.99, xp: 72 });
   R({ id: "recipe.dusk_poultice", name: "Duskcap Poultice", skillId: "skill.herblore", requiredLevel: 34, cycleTimeS: 3.6, inputs: inp("item.herb.duskcap", 1, "item.spore.pale", 1), outputs: [{ itemId: "item.salve.dusk", qty: 1 }], successBase: 0.7, successPerLevel: 0.012, successMax: 0.99, xp: 132 });
+  R({ id: "recipe.ember_liniment", name: "Emberleaf Liniment", skillId: "skill.herblore", requiredLevel: 48, cycleTimeS: 3.8, inputs: inp("item.herb.emberleaf", 1, "item.herb.mint", 2), outputs: [{ itemId: "item.salve.ember", qty: 1 }], successBase: 0.66, successPerLevel: 0.012, successMax: 0.99, xp: 210 });
+  R({ id: "recipe.kings_tincture", name: "King's Tincture", skillId: "skill.herblore", requiredLevel: 62, cycleTimeS: 4.0, inputs: inp("item.herb.emberleaf", 1, "item.herb.frostbloom", 1, "item.herb.duskcap", 1), outputs: [{ itemId: "item.salve.kings", qty: 1 }], successBase: 0.6, successPerLevel: 0.012, successMax: 0.99, xp: 330 });
   // ---- Smelting: the steel/mithril/adamant/runite bar ladder ----
   const smelt = (id: string, name: string, level: number, cycleTimeS: number, inputs: RecipeItem[], out2: string, xp: number) =>
     R({ id, name, skillId: "skill.smelting", requiredLevel: level, cycleTimeS, inputs, outputs: [{ itemId: out2, qty: 1 }], successBase: 1, successPerLevel: 0, successMax: 1, xp });
@@ -4851,7 +4860,8 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
       "recipe.glazed_sunscale", "recipe.buttered_shrimp", "recipe.boiled_crab",
       "recipe.steamed_lobster", "recipe.grilled_marlin", "recipe.abyssal_delicacy",
       "recipe.storm_fillet",
-      "recipe.frost_salve", "recipe.dusk_poultice",
+      "recipe.frost_salve", "recipe.dusk_poultice", "recipe.ember_liniment",
+      "recipe.kings_tincture",
       "recipe.cooked_fowl", "recipe.cooked_boar", "recipe.cooked_grenwall", "recipe.cooked_antelope",
     ],
     blocksNav: true,
@@ -7077,4 +7087,11 @@ for (const id of [
   "enemy.moss_golem", "enemy.glacial_wight", "enemy.silt_king", "enemy.rootbound_warden",
 ]) {
   ENEMIES[id].loot.push({ itemId: "item.bone.big", min: 1, max: 2, chance: 0.85 });
+}
+// The deep-wild bruisers carry the high-Prayer bone tiers.
+for (const id of ["enemy.barrow_lord", "enemy.silt_king", "enemy.glacial_wight", "enemy.canyon_construct"]) {
+  ENEMIES[id].loot.push({ itemId: "item.bone.ancient", min: 1, max: 1, chance: 0.9 });
+}
+for (const id of ["enemy.warden", "enemy.ravager"]) {
+  ENEMIES[id].loot.push({ itemId: "item.bone.warden", min: 1, max: 1, chance: 1 });
 }

@@ -29,8 +29,22 @@ export const ASSIGNMENTS: Array<{ defId: string; minLevel: number; baseCount: nu
   { defId: "enemy.dune_husk", minLevel: 12, baseCount: 4, xp: 500, coins: 78 },
   { defId: "enemy.spore_shambler", minLevel: 13, baseCount: 3, xp: 540, coins: 85 },
   { defId: "enemy.rust_construct", minLevel: 14, baseCount: 3, xp: 580, coins: 95 },
-  // The capstone bounty: Old Gnasher himself, once per rotation.
+  // The first capstone bounty: Old Gnasher himself, once per rotation.
   { defId: "enemy.old_gnasher", minLevel: 16, baseCount: 1, xp: 700, coins: 120 },
+  // Mid-game: the danger-tier-2/3 beasts of the deeper wild.
+  { defId: "enemy.dire_wolf", minLevel: 20, baseCount: 4, xp: 900, coins: 150 },
+  { defId: "enemy.marsh_lurker", minLevel: 24, baseCount: 4, xp: 1050, coins: 175 },
+  { defId: "enemy.grave_shambler", minLevel: 28, baseCount: 4, xp: 1200, coins: 200 },
+  { defId: "enemy.moss_golem", minLevel: 32, baseCount: 3, xp: 1400, coins: 235 },
+  { defId: "enemy.gloom_spinner", minLevel: 36, baseCount: 4, xp: 1600, coins: 270 },
+  { defId: "enemy.stone_sentinel", minLevel: 42, baseCount: 3, xp: 1900, coins: 320 },
+  // Late game: the tier-4 bruisers, then the tier-5 horrors far from home.
+  { defId: "enemy.barrow_lord", minLevel: 50, baseCount: 3, xp: 2400, coins: 400 },
+  { defId: "enemy.silt_king", minLevel: 58, baseCount: 3, xp: 2900, coins: 480 },
+  { defId: "enemy.glacial_wight", minLevel: 66, baseCount: 3, xp: 3500, coins: 580 },
+  { defId: "enemy.canyon_construct", minLevel: 72, baseCount: 3, xp: 4000, coins: 660 },
+  { defId: "enemy.warden", minLevel: 80, baseCount: 2, xp: 4800, coins: 800 },
+  { defId: "enemy.ravager", minLevel: 88, baseCount: 2, xp: 5600, coins: 950 },
 ];
 
 export interface SlayerState {
