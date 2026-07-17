@@ -18,6 +18,9 @@ export interface NodeInstance {
   remaining: number;
   phase: NodePhase;
   respawnRemainingS: number;
+  /** Farm plots must be plowed (hoe) before a seed will take; true for
+   *  everything that isn't a plantable plot. */
+  plowed: boolean;
 }
 
 export class ResourceNodeSystem {
@@ -66,6 +69,7 @@ export class ResourceNodeSystem {
       // Farm plots start empty and dormant (-1: waiting to be planted).
       phase: def.plantable ? "depleted" : "active",
       respawnRemainingS: def.plantable ? -1 : 0,
+      plowed: !def.plantable,
     };
     this.instances.set(instance.instanceId, instance);
     // Depleted stumps keep blocking navigation, so the blocker is permanent.
@@ -107,11 +111,20 @@ export class ResourceNodeSystem {
     this.events.emit({ type: "nodeDepleted", instanceId: node.instanceId });
   }
 
-  /** Plant a dormant farm plot: starts its grow timer. */
+  /** Plow a dormant plot with a hoe: fresh furrows, ready to sow. */
+  plow(instanceId: string): boolean {
+    const node = this.instances.get(instanceId);
+    const grow = node ? NODES[node.defId].plantable : undefined;
+    if (!node || !grow || node.plowed || node.phase !== "depleted" || node.respawnRemainingS >= 0) return false;
+    node.plowed = true;
+    return true;
+  }
+
+  /** Plant a plowed, dormant farm plot: starts its grow timer. */
   plant(instanceId: string): boolean {
     const node = this.instances.get(instanceId);
     const grow = node ? NODES[node.defId].plantable : undefined;
-    if (!node || !grow || node.phase !== "depleted" || node.respawnRemainingS >= 0) return false;
+    if (!node || !grow || !node.plowed || node.phase !== "depleted" || node.respawnRemainingS >= 0) return false;
     node.respawnRemainingS = grow.growS;
     return true;
   }

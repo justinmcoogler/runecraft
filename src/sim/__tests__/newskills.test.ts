@@ -50,6 +50,18 @@ describe("farming plots", () => {
     const plot = sim.nodes.get("t.plot")!;
     expect(plot.phase).toBe("depleted"); // starts empty
     expect(plot.respawnRemainingS).toBeLessThan(0); // dormant, not growing
+    expect(plot.plowed).toBe(false); // unbroken ground
+
+    // Unplowed + no hoe: rejected outright.
+    sim.enqueue({ type: "interact", targetId: "t.plot" });
+    const noHoe = runTicks(sim, 3);
+    expect(noHoe.some((e) => e.type === "actionRejected" && e.reason === "missing_tool")).toBe(true);
+
+    // With a hoe: plow the furrows first.
+    sim.inventory.add("tool.hoe.basic", 1);
+    sim.enqueue({ type: "interact", targetId: "t.plot" });
+    runUntil(sim, (e) => e.type === "plowed");
+    expect(plot.plowed).toBe(true);
 
     // No seeds: rejected before walking.
     sim.enqueue({ type: "interact", targetId: "t.plot" });

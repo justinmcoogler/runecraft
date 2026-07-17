@@ -731,6 +731,23 @@ export class Hud {
             );
             break;
           }
+          // A master whose lesson is already signed off sends you up the
+          // trail to whoever teaches next, by name.
+          if (this.sim.world.region.id === "region.tutorial") {
+            const ids = this.sim.quests.allIds().filter((id) => id.startsWith("quest.tut_"));
+            const mine = ids.find((id) => this.sim.quests.defOf(id)?.giverNpcId === ev.instanceId);
+            if (mine && this.sim.quests.states[mine]?.status === "completed") {
+              const next = ids.find((id) => this.sim.quests.states[id]?.status !== "completed");
+              const nextDef = next ? this.sim.quests.defOf(next) : null;
+              if (nextDef && nextDef.giverNpcId !== ev.instanceId) {
+                this.toast(
+                  `${ev.name}: “You've mastered my lesson — go and see ${npcName(nextDef.giverNpcId, this.sim)} next; the trail leads on.”`,
+                  "speech",
+                );
+                break;
+              }
+            }
+          }
           const own = this.sim.npcs.get(ev.instanceId)?.lines;
           const pool = own ?? NPC_LINES;
           const line = pool[this.npcLineIndex++ % pool.length];

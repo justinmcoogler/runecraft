@@ -3,7 +3,7 @@
 
 import * as THREE from "three";
 import { blockBase, blockShape, blockTint, isTranslucent, sideTile, surfaceOffset, topTile } from "../content/blocks";
-import { ENEMIES, NODES, OBJECTS, type EnemyViewKind, type NodeViewKind } from "../content/content";
+import { ENEMIES, ITEMS, NODES, OBJECTS, type EnemyViewKind, type NodeViewKind } from "../content/content";
 import { getStructure } from "../content/structures";
 import type { StructureAsset, StructureBlock } from "../structures/types";
 import { effectiveSink, groundFloorTop } from "../structures/types";
@@ -60,15 +60,14 @@ const WATER_SURFACE_Y = -0.35;
 // on. The simulation always holds the whole region — streaming is purely a
 // presentation window onto it.
 const CHUNK = 50;
-// Radius 3 keeps a 7x7 ring of 50-cell chunks resident (350x350 cells) so
-// zoomed-out and fast-travelling views rarely see terrain pop-in; entity
-// visuals follow inside a slightly tighter circle. Chunk meshes are merged
-// geometry, so the extra ring costs draw calls roughly 2x radius-2 — fine
-// on desktop, and distant chunks fade via the same occlusion alpha.
-const TERRAIN_CHUNK_RADIUS = 3;
+// Radius 2 keeps a 5x5 ring of 50-cell chunks resident (250x250 cells) — the
+// camera at max zoom-out sees ~110 cells from center, so the resident ring
+// ends just past the screen edge and loading chunks are never on screen.
+// Entity visuals follow inside a slightly tighter circle.
+const TERRAIN_CHUNK_RADIUS = 2;
 // Entities render out to roughly the terrain edge (3 chunks ≈ 150 cells).
 // Beyond that they're too small to matter and just cost draw calls.
-const ENTITY_RADIUS = 150;
+const ENTITY_RADIUS = 110;
 /** Small ground cover (grass/flower sprites) renders only this close — a full
  *  ENTITY_RADIUS of tufts is thousands of needless draw calls. */
 const DETAIL_RADIUS = 60;
@@ -104,6 +103,8 @@ interface NodeView {
   fadeMaterials: THREE.MeshLambertMaterial[];
   shakeT: number;
   animPhase: number;
+  /** Farm plots: the soil slab under the crop (dirt until plowed, furrows after). */
+  soilPad?: THREE.Mesh;
 }
 
 
@@ -1583,7 +1584,11 @@ export class GameRenderer {
         if (o instanceof THREE.Mesh && !o.geometry.userData.shared) o.geometry.dispose();
       });
     }
-    this.pickables = this.pickables.filter((p) => p !== view.activeGroup && p !== view.depletedMesh);
+    if (view.soilPad) {
+      this.scene.remove(view.soilPad);
+      view.soilPad.geometry.dispose();
+    }
+    this.pickables = this.pickables.filter((p) => p !== view.activeGroup && p !== view.depletedMesh && p !== view.soilPad);
     this.nodeViews.delete(instanceId);
   }
 
@@ -1607,8 +1612,21 @@ export class GameRenderer {
       sprite.scale.set(0.72, 0.72, 0.72);
       visual = sprite;
     } else {
-      const mat = new THREE.MeshLambertMaterial({ color: 0xf1e6c8 });
-      visual = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), mat);
+      // No baked pixel icon yet: draw the item's emoji on a canvas sprite so
+      // the drop still looks like the item, never an anonymous floating cube.
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 64;
+      const ctx = canvas.getContext("2d")!;
+      ctx.font = "52px serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(ITEMS[item.itemId]?.icon ?? "❔", 32, 36);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.magFilter = THREE.NearestFilter;
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(0.66, 0.66, 0.66);
+      visual = sprite;
     }
     // A soft shadow-ish disc so it reads as sitting on the ground.
     const disc = new THREE.Mesh(
@@ -1737,6 +1755,16 @@ export class GameRenderer {
 
       this.scene.add(built.activeGroup, built.depletedMesh);
       this.pickables.push(built.activeGroup, built.depletedMesh);
+      // Farm plots get a soil slab under the crop that reads plow state:
+      // plain dirt until hoed, furrowed farmland after.
+      let soilPad: THREE.Mesh | undefined;
+      if (NODES[node.defId]?.plantable) {
+        soilPad = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.08, 0.96), this.lambert("terrain.dirt"));
+        soilPad.position.set(cx, baseY + 0.04, cz);
+        soilPad.userData.instanceId = node.instanceId;
+        this.scene.add(soilPad);
+        this.pickables.push(soilPad);
+      }
       this.nodeViews.set(node.instanceId, {
         instanceId: node.instanceId,
         kind,
@@ -1748,6 +1776,7 @@ export class GameRenderer {
         fadeMaterials: built.fadeMaterials,
         shakeT: 0,
         animPhase: variety * Math.PI * 2,
+        soilPad,
       });
     }
   }
@@ -5677,7 +5706,11 @@ export class GameRenderer {
           node.respawnRemainingS < 0
             ? 0
             : 1 - Math.min(1, node.respawnRemainingS / grow.growS);
-        view.depletedMesh.scale.setScalar(0.2 + progress * 0.8);
+        // Unplowed ground shows bare soil, no sprout at all.
+        view.depletedMesh.scale.setScalar(node.plowed ? 0.2 + progress * 0.8 : 0.001);
+      }
+      if (node && grow && view.soilPad) {
+        view.soilPad.material = this.lambert(node.plowed ? "terrain.farmland" : "terrain.dirt");
       }
     }
 

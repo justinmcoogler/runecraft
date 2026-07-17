@@ -109,9 +109,10 @@ export class InputController {
       // ctrl-held) drags orbit the camera instead of panning.
       rec.mode = rec.button === 2 || e.ctrlKey ? "orbit" : "drag";
     }
-    if (rec.mode === "drag") {
-      this.renderer.rig.pan(dx, dy, this.canvas.clientHeight || window.innerHeight);
-    } else if (rec.mode === "orbit") {
+    // Screen-drag panning is disabled: the camera always stays on the player
+    // (right-drag still orbits). Roaming the camera let players stare at
+    // streaming chunk edges and get lost from their character.
+    if (rec.mode === "orbit") {
       this.renderer.rig.orbitBy(dx * -0.006, dy * 0.004);
     }
   };

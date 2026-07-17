@@ -26,7 +26,7 @@ export type ActionPhase =
 
 export type TargetKind =
   | "node" | "container" | "npc" | "workstation" | "craft" | "enemy"
-  | "portal" | "shop" | "build" | "plant" | "shortcut" | "sleep" | "door" | "stairs"
+  | "portal" | "shop" | "build" | "plant" | "plow" | "shortcut" | "sleep" | "door" | "stairs"
   | "enter";
 
 interface Pipeline {
@@ -147,6 +147,7 @@ export class ActionController {
       case "enemy": return this.deps.weaponRange() > 1 ? "shoot" : "attack";
       case "build": return "hammer";
       case "plant": return "gather";
+      case "plow": return "dig";
       case "craft": return p.recipeId ? animForSkill(RECIPES[p.recipeId].skillId) : "hammer";
       case "node": {
         const node = this.deps.nodes.get(p.targetId);
@@ -223,10 +224,16 @@ export class ActionController {
           return this.reject("missing_tool", targetId);
         }
       } else if (def.plantable && node.respawnRemainingS < 0) {
-        // An empty farm plot: walk over and plant a seed.
-        kind = "plant";
-        if (d.inventory.count(def.plantable.seedItemId) < 1) {
-          return this.reject("missing_inputs", targetId);
+        if (!node.plowed) {
+          // Unbroken ground: plow it with a hoe before anything will grow.
+          kind = "plow";
+          if (!d.hasTool(["hoe"])) return this.reject("missing_tool", targetId);
+        } else {
+          // Fresh furrows: walk over and plant a seed.
+          kind = "plant";
+          if (d.inventory.count(def.plantable.seedItemId) < 1) {
+            return this.reject("missing_inputs", targetId);
+          }
         }
       } else {
         // Depleted, or a plot already growing.
@@ -612,6 +619,16 @@ export class ActionController {
         npc.movement.faceToward(d.movement.currentCell());
         d.npcs.hold(npc.instanceId, 4); // stay put through the conversation
         d.events.emit({ type: "npcChat", instanceId: npc.instanceId, name: npc.name });
+      }
+      this.pipeline = null;
+      this.phase = "idle";
+      return;
+    }
+    if (this.pipeline.kind === "plow") {
+      const node = d.nodes.get(this.pipeline.targetId);
+      if (node && d.nodes.plow(node.instanceId)) {
+        d.skills.grantXp("skill.farming", 4);
+        d.events.emit({ type: "plowed", instanceId: node.instanceId });
       }
       this.pipeline = null;
       this.phase = "idle";
