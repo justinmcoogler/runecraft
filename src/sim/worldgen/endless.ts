@@ -2982,13 +2982,28 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
       const r = cellHash(wx, wz, salt(seed, 43));
       if (r < 0.05) {
         const f = heightFields(seed, wx, wz);
-        const defId = f.ocean
-          ? "resource.fishing.sea"
-          : f.riverCore > 0
-            ? "resource.fishing.river"
-            : biomes[i] === 4
-              ? "resource.fishing.marsh"
-              : "resource.fishing.pond";
+        // The fishing ladder climbs with remoteness on ANY shoreline: shrimp
+        // shoals on the home waters, then crab pools, lobster grounds, marlin
+        // runs, abyssal upwellings, and storm rises far out where the world
+        // turns wild. Waters that miss the tier roll keep their body flavor.
+        const remote = remoteness01(wx, wz);
+        const sub = cellHash(wx, wz, salt(seed, 47));
+        const tier =
+          remote >= 0.3 && sub < 0.25 ? "resource.fishing.storm"
+          : remote >= 0.2 && sub < 0.32 ? "resource.fishing.abyss"
+          : remote >= 0.12 && sub < 0.4 ? "resource.fishing.marlin"
+          : remote >= 0.07 && sub < 0.45 ? "resource.fishing.lobster"
+          : remote >= 0.03 && sub < 0.3 ? "resource.fishing.crab"
+          : remote < 0.03 && sub < 0.35 ? "resource.fishing.shrimp"
+          : null;
+        const defId = tier ?? (
+          f.ocean
+            ? "resource.fishing.sea"
+            : f.riverCore > 0
+              ? "resource.fishing.river"
+              : biomes[i] === 4
+                ? "resource.fishing.marsh"
+                : "resource.fishing.pond");
         nodes.push({ instanceId: id(), defId, cell });
       } else if (r < 0.17) {
         objects.push({ instanceId: id(), defId: "object.reeds.water", cell });

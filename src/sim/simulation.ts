@@ -211,6 +211,7 @@ export class GameSimulation {
         isPlayerAlive: () => this.hp > 0,
         getDefenseLevel: () => this.skills.levelOf("skill.defense"),
         getWardBonus: () => this.armorWardBonus(),
+        getThornsDamage: () => this.armorThornsDamage(),
         damagePlayer: (amount) => this.damagePlayer(amount),
         spawnGroundItem: (cell, itemId, qty) => this.spawnGroundItem(cell, itemId, qty),
       },
@@ -444,6 +445,15 @@ export class GameSimulation {
       ward += aggregateMods(this.equippedArmorMods[slot], "armor").ward;
     }
     return ward;
+  }
+
+  /** Damage reflected onto attackers per landed hit (Thorns enchants). */
+  armorThornsDamage(): number {
+    let thorns = 0;
+    for (const slot of ["head", "body", "legs", "feet"] as const) {
+      thorns += aggregateMods(this.equippedArmorMods[slot], "armor").thorns;
+    }
+    return thorns;
   }
 
   /** Standing beside an enchanter's table (where mods are applied). */

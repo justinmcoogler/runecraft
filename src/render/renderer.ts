@@ -76,6 +76,23 @@ const DETAIL_DEFS = new Set(["object.grass.tuft", "object.flowers.wild"]);
 /** New entity visuals built per frame, so first load streams in smoothly. */
 const STREAM_ADD_BUDGET = 24;
 
+/** Ripple color + surface marker per fishing water, so each tier of spot
+ *  reads at a glance (crab pool ≠ marlin run ≠ storm rise). */
+const FISHING_SPOT_STYLES: Record<string, { ring: string; marker?: "shells" | "crab" | "buoy" | "fin" | "glow" | "storm" }> = {
+  "resource.fishing.pond": { ring: "#dbeeff" },
+  "resource.fishing.river": { ring: "#bfe3ff" },
+  "resource.fishing.marsh": { ring: "#a8bd8a" },
+  "resource.fishing.ice": { ring: "#eaffff" },
+  "resource.fishing.sea": { ring: "#8fd8d2" },
+  "resource.fishing.deep": { ring: "#7fa8ff" },
+  "resource.fishing.shrimp": { ring: "#ffc9c9", marker: "shells" },
+  "resource.fishing.crab": { ring: "#ffb075", marker: "crab" },
+  "resource.fishing.lobster": { ring: "#ff8563", marker: "buoy" },
+  "resource.fishing.marlin": { ring: "#c8dcf2", marker: "fin" },
+  "resource.fishing.abyss": { ring: "#b48cff", marker: "glow" },
+  "resource.fishing.storm": { ring: "#ffe066", marker: "storm" },
+};
+
 interface NodeView {
   instanceId: string;
   kind: NodeViewKind;
@@ -1572,7 +1589,7 @@ export class GameRenderer {
         return;
       }
 
-      const built = this.buildNodeVisual(kind, variety, NODES[node.defId].viewMaterial);
+      const built = this.buildNodeVisual(kind, variety, NODES[node.defId].viewMaterial, node.defId);
       for (const mat of built.fadeMaterials) addPeepHole(mat);
       const baseScale = built.baseScale;
       built.activeGroup.position.set(cx, kind === "pond" ? this.waterSurfaceY(node.cell) + 0.015 : baseY, cz);
@@ -1624,6 +1641,7 @@ export class GameRenderer {
     kind: NodeViewKind,
     variety: number,
     viewMaterial?: string,
+    defId?: string,
   ): {
     activeGroup: THREE.Group;
     depletedMesh: THREE.Object3D;
@@ -1941,8 +1959,11 @@ export class GameRenderer {
         };
       }
       case "pond": {
+        // Each fishing water has its own ripple color + floating marker, so
+        // a Crab Pool reads differently from a Storm Rise at a glance.
+        const style = (defId && FISHING_SPOT_STYLES[defId]) || { ring: "#dbeeff" };
         const ringMat = new THREE.MeshBasicMaterial({
-          color: "#dbeeff",
+          color: style.ring,
           transparent: true,
           opacity: 0.75,
           side: THREE.DoubleSide,
@@ -1953,6 +1974,69 @@ export class GameRenderer {
         inner.rotation.x = -Math.PI / 2;
         inner.position.y = 0.005;
         activeGroup.add(outer, inner);
+        const solid = (color: string) => new THREE.MeshBasicMaterial({ color });
+        switch (style.marker) {
+          case "shells": {
+            // Little pink backs bobbing on the ring: a shoal of shrimp.
+            for (const [mx, mz] of [[0.24, 0.1], [-0.18, 0.2], [-0.05, -0.26]] as const) {
+              const shell = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.06), solid("#ff9d9d"));
+              shell.position.set(mx, 0.03, mz);
+              activeGroup.add(shell);
+            }
+            break;
+          }
+          case "crab": {
+            // An orange shell with two claw nubs poking above the surface.
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.07, 0.16), solid("#e06a2b"));
+            body.position.y = 0.04;
+            for (const side of [-1, 1]) {
+              const claw = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.06), solid("#c9531d"));
+              claw.position.set(0.13 * side, 0.05, 0.1);
+              activeGroup.add(claw);
+            }
+            activeGroup.add(body);
+            break;
+          }
+          case "buoy": {
+            // A red-and-white lobster buoy bobbing over the pots below.
+            const float = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.12), solid("#d43d2a"));
+            float.position.y = 0.1;
+            const band = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.045, 0.125), solid("#f5f0e6"));
+            band.position.y = 0.1;
+            const mast = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.16, 0.03), solid("#6b4a2f"));
+            mast.position.y = 0.24;
+            activeGroup.add(float, band, mast);
+            break;
+          }
+          case "fin": {
+            // A grey dorsal fin slicing the surface — something big runs here.
+            const fin = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.26, 4), solid("#9fb4c4"));
+            fin.position.set(0.08, 0.12, 0);
+            fin.rotation.z = -0.35;
+            activeGroup.add(fin);
+            break;
+          }
+          case "glow": {
+            // A sunken violet gleam: the abyss looking back up at you.
+            const orb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), solid("#b48cff"));
+            orb.position.y = 0.02;
+            const halo = new THREE.Mesh(new THREE.RingGeometry(0.14, 0.2, 16),
+              new THREE.MeshBasicMaterial({ color: "#8f5bff", transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+            halo.rotation.x = -Math.PI / 2;
+            halo.position.y = 0.01;
+            activeGroup.add(orb, halo);
+            break;
+          }
+          case "storm": {
+            // Gold spray crowns the rise; the rarest waters crackle.
+            const crest = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.2, 5), solid("#ffe066"));
+            crest.position.y = 0.14;
+            const crest2 = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 5), solid("#fff3b0"));
+            crest2.position.set(-0.16, 0.1, 0.12);
+            activeGroup.add(crest, crest2);
+            break;
+          }
+        }
 
         const dummy = new THREE.Group(); // ponds never deplete
         dummy.visible = false;

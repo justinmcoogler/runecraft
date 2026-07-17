@@ -1656,6 +1656,19 @@ export const ITEMS: Record<string, ItemDef> = {
     maxStack: 20,
     healAmount: 24,
   },
+  // ---- the deep-water ladder: shellfish close in, monsters far out ----
+  "item.fish.shrimp": { id: "item.fish.shrimp", name: "Shore Shrimp", icon: "🦐", stackable: true, maxStack: 20 },
+  "item.shrimp.cooked": { id: "item.shrimp.cooked", name: "Buttered Shrimp", icon: "🍤", stackable: true, maxStack: 20, healAmount: 4 },
+  "item.fish.crab": { id: "item.fish.crab", name: "Rock Crab", icon: "🦀", stackable: true, maxStack: 20 },
+  "item.crab.cooked": { id: "item.crab.cooked", name: "Boiled Crab", icon: "🦀", stackable: true, maxStack: 20, healAmount: 10 },
+  "item.fish.lobster": { id: "item.fish.lobster", name: "Reef Lobster", icon: "🦞", stackable: true, maxStack: 20 },
+  "item.lobster.cooked": { id: "item.lobster.cooked", name: "Steamed Lobster", icon: "🦞", stackable: true, maxStack: 20, healAmount: 20 },
+  "item.fish.marlin": { id: "item.fish.marlin", name: "Sailfin Marlin", icon: "🦈", stackable: true, maxStack: 20 },
+  "item.marlin.cooked": { id: "item.marlin.cooked", name: "Grilled Marlin", icon: "🍢", stackable: true, maxStack: 20, healAmount: 26 },
+  "item.fish.gloom": { id: "item.fish.gloom", name: "Abyssal Gloomfish", icon: "🐡", stackable: true, maxStack: 20 },
+  "item.gloom.cooked": { id: "item.gloom.cooked", name: "Abyssal Delicacy", icon: "🍛", stackable: true, maxStack: 20, healAmount: 32 },
+  "item.fish.stormscale": { id: "item.fish.stormscale", name: "Stormscale", icon: "⚡", stackable: true, maxStack: 20 },
+  "item.stormscale.cooked": { id: "item.stormscale.cooked", name: "Storm-seared Fillet", icon: "🍱", stackable: true, maxStack: 20, healAmount: 40 },
   // ---- gems struck while mining (rarer the deeper the sparkle) ----
   "item.gem.opal": { id: "item.gem.opal", name: "Opal", icon: "⚪", stackable: true, maxStack: 50 },
   "item.gem.jade": { id: "item.gem.jade", name: "Jade", icon: "🟢", stackable: true, maxStack: 50 },
@@ -2965,6 +2978,90 @@ export const RECIPES: Record<string, RecipeDef> = {
     successPerLevel: 0.012,
     successMax: 0.95,
     xp: 240,
+  },
+  "recipe.buttered_shrimp": {
+    id: "recipe.buttered_shrimp",
+    name: "Buttered Shrimp",
+    skillId: "skill.cooking",
+    requiredLevel: 1,
+    cycleTimeS: 2.4,
+    inputs: [{ itemId: "item.fish.shrimp", qty: 1 }],
+    outputs: [{ itemId: "item.shrimp.cooked", qty: 1 }],
+    failOutputs: [{ itemId: "item.fish.burnt", qty: 1 }],
+    successBase: 0.8,
+    successPerLevel: 0.012,
+    successMax: 0.99,
+    xp: 20,
+  },
+  "recipe.boiled_crab": {
+    id: "recipe.boiled_crab",
+    name: "Boiled Crab",
+    skillId: "skill.cooking",
+    requiredLevel: 18,
+    cycleTimeS: 3.2,
+    inputs: [{ itemId: "item.fish.crab", qty: 1 }],
+    outputs: [{ itemId: "item.crab.cooked", qty: 1 }],
+    failOutputs: [{ itemId: "item.fish.burnt", qty: 1 }],
+    successBase: 0.64,
+    successPerLevel: 0.012,
+    successMax: 0.97,
+    xp: 95,
+  },
+  "recipe.steamed_lobster": {
+    id: "recipe.steamed_lobster",
+    name: "Steamed Lobster",
+    skillId: "skill.cooking",
+    requiredLevel: 40,
+    cycleTimeS: 3.8,
+    inputs: [{ itemId: "item.fish.lobster", qty: 1 }],
+    outputs: [{ itemId: "item.lobster.cooked", qty: 1 }],
+    failOutputs: [{ itemId: "item.fish.burnt", qty: 1 }],
+    successBase: 0.54,
+    successPerLevel: 0.012,
+    successMax: 0.96,
+    xp: 210,
+  },
+  "recipe.grilled_marlin": {
+    id: "recipe.grilled_marlin",
+    name: "Grilled Marlin",
+    skillId: "skill.cooking",
+    requiredLevel: 55,
+    cycleTimeS: 4.0,
+    inputs: [{ itemId: "item.fish.marlin", qty: 1 }],
+    outputs: [{ itemId: "item.marlin.cooked", qty: 1 }],
+    failOutputs: [{ itemId: "item.fish.burnt", qty: 1 }],
+    successBase: 0.5,
+    successPerLevel: 0.012,
+    successMax: 0.95,
+    xp: 290,
+  },
+  "recipe.abyssal_delicacy": {
+    id: "recipe.abyssal_delicacy",
+    name: "Abyssal Delicacy",
+    skillId: "skill.cooking",
+    requiredLevel: 70,
+    cycleTimeS: 4.2,
+    inputs: [{ itemId: "item.fish.gloom", qty: 1 }],
+    outputs: [{ itemId: "item.gloom.cooked", qty: 1 }],
+    failOutputs: [{ itemId: "item.fish.burnt", qty: 1 }],
+    successBase: 0.46,
+    successPerLevel: 0.012,
+    successMax: 0.94,
+    xp: 380,
+  },
+  "recipe.storm_fillet": {
+    id: "recipe.storm_fillet",
+    name: "Storm-seared Fillet",
+    skillId: "skill.cooking",
+    requiredLevel: 85,
+    cycleTimeS: 4.4,
+    inputs: [{ itemId: "item.fish.stormscale", qty: 1 }],
+    outputs: [{ itemId: "item.stormscale.cooked", qty: 1 }],
+    failOutputs: [{ itemId: "item.fish.burnt", qty: 1 }],
+    successBase: 0.42,
+    successPerLevel: 0.012,
+    successMax: 0.93,
+    xp: 480,
   },
   "recipe.carrot_stew": {
     id: "recipe.carrot_stew",
@@ -4414,6 +4511,104 @@ export const NODES: Record<string, ResourceNodeDef> = {
     blocksNav: false,
     view: "pond",
   },
+  // ---- the coastal/deep-water ladder: each tier only spawns farther from
+  //      home, so pushing your Fishing means sailing or trekking out ----
+  "resource.fishing.shrimp": {
+    id: "resource.fishing.shrimp",
+    name: "Shrimp Shoal",
+    skillId: "skill.fishing",
+    requiredLevel: 1,
+    toolTagsAny: ["fishing_tool"],
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    cycleTimeS: 2.6,
+    successBase: 0.62,
+    successPerLevel: 0.012,
+    successMax: 0.95,
+    xpPerCycle: 14,
+    drops: [{ itemId: "item.fish.shrimp", min: 1, max: 1, weight: 1 }],
+    depletes: false, resourceMin: 0, resourceMax: 0, respawnS: 0, blocksNav: false,
+    view: "pond",
+  },
+  "resource.fishing.crab": {
+    id: "resource.fishing.crab",
+    name: "Crab Pool",
+    skillId: "skill.fishing",
+    requiredLevel: 18,
+    toolTagsAny: ["fishing_tool"],
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    cycleTimeS: 3.2,
+    successBase: 0.5,
+    successPerLevel: 0.012,
+    successMax: 0.9,
+    xpPerCycle: 58,
+    drops: [{ itemId: "item.fish.crab", min: 1, max: 1, weight: 1 }],
+    depletes: false, resourceMin: 0, resourceMax: 0, respawnS: 0, blocksNav: false,
+    view: "pond",
+  },
+  "resource.fishing.lobster": {
+    id: "resource.fishing.lobster",
+    name: "Lobster Ground",
+    skillId: "skill.fishing",
+    requiredLevel: 40,
+    toolTagsAny: ["fishing_tool"],
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    cycleTimeS: 3.6,
+    successBase: 0.48,
+    successPerLevel: 0.012,
+    successMax: 0.9,
+    xpPerCycle: 95,
+    drops: [{ itemId: "item.fish.lobster", min: 1, max: 1, weight: 1 }],
+    depletes: false, resourceMin: 0, resourceMax: 0, respawnS: 0, blocksNav: false,
+    view: "pond",
+  },
+  "resource.fishing.marlin": {
+    id: "resource.fishing.marlin",
+    name: "Marlin Run",
+    skillId: "skill.fishing",
+    requiredLevel: 55,
+    toolTagsAny: ["fishing_tool"],
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    cycleTimeS: 3.8,
+    successBase: 0.46,
+    successPerLevel: 0.012,
+    successMax: 0.88,
+    xpPerCycle: 145,
+    drops: [{ itemId: "item.fish.marlin", min: 1, max: 1, weight: 1 }],
+    depletes: false, resourceMin: 0, resourceMax: 0, respawnS: 0, blocksNav: false,
+    view: "pond",
+  },
+  "resource.fishing.abyss": {
+    id: "resource.fishing.abyss",
+    name: "Abyssal Upwelling",
+    skillId: "skill.fishing",
+    requiredLevel: 70,
+    toolTagsAny: ["fishing_tool"],
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    cycleTimeS: 4.0,
+    successBase: 0.44,
+    successPerLevel: 0.012,
+    successMax: 0.88,
+    xpPerCycle: 200,
+    drops: [{ itemId: "item.fish.gloom", min: 1, max: 1, weight: 1 }],
+    depletes: false, resourceMin: 0, resourceMax: 0, respawnS: 0, blocksNav: false,
+    view: "pond",
+  },
+  "resource.fishing.storm": {
+    id: "resource.fishing.storm",
+    name: "Storm Rise",
+    skillId: "skill.fishing",
+    requiredLevel: 85,
+    toolTagsAny: ["fishing_tool"],
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    cycleTimeS: 4.2,
+    successBase: 0.42,
+    successPerLevel: 0.012,
+    successMax: 0.86,
+    xpPerCycle: 270,
+    drops: [{ itemId: "item.fish.stormscale", min: 1, max: 1, weight: 1 }],
+    depletes: false, resourceMin: 0, resourceMax: 0, respawnS: 0, blocksNav: false,
+    view: "pond",
+  },
 
   // ---------- herblore: rarer herbs beyond wild sage ----------
   "resource.herb.mint": {
@@ -4653,7 +4848,9 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
       "recipe.roast_pumpkin", "recipe.healing_salve", "recipe.cooked_rabbit",
       "recipe.carrot_stew", "recipe.oakblood_tonic", "recipe.smoked_eel",
       "recipe.seared_icefin", "recipe.panfried_trout", "recipe.roast_seabass",
-      "recipe.glazed_sunscale",
+      "recipe.glazed_sunscale", "recipe.buttered_shrimp", "recipe.boiled_crab",
+      "recipe.steamed_lobster", "recipe.grilled_marlin", "recipe.abyssal_delicacy",
+      "recipe.storm_fillet",
       "recipe.frost_salve", "recipe.dusk_poultice",
       "recipe.cooked_fowl", "recipe.cooked_boar", "recipe.cooked_grenwall", "recipe.cooked_antelope",
     ],
@@ -5730,6 +5927,16 @@ export interface ModEffect {
   ward?: number;
   /** Extra max HP (armor). */
   hp?: number;
+  /** Burn damage dealt over the seconds after a landed hit — never finishes
+   *  a target off (it chips down to 1 HP), so the kill and loot stay yours. */
+  burn?: number;
+  /** Cells the target is shoved back on a landed hit (weapons). */
+  knock?: number;
+  /** Chance (0..1) that a kill drops its loot twice (weapons). */
+  loot?: number;
+  /** Damage reflected onto an attacker each time it lands a hit (armor);
+   *  chips to 1 HP, never kills. */
+  thorns?: number;
 }
 
 export interface EnchantDef {
@@ -5771,6 +5978,24 @@ export const ENCHANTS: Record<string, EnchantDef> = {
     cost: [{ itemId: "item.relic.idol", qty: 2 }, { itemId: "item.essence.rune", qty: 2 }],
     blurb: "+3 damage, +2% chance to hit",
   },
+  "ench.knockback": {
+    id: "ench.knockback", name: "Knockback", appliesTo: "weapon",
+    effect: { knock: 2 }, requiredLevel: 4, xp: 35,
+    cost: [{ itemId: "item.relic.idol", qty: 1 }, { itemId: "item.feather", qty: 2 }],
+    blurb: "hits shove the target back 2 cells",
+  },
+  "ench.fireaspect": {
+    id: "ench.fireaspect", name: "Fire Aspect", appliesTo: "weapon",
+    effect: { burn: 2 }, requiredLevel: 10, xp: 55,
+    cost: [{ itemId: "item.relic.idol", qty: 1 }, { itemId: "item.ore.coal", qty: 3 }],
+    blurb: "hits set the target burning for 2 extra damage",
+  },
+  "ench.looting": {
+    id: "ench.looting", name: "Looting", appliesTo: "weapon",
+    effect: { loot: 0.3 }, requiredLevel: 26, xp: 90,
+    cost: [{ itemId: "item.relic.idol", qty: 1 }, { itemId: "item.gem.topaz", qty: 2 }],
+    blurb: "30% chance a kill drops its loot twice",
+  },
   "ench.warding": {
     id: "ench.warding", name: "Warding", appliesTo: "armor",
     effect: { ward: 0.04 }, requiredLevel: 5, xp: 40,
@@ -5788,6 +6013,12 @@ export const ENCHANTS: Record<string, EnchantDef> = {
     effect: { ward: 0.07, hp: 2 }, requiredLevel: 30, xp: 100,
     cost: [{ itemId: "item.relic.idol", qty: 2 }, { itemId: "item.bar.iron", qty: 1 }],
     blurb: "enemies hit you 7% less often, +2 max HP",
+  },
+  "ench.thorns": {
+    id: "ench.thorns", name: "Thorns", appliesTo: "armor",
+    effect: { thorns: 1 }, requiredLevel: 22, xp: 80,
+    cost: [{ itemId: "item.relic.idol", qty: 1 }, { itemId: "item.spike.grenwall", qty: 4 }],
+    blurb: "attackers take 1 damage every time they hit you",
   },
 };
 
@@ -5817,7 +6048,7 @@ export function itemModCategory(itemId: string): "weapon" | "armor" | null {
 
 /** Sum every effect a modded item contributes (enchants + socketed gems). */
 export function aggregateMods(mods: ItemMods | null | undefined, category: "weapon" | "armor"): Required<ModEffect> {
-  const out = { dmg: 0, acc: 0, lifesteal: 0, ward: 0, hp: 0 };
+  const out = { dmg: 0, acc: 0, lifesteal: 0, ward: 0, hp: 0, burn: 0, knock: 0, loot: 0, thorns: 0 };
   if (!mods) return out;
   const fold = (e: ModEffect | undefined) => {
     if (!e) return;
@@ -5826,6 +6057,10 @@ export function aggregateMods(mods: ItemMods | null | undefined, category: "weap
     out.lifesteal += e.lifesteal ?? 0;
     out.ward += e.ward ?? 0;
     out.hp += e.hp ?? 0;
+    out.burn += e.burn ?? 0;
+    out.knock += e.knock ?? 0;
+    out.loot += e.loot ?? 0;
+    out.thorns += e.thorns ?? 0;
   };
   for (const id of mods.ench) {
     const ench = ENCHANTS[id];

@@ -25,6 +25,9 @@ export interface EnemyState {
   wanderCooldownS: number;
   /** Chickens only: seconds until they lay the next egg on the ground. */
   eggTimerS: number;
+  /** Fire Aspect: damage still to burn off, one point per second. */
+  burnRemaining: number;
+  burnTickS: number;
 }
 
 export interface EnemyDeps {
@@ -35,6 +38,8 @@ export interface EnemyDeps {
   getDefenseLevel(): number;
   /** Enemy-accuracy reduction from armor enchants + socketed gems. */
   getWardBonus(): number;
+  /** Damage reflected onto an attacker per landed hit (Thorns armor). */
+  getThornsDamage(): number;
   damagePlayer(amount: number): void;
   /** Drop a stack on the ground (chickens laying eggs). */
   spawnGroundItem(cell: Cell, itemId: string, qty: number): void;
@@ -69,6 +74,8 @@ export class EnemySystem {
       repathCooldownS: 0,
       wanderCooldownS: 2 + rng.next() * 4,
       eggTimerS: 20 + rng.next() * 25,
+      burnRemaining: 0,
+      burnTickS: 0,
     });
   }
 
@@ -113,6 +120,41 @@ export class EnemySystem {
     return true;
   }
 
+  /** Chip damage that never finishes a target (stops at 1 HP), so burns and
+   *  thorns speed a fight up without stealing the kill (and its loot). */
+  private chip(enemy: EnemyState, amount: number): void {
+    if (enemy.phase !== "alive") return;
+    enemy.hp = Math.max(1, enemy.hp - amount);
+  }
+
+  /** Fire Aspect: queue burn damage that ticks off one point per second. */
+  applyBurn(instanceId: string, total: number): void {
+    const enemy = this.enemies.get(instanceId);
+    if (!enemy || enemy.phase !== "alive") return;
+    enemy.burnRemaining = Math.min(6, enemy.burnRemaining + total);
+    if (enemy.burnTickS <= 0) enemy.burnTickS = 1;
+  }
+
+  /** Knockback: shove the target up to `cells` away from `from`, stopping at
+   *  the last walkable cell. Breaks its stride so it must close in again. */
+  knockback(instanceId: string, from: Cell, cells: number): void {
+    const enemy = this.enemies.get(instanceId);
+    if (!enemy || enemy.phase !== "alive" || ENEMIES[enemy.defId].stationary) return;
+    const at = enemy.movement.currentCell();
+    const dx = Math.sign(at.x - from.x), dz = Math.sign(at.z - from.z);
+    if (dx === 0 && dz === 0) return;
+    let landing = at;
+    for (let step = 1; step <= cells; step++) {
+      const next = { x: at.x + dx * step, z: at.z + dz * step };
+      if (!this.deps.world.walkable(next)) break;
+      landing = next;
+    }
+    if (landing !== at) {
+      enemy.movement.setCellPosition(landing);
+      enemy.repathCooldownS = 0.4;
+    }
+  }
+
   private leashReset(enemy: EnemyState): void {
     // Classic leash: give up, walk home, recover fully.
     enemy.engaged = false;
@@ -139,6 +181,16 @@ export class EnemySystem {
           this.deps.events.emit({ type: "enemyRespawned", instanceId: enemy.instanceId });
         }
         continue;
+      }
+
+      // Fire Aspect burn ticks off one point per second, alive targets only.
+      if (enemy.burnRemaining > 0) {
+        enemy.burnTickS -= dtSeconds;
+        if (enemy.burnTickS <= 0) {
+          enemy.burnTickS = 1;
+          enemy.burnRemaining -= 1;
+          this.chip(enemy, 1);
+        }
       }
 
       // A stationary target just stands there: no wander, chase or leash.
@@ -171,13 +223,16 @@ export class EnemySystem {
             const hitChance = Math.max(
               PLAYER_COMBAT.defense.enemyHitChanceMin,
               def.attack.accuracy -
-                PLAYER_COMBAT.defense.enemyHitReductionPerLevel * (this.deps.getDefenseLevel() - 1) +
+                PLAYER_COMBAT.defense.enemyHitReductionPerLevel * (this.deps.getDefenseLevel() - 1) -
                   this.deps.getWardBonus(),
             );
             if (rng.next() < hitChance) {
               const dmg = rng.intBetween(def.attack.dmgMin, def.attack.dmgMax);
               this.deps.events.emit({ type: "enemyAttack", instanceId: enemy.instanceId, damage: dmg });
               this.deps.damagePlayer(dmg);
+              // Thorns armor bites back on every landed hit.
+              const thorns = this.deps.getThornsDamage();
+              if (thorns > 0) this.chip(enemy, thorns);
             } else {
               this.deps.events.emit({ type: "enemyAttack", instanceId: enemy.instanceId, damage: null });
             }

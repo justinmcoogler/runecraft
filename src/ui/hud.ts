@@ -1257,6 +1257,10 @@ export class Hud {
       e.lifesteal ? `heals ${e.lifesteal}/hit` : "",
       e.ward ? `${Math.round(e.ward * 100)}% ward` : "",
       e.hp ? `+${e.hp} max HP` : "",
+      e.burn ? `burns ${e.burn}` : "",
+      e.knock ? `knocks back ${e.knock}` : "",
+      e.loot ? `${Math.round(e.loot * 100)}% double loot` : "",
+      e.thorns ? `reflects ${e.thorns}/hit` : "",
     ].filter(Boolean).join(", ");
   }
 

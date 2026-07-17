@@ -871,6 +871,10 @@ export class ActionController {
         d.rng.intBetween(attack.dmgMin, attack.dmgMax + levelDamageBonus) + d.weaponBonus() + strengthBonus + arrowBonus;
       const killed = d.enemies.damage(pipeline.targetId, damage);
       if (weaponMods.lifesteal > 0) d.healPlayer(weaponMods.lifesteal);
+      if (!killed && weaponMods.burn > 0) d.enemies.applyBurn(pipeline.targetId, weaponMods.burn);
+      if (!killed && weaponMods.knock > 0) {
+        d.enemies.knockback(pipeline.targetId, d.movement.currentCell(), weaponMods.knock);
+      }
       d.events.emit({ type: "playerAttack", instanceId: pipeline.targetId, damage, killed });
       // A landed arrow survives half the time, stuck in the target's cell.
       if (arrowId && d.rng.next() < 0.5) d.spawnGroundItem(pipeline.targetCell, arrowId, 1);
@@ -887,16 +891,20 @@ export class ActionController {
         if (def.view === "skeleton" || def.view === "zombie" || def.view === "husk") {
           d.skills.grantXp("skill.necromancy", Math.round(def.xpOnDefeat * 0.5));
         }
-        for (const loot of def.loot) {
-          if (d.rng.next() >= loot.chance) continue;
-          const qty = d.rng.intBetween(loot.min, loot.max);
-          if (d.inventory.canAdd(loot.itemId, qty)) {
-            d.inventory.add(loot.itemId, qty);
-            d.events.emit({ type: "itemGained", itemId: loot.itemId, qty });
-            d.events.emit({ type: "inventoryChanged" });
-          } else {
-            // Pack is full: the drop falls where the enemy stood so it isn't lost.
-            d.spawnGroundItem(enemy.movement.currentCell(), loot.itemId, qty);
+        // Looting enchant: sometimes the whole loot table pays out twice.
+        const lootRolls = weaponMods.loot > 0 && d.rng.next() < weaponMods.loot ? 2 : 1;
+        for (let roll = 0; roll < lootRolls; roll++) {
+          for (const loot of def.loot) {
+            if (d.rng.next() >= loot.chance) continue;
+            const qty = d.rng.intBetween(loot.min, loot.max);
+            if (d.inventory.canAdd(loot.itemId, qty)) {
+              d.inventory.add(loot.itemId, qty);
+              d.events.emit({ type: "itemGained", itemId: loot.itemId, qty });
+              d.events.emit({ type: "inventoryChanged" });
+            } else {
+              // Pack is full: the drop falls where the enemy stood so it isn't lost.
+              d.spawnGroundItem(enemy.movement.currentCell(), loot.itemId, qty);
+            }
           }
         }
         d.awardCombatXp(def.xpOnDefeat);
