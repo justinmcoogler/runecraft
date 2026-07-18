@@ -2325,6 +2325,25 @@ export class GameRenderer {
       const baseY = this.sim.world.heightAt(obj.cell);
       const group = new THREE.Group();
       switch (obj.defId) {
+        case "object.chest.bank": {
+          // The bank vault: an iron-dark strongbox with gold banding and a
+          // fat gold latch, visibly not a loot chest.
+          const ironMat = new THREE.MeshLambertMaterial({ color: "#3d434b" });
+          const goldMat = new THREE.MeshLambertMaterial({ color: "#d8a827" });
+          const chest = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.72), ironMat);
+          chest.position.y = 0.4;
+          const lid = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.16, 0.76), ironMat);
+          lid.position.y = 0.86;
+          for (const bx of [-0.26, 0.26]) {
+            const band = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.98, 0.76), goldMat);
+            band.position.set(bx, 0.46, 0);
+            group.add(band);
+          }
+          const latch = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.08), goldMat);
+          latch.position.set(0, 0.72, -0.39);
+          group.add(chest, lid, latch, makeBlobShadow(0.65));
+          break;
+        }
         case "object.campfire.basic": {
           // Crossed log slabs with a flickering flame sprite.
           const logMat = this.lambert("resource.tree.log.side");

@@ -52,7 +52,11 @@ export const ENDLESS_CENTER = 32_768;
  */
 export function remoteness01(x: number, z: number): number {
   const d = Math.hypot(x - ENDLESS_CENTER, z - ENDLESS_CENTER);
-  return Math.min(1, d / 6000);
+  // Saturates at 3000 cells with a soft-start power curve: near home the
+  // curve rises slower than linear (a real safe belt for new players), then
+  // catches up so the danger ladder completes within a play session — tier 5
+  // lands at ~2600 cells (~40 chunks) instead of ~5000 out.
+  return Math.min(1, (d / 3000) ** 1.2);
 }
 
 /** A 0–5 danger tier from remoteness, for tiered mob/ore pools. */
@@ -733,11 +737,23 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
     block = t > 0.85 + bjit ? "mud" : t > 0.6 + bjit ? "moss" : "grass";
   }
   else if (biome === 1) {
-    // Forest: mostly turf, worn to coarse dirt and the odd gravel patch.
+    // Forest: leaf-littered woodland floor — coarse dirt and podzol drifts
+    // through the turf, so it reads as woods rather than treed plains.
     const t = vnoise(x, z, 95, salt(seed, 46));
-    block = t > 0.9 + bjit ? "gravel" : t > 0.8 + bjit ? "coarsedirt" : "grass";
+    block = t > 0.9 + bjit ? "gravel" : t > 0.76 + bjit ? "coarsedirt" : t > 0.62 + bjit ? "podzol" : "grass";
   }
-  else if (biome === 9) block = vnoise(x, z, 70, salt(seed, 19)) > 0.78 + bjit ? "dirt" : "grass";
+  else if (biome === 9) {
+    // Dark forest: shaded podzol floor with bare dirt hollows — reads dim
+    // even before the darkoak canopy loads in.
+    const t = vnoise(x, z, 70, salt(seed, 19));
+    block = t > 0.72 + bjit ? "dirt" : t > 0.38 + bjit ? "podzol" : "grass";
+  }
+  else if (biome === 8) {
+    // Birch grove: pale, airy floor — light gravel flecks and coarse-dirt
+    // root runs under the white trunks.
+    const t = vnoise(x, z, 60, salt(seed, 45));
+    block = t > 0.86 + bjit ? "gravel" : t > 0.7 + bjit ? "coarsedirt" : "grass";
+  }
   else if (biome === 13) {
     // Elder grove: deep moss and podzol beneath the ancient canopy.
     const t = vnoise(x, z, 70, salt(seed, 47));
@@ -757,8 +773,10 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
       : band < 7 ? "redsand" : "orangeterracotta";
   }
   else if (biome === 15) {
+    // Fen: peaty podzol hags and pale sedge over the wet ground — drier and
+    // browner than the swamp's black muck.
     const t = vnoise(x, z, 50, salt(seed, 35));
-    block = t > 0.58 ? "mud" : t < 0.16 ? "clay" : "grass";
+    block = t > 0.62 ? "podzol" : t > 0.5 ? "mud" : t < 0.16 ? "clay" : t < 0.3 ? "drygrass" : "grass";
   }
   else if (biome === 16) {
     // Gravemoor: sickly turf torn wide open by grave dirt and old stone.
@@ -2155,6 +2173,9 @@ function stampVillagePlaza(
     const a = (i / 6) * Math.PI * 2;
     objects.push({ instanceId: id(), defId: "object.lamp.post", cell: { x: wx + Math.round(Math.cos(a) * 9), z: wz + Math.round(Math.sin(a) * 9) } });
   }
+  // Every settlement green hosts a bank chest — one shared vault worldwide,
+  // so anything stored here is reachable from any other bank.
+  objects.push({ instanceId: id(), defId: "object.chest.bank", cell: { x: wx + 3, z: wz - 3 } });
   houseBoxes.push({ x0: px - 10, z0: pz - 10, x1: px + 10, z1: pz + 10 }); // keep the green clear
 
   const folk = settle.folk[0] + Math.floor(cellHash(cx * 13, cz * 29, salt(seed, 89)) * settle.folk[1]);
@@ -2684,6 +2705,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.1) nodes.push({ instanceId: id(), defId: "resource.herb.sage", cell });
           else if (r < 0.11) enemies.push({ instanceId: id(), defId: "enemy.cow", cell });
           else if (r < 0.117) nodes.push({ instanceId: id(), defId: "resource.trail.rabbit", cell });
+          else if (r < 0.1185) objects.push({ instanceId: id(), defId: "object.rock.outcrop", cell }); // horizon-breaking kopjes
           break;
         case 7: // jungle
           if (r < 0.4) nodes.push({ instanceId: id(), defId: "resource.tree.jungle", cell });
@@ -2701,6 +2723,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.47) objects.push({ instanceId: id(), defId: "object.flowers.wild", cell });
           else if (r < 0.478) enemies.push({ instanceId: id(), defId: "enemy.chicken", cell });
           else if (r < 0.49) nodes.push({ instanceId: id(), defId: "resource.herb.mint", cell });
+          else if (r < 0.52) objects.push({ instanceId: id(), defId: "object.flowers.showy", cell }); // carpeted underflowers
           break;
         case 9: // dark forest
           if (r < 0.42) nodes.push({ instanceId: id(), defId: "resource.tree.darkoak", cell });
@@ -2711,6 +2734,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.531) enemies.push({ instanceId: id(), defId: "enemy.zombie", cell });
           else if (r < 0.537) enemies.push({ instanceId: id(), defId: "enemy.creeper", cell });
           else if (r < 0.5385 && remoteness01(wx, wz) > 0.18) enemies.push({ instanceId: id(), defId: "enemy.werewolf", cell });
+          else if (r < 0.548) objects.push({ instanceId: id(), defId: "object.mushroom.giant", cell }); // towering shade-caps
           else if (r < 0.57) nodes.push({ instanceId: id(), defId: "resource.tree.dead", cell }); // leafless snags
           break;
         case 10: // flower meadow
@@ -3450,6 +3474,12 @@ export function starterTownRegion(seed: number, spawn: Cell): RegionSpec {
   const region = emptyEndlessRegion(spawn);
   const town = buildStarterTown(seed);
   region.objects = town.objects;
+  // The starter town's bank chest — the first face of the one shared vault.
+  region.objects.push({
+    instanceId: "starter.bank",
+    defId: "object.chest.bank",
+    cell: { x: spawn.x + 4, z: spawn.z + 2 },
+  });
   region.enemies = town.enemies;
   region.npcs = town.npcs;
   region.structures = town.structures;

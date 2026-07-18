@@ -136,6 +136,9 @@ export interface WorldObjectDef {
   shopId?: string;
   /** Pure scenery: not clickable, just occupies its footprint. */
   scenery?: boolean;
+  /** Every instance of this object opens the ONE shared bank inventory —
+   *  deposit at any bank, withdraw at any other. */
+  bankShared?: boolean;
   /** Construction site: materials consumed on interact to build it. */
   buildRequires?: Array<{ itemId: string; qty: number }>;
   buildSkillId?: string;
@@ -1675,6 +1678,10 @@ export const ITEMS: Record<string, ItemDef> = {
   "item.pelt.werewolf": { id: "item.pelt.werewolf", name: "Werewolf Pelt", icon: "🐺", stackable: true, maxStack: 20 },
   "item.core.magma": { id: "item.core.magma", name: "Magma Core", icon: "🔥", stackable: true, maxStack: 20 },
   "item.totem.goblin": { id: "item.totem.goblin", name: "Goblin War Totem", icon: "🗿", stackable: true, maxStack: 10 },
+  // Gear crafted from the hunters' trophies, so the drops have real sinks.
+  "armor.boots.yetifur": { id: "armor.boots.yetifur", name: "Yeti-Fur Boots", icon: "🥾", stackable: false, maxStack: 1, armorSlot: "feet", protection: 0.13 },
+  "armor.cloak.nocturne": { id: "armor.cloak.nocturne", name: "Nocturne Cloak", icon: "🧥", stackable: false, maxStack: 1, armorSlot: "body", protection: 0.16 },
+  "tool.sword.magma": { id: "tool.sword.magma", name: "Magma Blade", icon: "🗡️", stackable: false, maxStack: 1, toolTags: ["weapon"], damageBonus: 10 },
   "item.fish.crab": { id: "item.fish.crab", name: "Rock Crab", icon: "🦀", stackable: true, maxStack: 20 },
   "item.crab.cooked": { id: "item.crab.cooked", name: "Boiled Crab", icon: "🦀", stackable: true, maxStack: 20, healAmount: 10 },
   "item.fish.lobster": { id: "item.fish.lobster", name: "Reef Lobster", icon: "🦞", stackable: true, maxStack: 20 },
@@ -2211,6 +2218,46 @@ export const RECIPES: Record<string, RecipeDef> = {
     successPerLevel: 0,
     successMax: 1,
     xp: 66,
+    toolTagsAny: ["hammer"],
+  },
+  "recipe.yetifur_boots": {
+    id: "recipe.yetifur_boots",
+    name: "Yeti-Fur Boots",
+    skillId: "skill.crafting",
+    requiredLevel: 38,
+    cycleTimeS: 4.0,
+    inputs: [{ itemId: "item.fur.yeti", qty: 2 }, { itemId: "item.hide.cow", qty: 1 }],
+    outputs: [{ itemId: "armor.boots.yetifur", qty: 1 }],
+    successBase: 1,
+    successPerLevel: 0,
+    successMax: 1,
+    xp: 240,
+  },
+  "recipe.nocturne_cloak": {
+    id: "recipe.nocturne_cloak",
+    name: "Nocturne Cloak",
+    skillId: "skill.crafting",
+    requiredLevel: 46,
+    cycleTimeS: 4.5,
+    inputs: [{ itemId: "item.pelt.werewolf", qty: 2 }, { itemId: "item.fur", qty: 2 }],
+    outputs: [{ itemId: "armor.cloak.nocturne", qty: 1 }],
+    successBase: 1,
+    successPerLevel: 0,
+    successMax: 1,
+    xp: 380,
+  },
+  "recipe.magma_blade": {
+    id: "recipe.magma_blade",
+    name: "Magma Blade",
+    skillId: "skill.smithing",
+    requiredLevel: 52,
+    cycleTimeS: 5.5,
+    inputs: [{ itemId: "item.core.magma", qty: 1 }, { itemId: "item.bar.steel", qty: 2 }],
+    outputs: [{ itemId: "tool.sword.magma", qty: 1 }],
+    successBase: 1,
+    successPerLevel: 0,
+    successMax: 1,
+    xp: 520,
     toolTagsAny: ["hammer"],
   },
   "recipe.iron_sword": {
@@ -4909,6 +4956,14 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     containerSlots: 40,
     blocksNav: true,
   },
+  "object.chest.bank": {
+    id: "object.chest.bank",
+    name: "Bank Chest",
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    containerSlots: 48,
+    bankShared: true,
+    blocksNav: true,
+  },
   "object.campfire.basic": {
     id: "object.campfire.basic",
     name: "Campfire",
@@ -5117,6 +5172,7 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
       "recipe.cut_planks_oak", "recipe.cut_planks_teak", "recipe.cut_planks_mahogany",
       "recipe.fletch_steel_arrows", "recipe.fletch_mithril_arrows", "recipe.fletch_adamant_arrows", "recipe.fletch_rune_arrows",
       "recipe.rod_fly", "recipe.rod_barbed", "recipe.rod_pearl",
+      "recipe.yetifur_boots", "recipe.nocturne_cloak",
     ],
     blocksNav: true,
   },
@@ -5164,6 +5220,7 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
       "recipe.netherite_axe",
       "recipe.netherite_pickaxe",
       "recipe.netherite_sword",
+      "recipe.magma_blade",
       "recipe.cap_leather",
       "recipe.tunic_leather",
       "recipe.leggings_leather",
@@ -5502,6 +5559,10 @@ export const SHOPS: Record<string, ShopDef> = {
       "item.log.dusk": 80,
       "item.stone.rough": 1,
       "item.berry.basic": 1,
+      "item.pelt.fox": 8,
+      "item.fur": 3,
+      "item.shell.crab": 4,
+      "item.game.rabbit": 4,
       "item.fish.raw": 2,
       "item.fish.cooked": 5,
       "item.pork.raw": 3,
@@ -5663,6 +5724,9 @@ export const SHOPS: Record<string, ShopDef> = {
       "item.bone.old": 2,
       "item.berry.basic": 1,
       "item.hide.cow": 5,
+      "item.pelt.fox": 9,
+      "item.fur": 3,
+      "item.pelt.werewolf": 55,
     },
     sells: [
       { itemId: "tool.axe.basic", price: 25 },
@@ -5679,6 +5743,8 @@ export const SHOPS: Record<string, ShopDef> = {
       "item.glob.slime": 4,
       "item.bone.old": 2,
       "item.venom.sac": 8,
+      "item.shell.crab": 5,
+      "item.game.rabbit": 4,
     },
     sells: [
       { itemId: "tool.fishingrod.basic", price: 25 },
@@ -5700,6 +5766,9 @@ export const SHOPS: Record<string, ShopDef> = {
       "item.spore.pale": 10,
       "item.hide.wolf": 8,
       "item.brick.stone": 4,
+      "item.core.magma": 60,
+      "item.totem.goblin": 35,
+      "item.fur.yeti": 45,
     },
     sells: [
       { itemId: "tool.pickaxe.basic", price: 25 },

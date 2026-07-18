@@ -22,6 +22,8 @@ interface SaveDataV1 {
   equippedToolMods?: import("../content/content").ItemMods | null;
   equippedArmorMods?: Record<string, import("../content/content").ItemMods | null>;
   containers: Record<string, Slots>;
+  /** The shared bank vault (one inventory behind every bank chest). */
+  bank?: Slots;
   nodes: Array<{ id: string; phase: "active" | "depleted"; remaining: number; respawnRemainingS: number }>;
   quests?: Record<string, { status: "available" | "active" | "completed"; objectiveIndex: number; progress: number }>;
   hp?: number;
@@ -100,6 +102,8 @@ export interface SharedState {
   attackStyle?: string;
   /** Run/walk preference. */
   running?: boolean;
+  /** The shared bank vault (one inventory behind every bank chest). */
+  bank?: Slots;
 }
 
 // Items renamed by content updates: keep old saves' stacks meaningful.
@@ -116,7 +120,12 @@ function migrateSlots(slots: Slots): Slots {
 
 export function captureRegionState(sim: GameSimulation): RegionSnapshot {
   const containers: Record<string, Slots> = {};
-  for (const [id, inv] of sim.containers) containers[id] = inv.snapshot();
+  // The shared bank vault is player state (captureSharedState), not region
+  // state — snapshotting it per bank instance would restore stale copies.
+  for (const [id, inv] of sim.containers) {
+    if (inv === sim.bankInventory) continue;
+    containers[id] = inv.snapshot();
+  }
   return {
     containers,
     nodes: [...sim.nodes.instances.values()].map((n) => ({
@@ -137,7 +146,7 @@ export function captureRegionState(sim: GameSimulation): RegionSnapshot {
 export function applyRegionState(sim: GameSimulation, snapshot: RegionSnapshot): void {
   for (const [id, slots] of Object.entries(snapshot.containers)) {
     const inv = sim.containers.get(id);
-    if (inv) inv.slots = slots.map((s) => (s ? { ...s } : null));
+    if (inv && inv !== sim.bankInventory) inv.slots = slots.map((s) => (s ? { ...s } : null));
   }
   for (const saved of snapshot.nodes) {
     const node = sim.nodes.instances.get(saved.id);
@@ -177,6 +186,7 @@ export function captureSharedState(sim: GameSimulation): SharedState {
     trackingMuted: sim.trackingMuted,
     attackStyle: sim.attackStyle,
     running: sim.running,
+    bank: sim.bankInventory.snapshot(),
   };
 }
 
@@ -214,6 +224,7 @@ export function applySharedState(sim: GameSimulation, shared: SharedState): void
   if (typeof shared.trackingMuted === "boolean") sim.trackingMuted = shared.trackingMuted;
   if (isAttackStyle(shared.attackStyle)) sim.attackStyle = shared.attackStyle;
   if (typeof shared.running === "boolean") sim.running = shared.running;
+  if (shared.bank) sim.bankInventory.slots = migrateSlots(shared.bank);
   if (shared.homePoint !== undefined) {
     sim.homePoint = shared.homePoint
       ? { regionId: shared.homePoint.regionId, cell: { ...shared.homePoint.cell } }
@@ -238,7 +249,10 @@ export function serialize(
   otherRegions: Record<string, RegionSnapshot> = {},
 ): SaveDataV1 {
   const containers: Record<string, Slots> = {};
-  for (const [id, inv] of sim.containers) containers[id] = inv.slots;
+  for (const [id, inv] of sim.containers) {
+    if (inv === sim.bankInventory) continue; // saved once via `bank` below
+    containers[id] = inv.slots;
+  }
   return {
     save_format_version: SAVE_FORMAT_VERSION,
     updated_utc: new Date().toISOString(),
@@ -282,6 +296,7 @@ export function serialize(
     trackingMuted: sim.trackingMuted,
     attackStyle: sim.attackStyle,
     running: sim.running,
+    bank: sim.bankInventory.snapshot(),
   };
 }
 
@@ -338,8 +353,9 @@ export function applySave(sim: GameSimulation, data: SaveDataV1): void {
   restorePlayerPosition(sim, data.player.cell, data.player.facing ?? 0);
   for (const [id, slots] of Object.entries(data.containers)) {
     const inv = sim.containers.get(id);
-    if (inv) inv.slots = migrateSlots(slots);
+    if (inv && inv !== sim.bankInventory) inv.slots = migrateSlots(slots);
   }
+  if (data.bank) sim.bankInventory.slots = migrateSlots(data.bank);
   for (const saved of data.nodes) {
     const node = sim.nodes.instances.get(saved.id);
     if (!node) continue; // node removed from region in an update: skip safely

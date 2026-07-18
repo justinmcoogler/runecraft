@@ -241,9 +241,7 @@ function townCore(d: Draft, o: TownOpts): { h: number } {
     ]);
   }
   const p = o.key;
-  obj(d, `${p}.bank`, "object.storage_chest.basic", cx - 5, cz - 5, {
-    initialItems: [{ itemId: "item.coin", qty: 5 }],
-  });
+  obj(d, `${p}.bank`, "object.chest.bank", cx - 5, cz - 5);
   obj(d, `${p}.well`, "object.well.basic", cx, cz);
   obj(d, `${p}.furnace`, "object.furnace.basic", cx + 5, cz - 5);
   obj(d, `${p}.anvil`, "object.anvil.basic", cx + 7, cz - 5);
@@ -805,7 +803,7 @@ export function buildMurkfen(d: Draft): void {
   house(d, "mf.stilthouse", "object.house.small", cx + 14, cz + 6, 5, 4);
   // Railings ring the boardwalk, broken where the causeways arrive.
   fenceRun(d, "mf.rail", cx - 30, cx + 30, cz - 22, cz + 22, { x: cx, z: cz - 22 });
-  obj(d, "mf.bank", "object.storage_chest.basic", cx - 24, cz + 10);
+  obj(d, "mf.bank", "object.chest.bank", cx - 24, cz + 10);
   obj(d, "mf.fire", "object.campfire.basic", cx, cz + 6);
   obj(d, "mf.cauldron", "object.cauldron.basic", cx + 3, cz + 6);
   obj(d, "mf.stall", "object.stall.market", cx - 4, cz - 2, { footprint: [{ x: cx - 3, z: cz - 2 }] });

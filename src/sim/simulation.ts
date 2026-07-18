@@ -99,6 +99,9 @@ export class GameSimulation {
   readonly skills: SkillService;
   readonly inventory: Inventory;
   readonly containers = new Map<string, Inventory>();
+  /** The shared bank vault: every bank chest in the world opens this one
+   *  inventory, so anything deposited is reachable from any other bank. */
+  readonly bankInventory = new Inventory(48);
   readonly movement = new MovementController();
   readonly nodes: ResourceNodeSystem;
   readonly npcs: NpcSystem;
@@ -191,7 +194,10 @@ export class GameSimulation {
     this.nodes = new ResourceNodeSystem(this.world, this.events, this.rng);
     for (const obj of region.objects) {
       const def = OBJECTS[obj.defId];
-      if (def.containerSlots) {
+      if (def.bankShared) {
+        // Every bank chest opens the same shared vault.
+        this.containers.set(obj.instanceId, this.bankInventory);
+      } else if (def.containerSlots) {
         const container = new Inventory(def.containerSlots);
         for (const seed of obj.initialItems ?? []) container.add(seed.itemId, seed.qty);
         this.seedRandomLoot(container, def);
@@ -771,7 +777,9 @@ export class GameSimulation {
     this.world.region.objects.push(placement);
     const def = OBJECTS[placement.defId];
     if (def?.blocksNav) this.world.registerBlocker(placement.instanceId, placement.cell);
-    if (def?.containerSlots && !this.containers.has(placement.instanceId)) {
+    if (def?.bankShared) {
+      this.containers.set(placement.instanceId, this.bankInventory);
+    } else if (def?.containerSlots && !this.containers.has(placement.instanceId)) {
       const inv = new Inventory(def.containerSlots);
       this.seedRandomLoot(inv, def);
       this.containers.set(placement.instanceId, inv);
