@@ -4819,6 +4819,50 @@ export class GameRenderer {
     bee: "mob.bee", mooshroom: "mob.mooshroom",
   };
 
+  /**
+   * Mob surface tiles arrive dark (16-34% average luminance; the material
+   * colour is meant to carry the hue). Because textures decode sRGB→linear
+   * before the Lambert multiply, that darkness compounds and crushed every
+   * rig toward black. Bake a luminance-normalised copy of each tile once,
+   * so the tile contributes grain while the palette sets the brightness.
+   */
+  private mobSurfaceCache = new Map<string, THREE.CanvasTexture>();
+  private mobSurfaceTexture(id: string): THREE.CanvasTexture {
+    const cached = this.mobSurfaceCache.get(id);
+    if (cached) return cached;
+    const base = this.materials.texture(id);
+    const src = base.image as HTMLCanvasElement;
+    const canvas = document.createElement("canvas");
+    canvas.width = src.width;
+    canvas.height = src.height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(src, 0, 0);
+    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = image.data;
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    const avg = sum / (d.length / 4) / 255;
+    const gain = Math.min(6, 0.82 / Math.max(avg, 0.04));
+    // Compress toward the target mean as well: the raw tiles carry harsh
+    // speckle that would otherwise drown the palette in grey noise.
+    const target = 0.82 * 255;
+    const grain = 0.4;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = Math.min(255, target + (d[i] * gain - target) * grain);
+      d[i + 1] = Math.min(255, target + (d[i + 1] * gain - target) * grain);
+      d[i + 2] = Math.min(255, target + (d[i + 2] * gain - target) * grain);
+    }
+    ctx.putImageData(image, 0, 0);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.mobSurfaceCache.set(id, tex);
+    return tex;
+  }
+
   private buildEnemyBody(
     group: THREE.Group,
     kind: EnemyViewKind,
@@ -4846,8 +4890,8 @@ export class GameRenderer {
       const key = `${surfaceId}:${color}`;
       let material = surfaceMaterials.get(key);
       if (!material) {
-        const softened = new THREE.Color(color).lerp(new THREE.Color("#ffffff"), 0.24);
-        material = new THREE.MeshLambertMaterial({ map: this.materials.texture(surfaceId), color: softened });
+        const softened = new THREE.Color(color).lerp(new THREE.Color("#ffffff"), 0.1);
+        material = new THREE.MeshLambertMaterial({ map: this.mobSurfaceTexture(surfaceId), color: softened });
         surfaceMaterials.set(key, material);
       }
       return new THREE.Mesh(new THREE.BoxGeometry(w * P, h * P, d * P), material);
