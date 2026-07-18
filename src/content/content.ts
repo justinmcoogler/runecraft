@@ -1231,7 +1231,9 @@ export const ITEMS: Record<string, ItemDef> = {
     name: "Coin",
     icon: "🪙",
     stackable: true,
-    maxStack: 999,
+    // Coins are the economy: one slot holds a fortune (the HUD shows big
+    // stacks compactly, e.g. "12.5k").
+    maxStack: 100_000_000,
   },
   "item.gem.emberstone": {
     id: "item.gem.emberstone",

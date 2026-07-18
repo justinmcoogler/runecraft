@@ -135,6 +135,18 @@ function describeItem(item: (typeof ITEMS)[string]): string {
   return "Material — used in crafting";
 }
 
+
+/** Compact stack-badge count: 999 → "999", 12500 → "12.5k", 3200000 → "3.2M". */
+function fmtQty(qty: number): string {
+  if (qty < 10_000) return String(qty);
+  if (qty < 1_000_000) {
+    const k = qty / 1000;
+    return `${k >= 100 ? Math.round(k) : Math.round(k * 10) / 10}k`;
+  }
+  const m = qty / 1_000_000;
+  return `${m >= 100 ? Math.round(m) : Math.round(m * 10) / 10}M`;
+}
+
 export class Hud {
   private root: HTMLElement;
   private sim: GameSimulation;
@@ -1264,7 +1276,7 @@ export class Hud {
       slotEls[i] = el;
       if (s) {
         const item = ITEMS[s.itemId];
-        el.innerHTML = `${itemIconHtml(s.itemId, item.icon, 28)}${s.qty > 1 ? `<span class="qty">${s.qty}</span>` : ""}`;
+        el.innerHTML = `${itemIconHtml(s.itemId, item.icon, 28)}${s.qty > 1 ? `<span class="qty">${fmtQty(s.qty)}</span>` : ""}`;
         const shopOpen = this.sim.actions.openShopId !== null;
         const sellPrice = shopOpen ? this.sim.openShop()?.buys[s.itemId] : undefined;
         el.title = sellPrice ? `${item.name} — sells for ${sellPrice} coins` : item.name;
@@ -1583,7 +1595,7 @@ export class Hud {
       el.className = "slot";
       if (s) {
         const item = ITEMS[s.itemId];
-        el.innerHTML = `${itemIconHtml(s.itemId, item.icon, 24)}${s.qty > 1 ? `<span class="qty">${s.qty}</span>` : ""}`;
+        el.innerHTML = `${itemIconHtml(s.itemId, item.icon, 24)}${s.qty > 1 ? `<span class="qty">${fmtQty(s.qty)}</span>` : ""}`;
         el.title = item.name;
         el.addEventListener("click", () => this.sim.enqueue({ type: "withdraw", slot: i }));
       }
