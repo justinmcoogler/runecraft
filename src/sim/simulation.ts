@@ -178,6 +178,8 @@ export class GameSimulation {
 
   /** Doors the player has opened: instanceId -> {cell, seconds until it swings
    *  shut}. An open door's nav blocker is lifted so the player walks through. */
+  /** Player-lit field fires and when each burns out. */
+  private litFires: Array<{ instanceId: string; expiresAtS: number }> = [];
   private openDoors = new Map<string, { cell: Cell; footprint: Cell[]; remainS: number }>();
 
   /** Present only in endless worlds: streams chunk entities as you move. */
@@ -1059,6 +1061,15 @@ export class GameSimulation {
     }
     this.actions.tick();
     this.tickDoors();
+    // Field fires burn out after a few minutes.
+    for (let i = this.litFires.length - 1; i >= 0; i--) {
+      const fire = this.litFires[i];
+      if (this.timeS < fire.expiresAtS) continue;
+      if (this.actions.openWorkstationId === fire.instanceId) this.actions.closeWorkstation();
+      this.removeEditorObject(fire.instanceId);
+      this.events.emit({ type: "fireOut", instanceId: fire.instanceId });
+      this.litFires.splice(i, 1);
+    }
     this.nodes.tick(TICK_DT, this.rng);
     this.npcs.tick(TICK_DT, this.rng);
     this.enemies.tick(TICK_DT, this.rng);
@@ -1830,6 +1841,28 @@ export class GameSimulation {
         this.skills.grantXp("skill.firemaking", fm.xp);
         this.events.emit({ type: "logBurned", itemId: s.itemId, cell: this.movement.currentCell() });
         this.events.emit({ type: "inventoryChanged" });
+        // A real, cookable campfire springs up beside the burner and lasts a
+        // few minutes — lighting a fire IS how you cook in the field. Burning
+        // another log within reach of a lit fire stokes it instead.
+        {
+          const at = this.movement.currentCell();
+          const near = this.world.region.objects.find(
+            (o) => o.defId === "object.campfire.basic"
+              && Math.abs(o.cell.x - at.x) <= 1 && Math.abs(o.cell.z - at.z) <= 1,
+          );
+          const lit = near && this.litFires.find((f) => f.instanceId === near.instanceId);
+          if (lit) lit.expiresAtS = this.timeS + 180;
+          else if (!near) {
+            let spot = at;
+            for (const [dx, dz] of [[0, 1], [1, 0], [-1, 0], [0, -1]] as const) {
+              const n = { x: at.x + dx, z: at.z + dz };
+              if (this.world.walkable(n)) { spot = n; break; }
+            }
+            const instanceId = `litfire.${spot.x}.${spot.z}.${Math.floor(this.timeS)}`;
+            this.addEditorObject({ instanceId, defId: "object.campfire.basic", cell: { ...spot } });
+            this.litFires.push({ instanceId, expiresAtS: this.timeS + 180 });
+          }
+        }
         break;
       }
       case "burySlot": {

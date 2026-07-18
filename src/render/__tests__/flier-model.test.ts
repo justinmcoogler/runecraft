@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ENEMIES } from "../../content/content";
 import { FLIER_ENEMY_IDS, FLIER_STYLES, flierStyleFor } from "../flier-model";
 
-const FLIER_VIEWS = ["bat", "allay", "bee", "ghast", "squid"] as const;
+// The squid left the flier family for the classic vanilla-style rig.
+const FLIER_VIEWS = ["bat", "allay", "bee", "ghast"] as const;
 
 describe("native RuneCraft flier and aquatic rigs", () => {
   it("covers every exact live definition in the five replaced view buckets", () => {
@@ -23,7 +24,6 @@ describe("native RuneCraft flier and aquatic rigs", () => {
       allay: "enemy.allay",
       bee: "enemy.bee",
       ghast: "enemy.ghast",
-      squid: "enemy.squid",
     } as const;
 
     for (const view of FLIER_VIEWS) {
@@ -37,7 +37,6 @@ describe("native RuneCraft flier and aquatic rigs", () => {
     expect(FLIER_STYLES["enemy.allay"]).toMatchObject({ motion: "hover", wingPairs: 2, appendageCount: 2 });
     expect(FLIER_STYLES["enemy.bee"]).toMatchObject({ motion: "hover", wingPairs: 2, appendageCount: 6 });
     expect(FLIER_STYLES["enemy.ghast"]).toMatchObject({ motion: "drift", wingPairs: 0, appendageCount: 9 });
-    expect(FLIER_STYLES["enemy.squid"]).toMatchObject({ motion: "swim", wingPairs: 0, appendageCount: 8 });
 
     const features = new Set<string>();
     const silhouettes = new Set<string>();

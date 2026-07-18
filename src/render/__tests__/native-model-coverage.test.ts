@@ -23,6 +23,7 @@ const POST_HANDOFF_ORIGINAL_RIGS = [
   "enemy.goblin", "enemy.goblin_shaman", "enemy.goblin_chief",
   "enemy.rattlesnake", "enemy.werewolf", "enemy.yeti",
   "enemy.magma_hound", "enemy.poacher",
+  "enemy.squid", // classic vanilla-style rig (left the flier family)
 ] as const;
 
 describe("complete live enemy model coverage", () => {

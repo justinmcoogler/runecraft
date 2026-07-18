@@ -515,7 +515,7 @@ const ENEMY_SKINS: Record<string, { key: string; fallback?: string; wool?: strin
   "enemy.cow": { key: "entity.cow" },
   "enemy.pig": { key: "entity.pig" },
   "enemy.chicken": { key: "entity.chicken" },
-  "enemy.sheep": { key: "entity.sheep.skin", wool: "entity.sheep.wool" },
+  // enemy.sheep: delivered sheets were noisy mush — the painted rig + fleece reads far better.
   "enemy.spider": { key: "entity.spider" },
   "enemy.cave_spider": { key: "entity.cave_spider", fallback: "entity.spider", tinted: true },
   "enemy.old_gnasher": { key: "entity.old_gnasher", fallback: "entity.gnasher" },
@@ -523,7 +523,7 @@ const ENEMY_SKINS: Record<string, { key: string; fallback?: string; wool?: strin
   "enemy.skeleton": { key: "entity.skeleton" },
   "enemy.stray": { key: "entity.stray", fallback: "entity.skeleton", tinted: true },
   "enemy.barrow_lord": { key: "entity.barrow_lord", fallback: "entity.skeleton", tinted: true },
-  "enemy.squid": { key: "entity.squid" },
+  // enemy.squid: same — keep the painted rig.
   "enemy.ghast": { key: "entity.ghast" },
   "enemy.prairie_bull": { key: "entity.prairie_bull", fallback: "entity.cow", tinted: true },
   "enemy.target_dummy": { key: "entity.dummy" },
@@ -4866,7 +4866,7 @@ export class GameRenderer {
   private static readonly MOB_VIEW_MODEL: Partial<Record<string, string>> = {
     cow: "mob.cow", pig: "mob.pig", sheep: "mob.sheep", chicken: "mob.chicken",
     creeper: "mob.creeper", zombie: "mob.zombie", skeleton: "mob.skeleton",
-    squid: "mob.squid", slime: "mob.slimebody", ghast: "mob.ghast",
+    slime: "mob.slimebody", ghast: "mob.ghast",
     pillager: "mob.pillager", vindicator: "mob.vindicator", evoker: "mob.evoker",
     illusioner: "mob.illusioner", witch: "mob.witch", ravager: "mob.ravager",
     drowned: "mob.drowned", stray: "mob.stray", armadillo: "mob.armadillo",
@@ -4980,6 +4980,37 @@ export class GameRenderer {
     return tex;
   }
 
+  /** Nubby cream fleece for sheep wool cubes — uniform, so it reads right
+   *  wherever the baked wool UVs land on the sheet. */
+  private fleece?: THREE.CanvasTexture;
+  private fleeceTexture(): THREE.CanvasTexture {
+    if (this.fleece) return this.fleece;
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#e9e5db";
+    ctx.fillRect(0, 0, 64, 64);
+    let seed = 1234;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+    for (let n = 0; n < 700; n++) {
+      const x = Math.floor(rnd() * 64), y = Math.floor(rnd() * 64);
+      ctx.fillStyle = rnd() < 0.5 ? "#dfdacd" : "#f4f1e9";
+      ctx.fillRect(x, y, 1, 1);
+    }
+    // Sparse deeper creases so the fluff has some form at distance.
+    for (let n = 0; n < 40; n++) {
+      ctx.fillStyle = "#d3cec0";
+      ctx.fillRect(Math.floor(rnd() * 64), Math.floor(rnd() * 64), 2, 1);
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.fleece = tex;
+    return tex;
+  }
+
   private buildEnemyBody(
     group: THREE.Group,
     kind: EnemyViewKind,
@@ -5008,7 +5039,10 @@ export class GameRenderer {
       let material = surfaceMaterials.get(key);
       if (!material) {
         const softened = new THREE.Color(color).lerp(new THREE.Color("#ffffff"), 0.1);
-        material = new THREE.MeshLambertMaterial({ map: this.mobSurfaceTexture(surfaceId), color: softened });
+        // Sheep boxes wear the nubby painted fleece; everything else takes
+        // its family surface tile.
+        const map = kind === "sheep" ? this.fleeceTexture() : this.mobSurfaceTexture(surfaceId);
+        material = new THREE.MeshLambertMaterial({ map, color: softened });
         surfaceMaterials.set(key, material);
       }
       return new THREE.Mesh(new THREE.BoxGeometry(w * P, h * P, d * P), material);
@@ -5092,25 +5126,30 @@ export class GameRenderer {
         // cubes (identified by their unique wool-shell dimensions) to the real
         // sheep_wool texture: same layout, so the baked UVs land on the fleece.
         if (mobModelId === "mob.sheep") {
-          const wool = this.materials.entitySkin("entity.sheep.wool");
-          if (wool) {
-            const woolMat = new THREE.MeshLambertMaterial({ map: wool.texture, alphaTest: 0.05 });
-            const WOOL_DIMS = new Set(["12x20x9", "7x6.5x7", "5x6x5"]);
-            built.group.traverse((o) => {
-              const mesh = o as THREE.Mesh;
-              const geo = mesh.geometry as THREE.BoxGeometry | undefined;
-              if (!mesh.isMesh || !geo?.parameters) return;
-              const px = [geo.parameters.width, geo.parameters.height, geo.parameters.depth]
-                .map((v) => Math.round((v / P) * 2) / 2).join("x");
-              if (WOOL_DIMS.has(px)) mesh.material = woolMat;
-            });
-            built.materials.push(woolMat); // variant tints recolor the fleece too
-          }
+          // Painted fleece: wool cubes UV onto arbitrary sheet regions, and
+          // fleece is uniform — so an all-over nubby cream fill is correct
+          // everywhere, and beats the noisy delivered wool sheet.
+          const woolMat = new THREE.MeshLambertMaterial({ map: this.fleeceTexture(), alphaTest: 0.05 });
+          const WOOL_DIMS = new Set(["12x20x9", "7x6.5x7", "5x6x5"]);
+          built.group.traverse((o) => {
+            const mesh = o as THREE.Mesh;
+            const geo = mesh.geometry as THREE.BoxGeometry | undefined;
+            if (!mesh.isMesh || !geo?.parameters) return;
+            const px = [geo.parameters.width, geo.parameters.height, geo.parameters.depth]
+              .map((v) => Math.round((v / P) * 2) / 2).join("x");
+            if (WOOL_DIMS.has(px)) mesh.material = woolMat;
+          });
+          built.materials.push(woolMat); // variant tints recolor the fleece too
         }
         // When a variant's own skin has been delivered (an `entity.<name>`
         // texture — see ASSETS_NEEDED.md §2b), lay it over the model instead
-        // of tint-recoloring the base mob's baked art.
-        const dedicated = defId ? this.materials.entitySkin(`entity.${defId.slice("enemy.".length)}`) : null;
+        // of tint-recoloring the base mob's baked art. Base livestock keep
+        // their models' own baked skins: the delivered entity.cow/sheep/squid
+        // sheets use a different UV layout, and overriding garbled them into
+        // washed-out static (the exact failure the note above warns about).
+        const KEEP_BAKED_SKIN = new Set(["enemy.cow", "enemy.pig", "enemy.sheep", "enemy.chicken", "enemy.squid"]);
+        const dedicated = defId && !KEEP_BAKED_SKIN.has(defId)
+          ? this.materials.entitySkin(`entity.${defId.slice("enemy.".length)}`) : null;
         if (dedicated) {
           for (const m of built.materials) { m.map = dedicated.texture; m.color.set("#ffffff"); }
         } else if (tint) for (const m of built.materials) m.color.set(tint); // pre-art variant recolor (multiplies the skin)
@@ -8790,7 +8829,7 @@ export class GameRenderer {
       case "squid": {
         // Vanilla squid: a 12x16x12 mantle with eight 2x18x2 tentacles ringed
         // below. Original ink-purple art; it drifts on the water.
-        const ink = tint ?? "#7166a6";
+        const ink = tint ?? "#546088";
         const mantle = box(12, 16, 12, ink);
         mantle.position.y = 14 * P;
         body.add(mantle);
@@ -8805,9 +8844,13 @@ export class GameRenderer {
           body.add(t);
         }
         for (const side of [-1, 1]) {
-          const eye = box(2, 3, 0.5, "#141018");
+          // White eye with a dark pupil — a dark-only eye vanished on the
+          // dark mantle.
+          const eye = box(2.4, 3, 0.5, "#e9eef2");
           eye.position.set(side * 3.5 * P, 16 * P, -6.2 * P);
-          body.add(eye);
+          const pupil = box(1.1, 1.6, 0.5, "#1c2030");
+          pupil.position.set(side * 3.5 * P, 16 * P, -6.35 * P);
+          body.add(eye, pupil);
         }
         return { barHeight: 24 * P + 0.2, anim };
       }
@@ -10415,27 +10458,14 @@ export class GameRenderer {
         case "actionRejected":
           this.selectionRing.visible = false;
           break;
-        case "logBurned": {
-          // Kindling gesture + a real fire left burning at your feet.
+        case "logBurned":
+          // Kindling gesture; the sim raises a real, cookable campfire object
+          // beside the burner, so no cosmetic duplicate fire is needed here.
           this.oneShotAnim = { kind: "gather", remainS: 1.1 };
-          const at = ev.cell ?? this.sim.movement.currentCell();
-          const fireGroup = new THREE.Group();
-          const logMat = this.lambert("resource.tree.log.side");
-          for (const angle of [Math.PI / 4, -Math.PI / 4]) {
-            const log = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.14, 0.2), logMat);
-            log.rotation.y = angle;
-            log.position.y = 0.07;
-            fireGroup.add(log);
-          }
-          const flame = this.crossSprite("sprite.flame");
-          flame.group.position.y = 0.1;
-          fireGroup.add(flame.group);
-          fireGroup.position.set(at.x + 0.5, this.sim.world.surfaceY(at), at.z + 0.5);
-          this.scene.add(fireGroup);
-          this.flameGroups.push(flame.group);
-          this.tempFires.push({ group: fireGroup, flame: flame.group, remainS: 60 });
           break;
-        }
+        case "fireOut":
+          this.removeObjectVisual(ev.instanceId);
+          break;
         case "bonesBuried":
           this.oneShotAnim = { kind: "dig", remainS: 1.1 };
           break;

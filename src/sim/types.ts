@@ -62,6 +62,7 @@ export type SimEvent =
   | { type: "itemModded"; itemId: string; label: string }
   | { type: "gemFound"; itemId: string }
   | { type: "logBurned"; itemId: string; cell?: Cell }
+  | { type: "fireOut"; instanceId: string }
   | { type: "bonesBuried"; itemId: string }
   | { type: "plowed"; instanceId: string }
   | { type: "mountChanged"; itemId: string | null }

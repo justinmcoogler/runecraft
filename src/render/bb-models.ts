@@ -86,11 +86,98 @@ const P = 1 / 16;
 const DEG = Math.PI / 180;
 const textureCache = new Map<string, THREE.Texture>();
 
+// The baked livestock sheets carry heavy per-pixel speckle; a small median
+// pass inside opaque regions turns the static into clean chunky texels while
+// keeping the layout (patches, blazes, eyes) exactly where the UVs expect.
+const DENOISE_SKINS = new Set(["mob.cow", "mob.pig", "mob.sheep", "mob.squid"]);
+
+function denoiseSkin(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const im = ctx.getImageData(0, 0, w, h);
+  const d = im.data;
+  const B = 2;
+  for (let y = 0; y < h; y += B) {
+    for (let x = 0; x < w; x += B) {
+      const px: Array<[number, number, number]> = [];
+      for (let dy = 0; dy < B && y + dy < h; dy++) {
+        for (let dx = 0; dx < B && x + dx < w; dx++) {
+          const i = ((y + dy) * w + x + dx) * 4;
+          if (d[i + 3] > 64) px.push([d[i], d[i + 1], d[i + 2]]);
+        }
+      }
+      if (!px.length) continue;
+      px.sort((a, b) => (a[0] * 3 + a[1] * 6 + a[2]) - (b[0] * 3 + b[1] * 6 + b[2]));
+      const m = px[Math.floor(px.length / 2)];
+      for (let dy = 0; dy < B && y + dy < h; dy++) {
+        for (let dx = 0; dx < B && x + dx < w; dx++) {
+          const i = ((y + dy) * w + x + dx) * 4;
+          if (d[i + 3] > 64) { d[i] = m[0]; d[i + 1] = m[1]; d[i + 2] = m[2]; }
+        }
+      }
+    }
+  }
+  ctx.putImageData(im, 0, 0);
+}
+
+/** Per-mob colour regrade after denoise — the baked sheets have the right
+ *  layout but weak art direction (the cow is cream with brown spots instead
+ *  of brown with white patches; the squid is washed grey). */
+function gradeSkin(id: string, ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const im = ctx.getImageData(0, 0, w, h);
+  const d = im.data;
+  const mix = (i: number, r: number, g: number, b: number, k: number) => {
+    d[i] = d[i] + (r - d[i]) * k;
+    d[i + 1] = d[i + 1] + (g - d[i + 1]) * k;
+    d[i + 2] = d[i + 2] + (b - d[i + 2]) * k;
+  };
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] <= 64) continue;
+    const lum = (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11) / 255;
+    if (id === "mob.cow") {
+      // Swap the clusters: cream base becomes rich brown, brown patches
+      // become white; true darks (nostrils, eyes, hooves) stay dark.
+      if (lum > 0.62) { const v = lum / 0.85; mix(i, 116 * v, 78 * v, 48 * v, 1); }
+      else if (lum > 0.24) { const v = Math.min(1, lum / 0.5 + 0.55); mix(i, 240 * v, 235 * v, 226 * v, 1); }
+    } else if (id === "mob.pig") {
+      // Unify toward a healthy pig pink, scaled by the sheet's own shading.
+      const v = Math.min(1.15, lum / 0.62);
+      if (lum > 0.2) mix(i, 238 * v, 164 * v, 158 * v, 0.72);
+    } else if (id === "mob.sheep") {
+      // Warm cream face/legs instead of grey.
+      const v = Math.min(1.1, lum / 0.6);
+      if (lum > 0.2) mix(i, 232 * v, 220 * v, 200 * v, 0.6);
+    } else if (id === "mob.squid") {
+      // Deep teal-blue body; keep the pale eye whites.
+      if (lum < 0.72) { const v = Math.max(0.45, lum / 0.55); mix(i, 74 * v, 104 * v, 130 * v, 0.75); }
+    }
+  }
+  ctx.putImageData(im, 0, 0);
+}
+
 function bbTexture(model: BBModel): THREE.Texture | null {
   if (!model.tex) return null;
   let t = textureCache.get(model.id);
   if (!t) {
-    t = new THREE.TextureLoader().load(model.tex);
+    if (DENOISE_SKINS.has(model.id)) {
+      const canvas = document.createElement("canvas");
+      canvas.width = model.resW || 64;
+      canvas.height = model.resH || 64;
+      const tex = new THREE.CanvasTexture(canvas);
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, 0, 0);
+        denoiseSkin(ctx, img.width, img.height);
+        gradeSkin(model.id, ctx, img.width, img.height);
+        tex.needsUpdate = true;
+      };
+      img.src = model.tex;
+      t = tex;
+    } else {
+      t = new THREE.TextureLoader().load(model.tex);
+    }
     t.magFilter = THREE.NearestFilter;
     t.minFilter = THREE.NearestFilter;
     t.colorSpace = THREE.SRGBColorSpace;

@@ -5,7 +5,7 @@ export const FLIER_ENEMY_IDS = [
   "enemy.allay",
   "enemy.bee",
   "enemy.ghast",
-  "enemy.squid",
+
 ] as const;
 
 export type FlierEnemyId = (typeof FLIER_ENEMY_IDS)[number];
@@ -47,11 +47,6 @@ export const FLIER_STYLES: Record<FlierEnemyId, FlierStyle> = {
     feature: "storm_ghast", motion: "drift",
     body: "#c9ccd1", dark: "#3d414b", membrane: "#8994a3", accent: "#726779", glow: "#e9675e",
     bodyWidth: 18.5, bodyHeight: 14.2, bodyLength: 17.2, wingPairs: 0, appendageCount: 9,
-  },
-  "enemy.squid": {
-    feature: "reef_squid", motion: "swim",
-    body: "#4e7188", dark: "#202f46", membrane: "#668fa0", accent: "#8e667f", glow: "#72d9d0",
-    bodyWidth: 12.8, bodyHeight: 14.5, bodyLength: 12.2, wingPairs: 0, appendageCount: 8,
   },
 };
 

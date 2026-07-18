@@ -754,6 +754,74 @@ export interface EntitySkin {
   height: number;
 }
 
+
+const LIVESTOCK_REGRADE: Record<string, string> = {
+  "entity.cow": "cow",
+  "entity.pig": "pig",
+  "entity.sheep": "sheep",
+  "entity.sheep.skin": "sheep",
+  "entity.sheep.wool": "wool",
+  "entity.squid": "squid",
+};
+
+/** Median-denoise inside opaque regions, then regrade per mob. */
+function cleanLivestockSkin(canvas: HTMLCanvasElement, mode: string): void {
+  const ctx = canvas.getContext("2d")!;
+  const w = canvas.width, h = canvas.height;
+  const im = ctx.getImageData(0, 0, w, h);
+  const d = im.data;
+  const B = 2;
+  for (let y = 0; y < h; y += B) {
+    for (let x = 0; x < w; x += B) {
+      const px: Array<[number, number, number]> = [];
+      for (let dy = 0; dy < B && y + dy < h; dy++) {
+        for (let dx = 0; dx < B && x + dx < w; dx++) {
+          const i = ((y + dy) * w + x + dx) * 4;
+          if (d[i + 3] > 64) px.push([d[i], d[i + 1], d[i + 2]]);
+        }
+      }
+      if (!px.length) continue;
+      px.sort((a, b) => (a[0] * 3 + a[1] * 6 + a[2]) - (b[0] * 3 + b[1] * 6 + b[2]));
+      const m = px[Math.floor(px.length / 2)];
+      for (let dy = 0; dy < B && y + dy < h; dy++) {
+        for (let dx = 0; dx < B && x + dx < w; dx++) {
+          const i = ((y + dy) * w + x + dx) * 4;
+          if (d[i + 3] > 64) { d[i] = m[0]; d[i + 1] = m[1]; d[i + 2] = m[2]; }
+        }
+      }
+    }
+  }
+  const mix = (i: number, r: number, g: number, b: number, k: number) => {
+    d[i] = d[i] + (r - d[i]) * k;
+    d[i + 1] = d[i + 1] + (g - d[i + 1]) * k;
+    d[i + 2] = d[i + 2] + (b - d[i + 2]) * k;
+  };
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] <= 64) continue;
+    const lum = (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11) / 255;
+    if (mode === "cow") {
+      // Swap the clusters: cream base becomes rich brown, brown patches
+      // become white; true darks (muzzle, eyes, hooves) stay dark.
+      if (lum > 0.62) { const v = lum / 0.85; mix(i, 116 * v, 78 * v, 48 * v, 1); }
+      else if (lum > 0.24) { const v = Math.min(1, lum / 0.5 + 0.55); mix(i, 240 * v, 235 * v, 226 * v, 1); }
+    } else if (mode === "pig") {
+      const v = Math.min(1.15, lum / 0.62);
+      if (lum > 0.2) mix(i, 238 * v, 164 * v, 158 * v, 0.72);
+    } else if (mode === "sheep") {
+      const v = Math.min(1.1, lum / 0.6);
+      if (lum > 0.2) mix(i, 232 * v, 220 * v, 200 * v, 0.6);
+    } else if (mode === "wool") {
+      // Uniform cream fleece, lightly shaded by the sheet's own values.
+      const v = Math.max(0.8, Math.min(1.08, lum / 0.62));
+      mix(i, 236 * v, 231 * v, 221 * v, 0.9);
+    } else if (mode === "squid") {
+      if (lum < 0.72) { const v = Math.max(0.45, lum / 0.55); mix(i, 74 * v, 104 * v, 130 * v, 0.75); }
+    }
+  }
+  ctx.putImageData(im, 0, 0);
+}
+
+
 export class MaterialResolver {
   readonly terrainAtlas: THREE.CanvasTexture;
   private iconUrlCache = new Map<string, string | null>();
@@ -882,6 +950,10 @@ export class MaterialResolver {
       const b64 = ORIGINAL_ENTITY_TEXTURES[key] ?? DEFAULT_ENTITY_TEXTURES[key];
       const png = b64 ? decodePngBase64(b64) : null;
       if (png) canvas = imageDataCanvas(new ImageData(png.rgba, png.width, png.height));
+      // The baked livestock sheets are heavy speckle with weak art direction;
+      // a median pass plus a per-mob regrade turns them into clean, classic
+      // colour reads (rich brown cow, pink pig, cream sheep, teal squid).
+      if (canvas && LIVESTOCK_REGRADE[key]) cleanLivestockSkin(canvas, LIVESTOCK_REGRADE[key]);
     }
     if (!canvas || canvas.width < 32) {
       this.entityCache.set(key, null);
