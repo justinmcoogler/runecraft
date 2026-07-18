@@ -228,9 +228,23 @@ function heightFields(seed: number, x: number, z: number) {
   const hills = fbm(x, z, 230, salt(seed, 3));
   const rough = fbm(x, z, 60, salt(seed, 4));
   const ridge = 1 - Math.abs(2 * fbm(wx, wz, 480, salt(seed, 5)) - 1);
-  const temp = fbm(x, z, 1600, salt(seed, 7));
-  const moist = fbm(x, z, 1200, salt(seed, 8));
-  const flora = fbm(x, z, 700, salt(seed, 14)); // splits woods into groves
+  // Climate gets its own, stronger warp and a shorter wavelength than the
+  // landmass fields: raw 1600/1200-cell climate bands meant a walker could
+  // cross 500+ cells without the country changing character. Warped
+  // ~800/650-cell fields turn the bands into interlocking patches a few
+  // minutes' walk across while staying coherent enough for lakes to freeze
+  // as a unit.
+  const cx = x + (fbm(x, z, 640, salt(seed, 91)) - 0.5) * 420;
+  const cz = z + (fbm(z, x, 640, salt(seed, 92)) - 0.5) * 420;
+  // Home tempering: whatever the seed, the country within a few minutes'
+  // walk of the anchor eases toward mild temperate — no glacier, volcanic
+  // waste or blight on the doorstep. Fades out by ~800 cells.
+  const home = Math.max(0, 1 - Math.hypot(x - ENDLESS_CENTER, z - ENDLESS_CENTER) / 800);
+  const tempRaw = fbm(cx, cz, 800, salt(seed, 7));
+  const moistRaw = fbm(cx, cz, 650, salt(seed, 8));
+  const temp = tempRaw + (0.48 - tempRaw) * home * 0.85;
+  const moist = moistRaw + (0.5 - moistRaw) * home * 0.7;
+  const flora = fbm(x, z, 480, salt(seed, 14)); // splits woods into groves
 
   // Continental spline: a wide, low coastal apron, then plains, uplands and
   // highlands. The apron is broad and barely above the water so shores step
@@ -589,29 +603,30 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
   const moist = f.moist + (cellHash(qz, qx, salt(seed, 27)) - 0.5) * 0.05;
   // Corruption: rare blighted country where the land itself turned. The
   // fights are harder and the ground is stingier, but the loot is richer.
-  const corrupt = fbm(x, z, 1400, salt(seed, 39)) > 0.81;
+  const corrupt = fbm(x, z, 1000, salt(seed, 39)) > 0.81
+    && Math.hypot(x - ENDLESS_CENTER, z - ENDLESS_CENTER) > 700;
   let biome = 0;
   // Rare special biomes carve pockets out of the ordinary climate bands, each
   // gated by its own low-frequency noise so it only turns up here and there.
   // Corruption always wins over these gentler places.
   const special = corrupt ? 0
-    : temp > 0.44 && temp < 0.7 && moist > 0.5 && vnoise(x, z, 600, salt(seed, 71)) > 0.86 ? 21 // cherry orchard
-    : temp > 0.2 && temp < 0.44 && moist > 0.58 && f.h > 10 && vnoise(x, z, 520, salt(seed, 72)) > 0.82 ? 22 // redwood
-    : temp > 0.5 && temp < 0.74 && moist > 0.33 && moist < 0.6 && f.h < 18 && vnoise(x, z, 560, salt(seed, 73)) > 0.87 ? 23 // sunflower prairie
-    : temp > 0.4 && temp < 0.62 && moist > 0.4 && moist < 0.62 && vnoise(x, z, 540, salt(seed, 74)) > 0.86 ? 24 // autumn woods
-    : temp > 0.32 && temp < 0.58 && moist > 0.6 && vnoise(x, z, 720, salt(seed, 75)) > 0.9 ? 25 // glowshroom hollow
+    : temp > 0.44 && temp < 0.7 && moist > 0.5 && vnoise(x, z, 600, salt(seed, 71)) > 0.82 ? 21 // cherry orchard
+    : temp > 0.2 && temp < 0.44 && moist > 0.58 && f.h > 10 && vnoise(x, z, 520, salt(seed, 72)) > 0.79 ? 22 // redwood
+    : temp > 0.5 && temp < 0.74 && moist > 0.33 && moist < 0.6 && f.h < 18 && vnoise(x, z, 560, salt(seed, 73)) > 0.83 ? 23 // sunflower prairie
+    : temp > 0.4 && temp < 0.62 && moist > 0.4 && moist < 0.62 && vnoise(x, z, 540, salt(seed, 74)) > 0.82 ? 24 // autumn woods
+    : temp > 0.32 && temp < 0.58 && moist > 0.6 && vnoise(x, z, 720, salt(seed, 75)) > 0.86 ? 25 // glowshroom hollow
     // Second wave of rarer pockets — each a distinct named country carved from
     // its climate window by its own low-frequency gate.
-    : temp > 0.6 && moist > 0.55 && f.h < 20 && vnoise(x, z, 480, salt(seed, 81)) > 0.86 ? 26 // bamboo forest
-    : temp > 0.55 && moist > 0.66 && f.h < 9 && vnoise(x, z, 430, salt(seed, 82)) > 0.85 ? 27 // mangrove coast
-    : temp < 0.18 && vnoise(x, z, 470, salt(seed, 83)) > 0.88 ? 28 // ice spikes
-    : temp > 0.75 && moist < 0.18 && vnoise(x, z, 440, salt(seed, 84)) > 0.85 ? 29 // salt flats
-    : temp > 0.6 && moist < 0.35 && f.h > 20 && vnoise(x, z, 510, salt(seed, 85)) > 0.86 ? 30 // mesa highlands
-    : temp > 0.4 && temp < 0.66 && moist > 0.4 && moist < 0.6 && f.h < 18 && vnoise(x, z, 500, salt(seed, 86)) > 0.9 ? 31 // flower meadow
-    : temp > 0.3 && temp < 0.55 && moist > 0.35 && moist < 0.6 && f.h > 18 && vnoise(x, z, 520, salt(seed, 87)) > 0.88 ? 32 // highland heath
-    : temp > 0.72 && moist < 0.3 && vnoise(x, z, 460, salt(seed, 88)) > 0.9 ? 33 // ashland
-    : temp < 0.3 && moist < 0.45 && f.h > 16 && vnoise(x, z, 540, salt(seed, 89)) > 0.9 ? 34 // crystal barrens
-    : temp > 0.4 && temp < 0.65 && moist > 0.62 && f.h < 12 && vnoise(x, z, 505, salt(seed, 90)) > 0.9 ? 35 // amber marsh
+    : temp > 0.6 && moist > 0.55 && f.h < 20 && vnoise(x, z, 480, salt(seed, 81)) > 0.82 ? 26 // bamboo forest
+    : temp > 0.55 && moist > 0.66 && f.h < 9 && vnoise(x, z, 430, salt(seed, 82)) > 0.81 ? 27 // mangrove coast
+    : temp < 0.18 && vnoise(x, z, 470, salt(seed, 83)) > 0.84 ? 28 // ice spikes
+    : temp > 0.75 && moist < 0.18 && vnoise(x, z, 440, salt(seed, 84)) > 0.82 ? 29 // salt flats
+    : temp > 0.6 && moist < 0.35 && f.h > 20 && vnoise(x, z, 510, salt(seed, 85)) > 0.82 ? 30 // mesa highlands
+    : temp > 0.4 && temp < 0.66 && moist > 0.4 && moist < 0.6 && f.h < 18 && vnoise(x, z, 500, salt(seed, 86)) > 0.86 ? 31 // flower meadow
+    : temp > 0.3 && temp < 0.55 && moist > 0.35 && moist < 0.6 && f.h > 18 && vnoise(x, z, 520, salt(seed, 87)) > 0.84 ? 32 // highland heath
+    : temp > 0.72 && moist < 0.3 && vnoise(x, z, 460, salt(seed, 88)) > 0.86 ? 33 // ashland
+    : temp < 0.3 && moist < 0.45 && f.h > 16 && vnoise(x, z, 540, salt(seed, 89)) > 0.86 ? 34 // crystal barrens
+    : temp > 0.4 && temp < 0.65 && moist > 0.62 && f.h < 12 && vnoise(x, z, 505, salt(seed, 90)) > 0.86 ? 35 // amber marsh
     : 0;
   if (f.island && vnoise(x, z, 500, salt(seed, 16)) > 0.78) biome = 11;
   else if (special) biome = special;
@@ -627,7 +642,7 @@ export function terrainAt(seed: number, x: number, z: number, cache?: HeightCach
   else if (temp > 0.6 && moist < 0.52) biome = 6;
   else if (f.h > 30 && temp < 0.58 && moist >= 0.4) biome = 20; // alpine pines: high, cool, green
   else if (f.h > 22 && moist < 0.55) biome = 12; // moorland uplands
-  else if (moist > 0.48 && vnoise(x, z, 650, salt(seed, 29)) > 0.86) biome = 13; // elder grove
+  else if (moist > 0.48 && vnoise(x, z, 650, salt(seed, 29)) > 0.82) biome = 13; // elder grove
   else if (moist > 0.48) biome = f.flora > 0.68 ? 8 : f.flora < 0.3 ? 9 : 1;
   else if (f.flora > 0.74) biome = 10;
 
