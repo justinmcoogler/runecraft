@@ -184,6 +184,7 @@ export interface EndlessChunk {
   cz: number;
   heights: Int16Array; // ECHUNK * ECHUNK
   blocks: Uint8Array; // palette ids
+  biomes: Uint8Array; // CellSample.biome per cell (ground tinting + spawn tables)
   nodes: NodePlacement[];
   objects: ObjectPlacement[];
   enemies: EnemyPlacement[];
@@ -2338,7 +2339,42 @@ function tryStampLandmark(
     // No room for the shrine — fall through to a stone circle instead.
   }
 
-  if (kind < 0.45) {
+  if (kind >= 0.3 && kind < 0.44) {
+    // Crystal garden: a glittering ring of pale spires around gem rocks —
+    // the mining prize scales with how deep in the wilds it grew.
+    flatten(6);
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2 + 0.4;
+      const tall = anchor + 2 + Math.floor(cellHash(px * 3 + k, pz * 5 - k, salt(seed, 103)) * 3);
+      raise(Math.round(Math.cos(a) * 4), Math.round(Math.sin(a) * 4), tall, "calcite");
+    }
+    const deep = Math.hypot(wx - ENDLESS_CENTER, wz - ENDLESS_CENTER) > 1400;
+    const gems = deep ? ["resource.rock.diamond", "resource.rock.emerald", "resource.rock.lapis"]
+      : ["resource.rock.quartz", "resource.rock.lapis", "resource.rock.redstone"];
+    gems.forEach((g, k) => {
+      nodes.push({ instanceId: `${id()}.gemgarden`, defId: g, cell: { x: wx + (k === 0 ? 0 : k === 1 ? -2 : 2), z: wz + (k === 0 ? 0 : 1) } });
+    });
+    enemies.push({ instanceId: id(), defId: "enemy.wisp", cell: { x: wx + 1, z: wz - 2 } });
+    houseBoxes.push({ x0: px - 7, z0: pz - 7, x1: px + 7, z1: pz + 7 });
+    return true;
+  }
+
+  if (kind >= 0.44 && kind < 0.58) {
+    // Lone obelisk: a single tall needle on a bare pad, guarded, with a
+    // strongbox buried at its foot. Visible for a long way over flat country.
+    flatten(4);
+    raise(0, 0, anchor + 8, rock(0));
+    raise(1, 0, anchor + 2, rock(1));
+    raise(-1, 0, anchor + 2, rock(2));
+    raise(0, 1, anchor + 2, rock(3));
+    raise(0, -1, anchor + 2, rock(4));
+    nodes.push({ instanceId: id(), defId: strongboxByDist(wx, wz, seed), cell: { x: wx + 2, z: wz + 2 } });
+    enemies.push({ instanceId: id(), defId: "enemy.skeleton", cell: { x: wx - 2, z: wz + 2 } });
+    houseBoxes.push({ x0: px - 5, z0: pz - 5, x1: px + 5, z1: pz + 5 });
+    return true;
+  }
+
+  if (kind < 0.3) {
     // Standing stones: a ring of monoliths around an ancient rune altar.
     flatten(7);
     for (let k = 0; k < 8; k++) {
@@ -2550,7 +2586,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   }
   // Landmarks: standing-stone circles and ruined watchtowers, raised straight
   // from the terrain — discoverable and good for finding your bearings.
-  if (!stamped && cellHash(cx * 44851 + 9, cz * 71341 + 5, salt(seed, 102)) < 0.022) {
+  if (!stamped && cellHash(cx * 44851 + 9, cz * 71341 + 5, salt(seed, 102)) < 0.055) {
     stamped = tryStampLandmark(seed, cx, cz, heights, blocks, x0, z0, objects, nodes, enemies, structures, houseBoxes, id);
   }
   // Wild homesteads: the interiored homes, found out in the world. The roll is
@@ -3405,11 +3441,12 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
   // (dungeon rock pools), which are placed separately and untouched by this.
   for (const n of nodes) {
     if (!n.defId.startsWith("resource.rock.") || SURFACE_ORES.has(n.defId)) continue;
+    if (n.instanceId.endsWith(".gemgarden")) continue; // crystal-garden prize rocks
     const down = SURFACE_ORE_DOWNGRADE[n.defId];
     if (down) n.defId = down;
   }
 
-  return { cx, cz, heights, blocks, nodes, objects, enemies, structures, npcs };
+  return { cx, cz, heights, blocks, biomes, nodes, objects, enemies, structures, npcs };
 }
 
 /** Terrain source + chunk cache. WorldState reads cells; the ChunkManager
@@ -3445,6 +3482,11 @@ export class EndlessTerrain {
   blockAt(x: number, z: number): BlockType {
     const c = this.chunk(Math.floor(x / ECHUNK), Math.floor(z / ECHUNK));
     return BLOCK_LIST[c.blocks[(z - c.cz * ECHUNK) * ECHUNK + (x - c.cx * ECHUNK)]];
+  }
+
+  biomeAt(x: number, z: number): number {
+    const c = this.chunk(Math.floor(x / ECHUNK), Math.floor(z / ECHUNK));
+    return c.biomes[(z - c.cz * ECHUNK) * ECHUNK + (x - c.cx * ECHUNK)];
   }
 
   /** Wake up in the starter meadow: a clear cell just south of the camp. */

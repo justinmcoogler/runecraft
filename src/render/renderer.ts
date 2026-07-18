@@ -475,6 +475,42 @@ let blobTexture: THREE.CanvasTexture | null = null;
 // borrows, recoloured by the enemy tint (`tinted`). Once real art lands for a
 // variant key (see ASSETS_NEEDED.md §2b for the exact file names), it wins
 // automatically and the tint recolor stops applying — no code change needed.
+// Per-biome ground-colour multipliers for grass-family top faces (index =
+// CellSample.biome). Undefined / identity entries keep the raw tile art.
+const BIOME_GROUND_TINTS: Record<number, readonly [number, number, number]> = {
+  1: [0.92, 1.0, 0.88],   // forest: richer green
+  2: [0.82, 0.95, 0.92],  // taiga: cool blue-green
+  4: [0.76, 0.85, 0.6],   // swamp: murky olive
+  6: [1.18, 1.06, 0.6],   // savanna: sun-bleached gold
+  7: [0.7, 1.04, 0.6],    // jungle: deep saturated green
+  8: [1.0, 1.05, 0.8],    // birch grove: light yellow-green
+  9: [0.7, 0.8, 0.68],    // dark forest: gloomy
+  10: [0.95, 1.08, 0.76], // flower meadow: vivid
+  12: [1.04, 0.94, 0.74], // moorland: dry heath
+  13: [0.8, 1.0, 0.85],   // elder grove: silvered green
+  14: [1.15, 0.92, 0.68], // badlands: scorched
+  15: [0.84, 0.9, 0.66],  // fen: sedge
+  16: [0.8, 0.82, 0.76],  // gravemoor: ashen
+  17: [0.78, 0.68, 0.9],  // blightwood: sickly violet
+  18: [0.85, 0.72, 0.66], // volcanic wastes: scorched red-grey
+  20: [0.85, 1.0, 0.9],   // alpine pines: crisp
+  21: [1.06, 0.98, 0.9],  // cherry orchard: warm blush
+  22: [0.84, 0.94, 0.74], // redwood: shaded loam
+  23: [1.1, 1.1, 0.66],   // sunflower prairie: golden green
+  24: [1.22, 0.96, 0.58], // autumn woods: turning leaves
+  25: [0.74, 0.85, 0.95], // glowshroom hollow: cold spectral
+  26: [0.8, 1.1, 0.62],   // bamboo: bright stalk green
+  27: [0.78, 0.94, 0.7],  // mangrove: brackish green
+  28: [0.88, 0.95, 1.05], // ice spikes: frost sheen
+  29: [1.1, 1.08, 1.0],   // salt flats: bleached
+  30: [1.12, 0.94, 0.7],  // mesa highlands: red-gold
+  31: [0.95, 1.1, 0.74],  // flower meadow: vivid
+  32: [1.02, 0.9, 0.98],  // highland heath: heather purple
+  33: [0.84, 0.8, 0.76],  // ashland: cinder grey
+  34: [0.9, 0.95, 1.06],  // crystal barrens: pale shimmer
+  35: [1.1, 0.95, 0.6],   // amber marsh: peaty gold
+};
+
 const ENEMY_SKINS: Record<string, { key: string; fallback?: string; wool?: string; tinted?: boolean }> = {
   "enemy.cow": { key: "entity.cow" },
   "enemy.pig": { key: "entity.pig" },
@@ -1557,6 +1593,7 @@ export class GameRenderer {
       shade: number,
       cellX?: number,
       cellZ?: number,
+      tint?: readonly [number, number, number],
     ) => {
       const base = positions.length / 3;
       const [u0, v0, u1, v1] = this.materials.atlasUv(materialId);
@@ -1566,7 +1603,8 @@ export class GameRenderer {
       corners.forEach((c, i) => {
         positions.push(...c);
         uvs.push(...quadUv[i]);
-        colors.push(shade, shade, shade, 1);
+        if (tint) colors.push(shade * tint[0], shade * tint[1], shade * tint[2], 1);
+        else colors.push(shade, shade, shade, 1);
       });
       indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
       if (cellX !== undefined && cellZ !== undefined) {
@@ -1575,6 +1613,16 @@ export class GameRenderer {
         list.push(base);
         quadRanges.set(key, list);
       }
+    };
+
+    // Biome ground tint: grass-family top faces take the biome's colour so
+    // savanna reads golden, jungle deep green, blight sickly violet — the
+    // single strongest at-a-glance biome cue, exactly like Minecraft's
+    // grass colormap. Only the endless world reports biomes (0 elsewhere,
+    // and plains' tint is identity, so handcrafted regions are untouched).
+    const groundTint = (block: string, x: number, z: number): readonly [number, number, number] | undefined => {
+      if (block !== "grass" && block !== "drygrass" && block !== "moss" && block !== "podzol") return undefined;
+      return BIOME_GROUND_TINTS[this.sim.world.biomeAt({ x, z })];
     };
 
     // A flat-colored quad for the translucent (glass) pass.
@@ -1736,6 +1784,7 @@ export class GameRenderer {
           shade,
           x,
           z,
+          groundTint(faceBlock, x, z),
         );
 
         // Side walls where a neighbour column is lower (one quad per unit height).

@@ -162,6 +162,7 @@ export interface RegionSpec {
 export interface TerrainSource {
   heightAt(x: number, z: number): number;
   blockAt(x: number, z: number): BlockType;
+  biomeAt?(x: number, z: number): number;
 }
 
 export class WorldState {
@@ -196,6 +197,11 @@ export class WorldState {
   blockAt(c: Cell): BlockType {
     if (this.source) return this.source.blockAt(c.x, c.z);
     return this.region.blocks[c.z * this.region.width + c.x];
+  }
+
+  /** Biome id at a cell (0 outside the endless world) — drives ground tint. */
+  biomeAt(c: Cell): number {
+    return this.source?.biomeAt?.(c.x, c.z) ?? 0;
   }
 
   /** The y a walker actually stands on: an imported structure's floor/step
