@@ -69,6 +69,15 @@ const TOOL_NAMES: Record<string, string> = {
   hammer: "a smithing hammer",
 };
 
+/** Wrap a quest line as speech without doubling quotation marks: content
+ *  strings sometimes carry their own quotes (or a full `Name: "..."` tag). */
+function speechLine(name: string, text: string): string {
+  const t = text.trim();
+  if (/^[^"\u201c]{1,40}: ?["\u201c]/.test(t)) return t; // content already carries a speaker tag
+  const bare = t.replace(/^"([\s\S]*)"$/, "$1");
+  return `${name}: \u201c${bare}\u201d`;
+}
+
 function npcName(npcId: string, sim: GameSimulation): string {
   return sim.npcs.get(npcId)?.name ?? "???";
 }
@@ -777,12 +786,12 @@ export class Hud {
         case "questStarted": {
           const quest = this.sim.quests.defOf(ev.questId)!;
           this.toast(`Quest started: ${ev.name}`, "level", uiIconHtml("quest", 20));
-          this.toast(`${npcName(quest.giverNpcId, this.sim)}: “${quest.intro}”`, "speech");
+          this.toast(speechLine(npcName(quest.giverNpcId, this.sim), quest.intro), "speech");
           break;
         }
         case "questCompleted": {
           const quest = this.sim.quests.defOf(ev.questId)!;
-          this.toast(`${npcName(quest.giverNpcId, this.sim)}: “${quest.outro}”`, "speech");
+          this.toast(speechLine(npcName(quest.giverNpcId, this.sim), quest.outro), "speech");
           this.toast(`Quest complete: ${ev.name}!`, "level", uiIconHtml("quest", 20));
           break;
         }
