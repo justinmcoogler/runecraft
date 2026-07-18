@@ -14,6 +14,8 @@ const result = await build({
   minify: true,
   format: "iife",
   target: "es2020",
+  // Keep ImageGen-authored UI art inside the one-file playable build.
+  loader: { ".png": "dataurl", ".webp": "dataurl" },
   write: false,
   outdir: "dist",
 });

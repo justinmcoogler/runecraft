@@ -23,6 +23,15 @@ import { ROCK_MATERIAL_TILES, ROCK_MATERIAL_TINTS, ROCK_MODELS_ALL, pickBoulderM
 import { buildBBModel } from "./bb-models";
 import { paintedMats } from "./painted-skins";
 import { isModelEnabled } from "./model-prefs";
+import { ARACHNID_LEGS, arachnidStyleFor } from "./arachnid-model";
+import { undeadStyleFor } from "./undead-model";
+import { constructStyleFor } from "./construct-model";
+import { oozeStyleFor } from "./ooze-model";
+import { canidStyleFor } from "./canid-model";
+import { ungulateStyleFor } from "./ungulate-model";
+import { raiderStyleFor, type RaiderRole } from "./raider-model";
+import { flierStyleFor, type FlierFeature, type FlierMotion } from "./flier-model";
+import { signatureStyleFor, type SignatureFeature, type SignatureMotion } from "./signature-model";
 import { itemIconUrl } from "../ui/icons";
 
 // Lower ambient relative to sun so faces facing away from the sun read as
@@ -31,6 +40,286 @@ import { itemIconUrl } from "../ui/icons";
 const DEFAULT_THEME = { sky: "#8fc4e8", sun: 1.65, ambient: 0.72 };
 const SUN_COLOR = 0xfff1d4; // warm midday sunlight
 const SKY_FILL_COLOR = 0x9fb8d8; // cool ambient bounce from the sky
+
+interface ArachnidJoint {
+  obj: THREE.Group;
+  restX: number;
+  restY: number;
+  restZ: number;
+}
+
+interface ArachnidLegAnim {
+  side: -1 | 1;
+  slot: number;
+  phase: number;
+  hip: ArachnidJoint;
+  knee: ArachnidJoint;
+  ankle: ArachnidJoint;
+}
+
+interface ArachnidAnim {
+  legs: ArachnidLegAnim[];
+  abdomen: THREE.Group;
+  mandibles: Array<{ obj: THREE.Group; side: -1 | 1; restY: number }>;
+  pedipalps: Array<{ obj: THREE.Group; side: -1 | 1; restX: number; restY: number }>;
+}
+
+interface UndeadLimbAnim {
+  side: -1 | 1;
+  phase: number;
+  upper: THREE.Group;
+  lower: THREE.Group;
+  restUpperX: number;
+  restUpperZ: number;
+  restLowerX: number;
+}
+
+interface UndeadAnim {
+  legs: UndeadLimbAnim[];
+  arms: UndeadLimbAnim[];
+  torso: THREE.Group;
+  head: THREE.Group;
+  headRestX: number;
+  headRestZ: number;
+  hangers: Array<{ obj: THREE.Group; restX: number; restZ: number; phase: number }>;
+}
+
+interface ConstructLimbAnim {
+  side: -1 | 1;
+  phase: number;
+  upper: THREE.Group;
+  lower: THREE.Group;
+  restUpperX: number;
+  restUpperZ: number;
+  restLowerX: number;
+}
+
+interface ConstructAnim {
+  legs: ConstructLimbAnim[];
+  arms: ConstructLimbAnim[];
+  torso: THREE.Group;
+  head: THREE.Group;
+  core: THREE.Object3D;
+  headRestX: number;
+  headRestZ: number;
+  panels: Array<{ obj: THREE.Group; restY: number; sign: number }>;
+  gears: Array<{ obj: THREE.Object3D; speed: number }>;
+  details: Array<{ obj: THREE.Group; restX: number; restZ: number; phase: number }>;
+}
+
+interface OozeSegmentAnim {
+  obj: THREE.Group;
+  baseY: number;
+  phase: number;
+  squash: number;
+}
+
+interface OozeAnim {
+  segments: OozeSegmentAnim[];
+  core: THREE.Group;
+  mouth: THREE.Object3D;
+  eyes: THREE.Object3D[];
+  details: Array<{ obj: THREE.Group; restX: number; restZ: number; phase: number }>;
+}
+
+interface CanidLegAnim {
+  side: -1 | 1;
+  front: boolean;
+  phase: number;
+  upper: THREE.Group;
+  knee: THREE.Group;
+  ankle: THREE.Group;
+  restUpperX: number;
+  restUpperZ: number;
+  restKneeX: number;
+  restAnkleX: number;
+}
+
+interface CanidAnim {
+  legs: CanidLegAnim[];
+  trunk: THREE.Group;
+  neck: THREE.Group;
+  head: THREE.Group;
+  jaw: THREE.Group;
+  headRestX: number;
+  headRestZ: number;
+  tail: Array<{ obj: THREE.Group; restX: number; restY: number; restZ: number; phase: number }>;
+  details: Array<{ obj: THREE.Group; restX: number; restZ: number; phase: number }>;
+}
+
+interface UngulateLegAnim {
+  side: -1 | 1;
+  front: boolean;
+  phase: number;
+  upper: THREE.Group;
+  knee: THREE.Group;
+  ankle: THREE.Group;
+  restUpperX: number;
+  restUpperZ: number;
+  restKneeX: number;
+  restAnkleX: number;
+}
+
+interface UngulateAnim {
+  legs: UngulateLegAnim[];
+  trunk: THREE.Group;
+  neck: THREE.Group;
+  head: THREE.Group;
+  jaw: THREE.Group;
+  headRestX: number;
+  headRestY: number;
+  headRestZ: number;
+  neckRestX: number;
+  tail: Array<{ obj: THREE.Group; restX: number; restY: number; restZ: number; phase: number }>;
+  details: Array<{ obj: THREE.Group; restX: number; restZ: number; phase: number }>;
+}
+
+interface RaiderLegAnim {
+  side: -1 | 1;
+  phase: number;
+  hip: THREE.Group;
+  knee: THREE.Group;
+  foot: THREE.Group;
+  restHipX: number;
+  restHipZ: number;
+  restKneeX: number;
+  restFootX: number;
+}
+
+interface RaiderArmAnim {
+  side: -1 | 1;
+  phase: number;
+  shoulder: THREE.Group;
+  elbow: THREE.Group;
+  hand: THREE.Group;
+  restShoulderX: number;
+  restShoulderZ: number;
+  restElbowX: number;
+  restElbowZ: number;
+}
+
+interface RaiderPropAnim {
+  obj: THREE.Group;
+  kind: "weapon" | "focus" | "cloth";
+  phase: number;
+  restX: number;
+  restY: number;
+  restZ: number;
+}
+
+interface RaiderAnim {
+  role: RaiderRole;
+  legs: RaiderLegAnim[];
+  arms: RaiderArmAnim[];
+  torso: THREE.Group;
+  head: THREE.Group;
+  headRestX: number;
+  headRestZ: number;
+  props: RaiderPropAnim[];
+  focus: THREE.Object3D | null;
+  dummyPivot: THREE.Group | null;
+  details: Array<{ obj: THREE.Group; restX: number; restZ: number; phase: number }>;
+}
+
+interface FlierWingAnim {
+  side: -1 | 1;
+  pair: number;
+  phase: number;
+  root: THREE.Group;
+  mid: THREE.Group;
+  tip: THREE.Group;
+  restRootX: number;
+  restRootY: number;
+  restRootZ: number;
+  restMidX: number;
+  restMidY: number;
+  restMidZ: number;
+  restTipX: number;
+  restTipY: number;
+  restTipZ: number;
+}
+
+interface FlierAppendageAnim {
+  index: number;
+  root: THREE.Group;
+  mid: THREE.Group;
+  tip: THREE.Group;
+  restRootX: number;
+  restRootZ: number;
+  restMidX: number;
+  restMidZ: number;
+  restTipX: number;
+  restTipZ: number;
+}
+
+interface FlierFinAnim {
+  side: -1 | 1;
+  root: THREE.Group;
+  restX: number;
+  restY: number;
+  restZ: number;
+}
+
+interface FlierAnim {
+  feature: FlierFeature;
+  motion: FlierMotion;
+  core: THREE.Group;
+  coreRestY: number;
+  head: THREE.Group;
+  mouth: THREE.Group | null;
+  headRestX: number;
+  headRestZ: number;
+  wings: FlierWingAnim[];
+  appendages: FlierAppendageAnim[];
+  fins: FlierFinAnim[];
+  details: Array<{ obj: THREE.Group; restX: number; restZ: number; phase: number }>;
+}
+
+interface SignatureLegAnim {
+  side: -1 | 1;
+  front: boolean;
+  phase: number;
+  hip: THREE.Group;
+  knee: THREE.Group;
+  foot: THREE.Group;
+  restHipX: number;
+  restHipZ: number;
+  restKneeX: number;
+  restFootX: number;
+}
+
+interface SignatureWingAnim {
+  side: -1 | 1;
+  root: THREE.Group;
+  tip: THREE.Group;
+  restRootX: number;
+  restRootZ: number;
+  restTipX: number;
+  restTipZ: number;
+}
+
+interface SignatureTailAnim {
+  obj: THREE.Group;
+  restX: number;
+  restY: number;
+  restZ: number;
+  phase: number;
+}
+
+interface SignatureAnim {
+  feature: SignatureFeature;
+  motion: SignatureMotion;
+  core: THREE.Group;
+  head: THREE.Group;
+  jaw: THREE.Group | null;
+  headRestX: number;
+  headRestY: number;
+  headRestZ: number;
+  legs: SignatureLegAnim[];
+  wings: SignatureWingAnim[];
+  tail: SignatureTailAnim[];
+  details: Array<{ obj: THREE.Group; restX: number; restZ: number; phase: number }>;
+}
 
 /** Animatable parts of an enemy rig (all children of `body` for lunging). */
 interface EnemyAnim {
@@ -52,6 +341,24 @@ interface EnemyAnim {
   /** Slow idle sway for limbless dangly bits (warden tendrils, tails, spines):
    *  a gentle rock about the rest x/z, always on, so the boss never freezes. */
   sway?: Array<{ obj: THREE.Object3D; baseX: number; baseZ: number; sign: number }>;
+  /** Native voxel arachnids use three joints per leg plus attack face parts. */
+  arachnid?: ArachnidAnim;
+  /** Native layered undead use elbow/knee chains and loose cloth details. */
+  undead?: UndeadAnim;
+  /** RuneCraft constructs expose joints, core shutters and machinery. */
+  construct?: ConstructAnim;
+  /** Layered RuneCraft oozes squash independently around an internal core. */
+  ooze?: OozeAnim;
+  /** RuneCraft combat canids use articulated quadruped joints and jaws. */
+  canid?: CanidAnim;
+  /** Original livestock and regional ungulates share articulated hoof rigs. */
+  ungulate?: UngulateAnim;
+  /** RuneCraft raiders, casters and training effigies use native humanoid rigs. */
+  raider?: RaiderAnim;
+  /** Native airborne and aquatic creatures expose segmented flight/swim parts. */
+  flier?: FlierAnim;
+  /** Remaining signature fauna use exact-ID articulated native silhouettes. */
+  signature?: SignatureAnim;
   /** Rabbits and frogs travel in hop arcs: the body lifts on the walk phase
    *  instead of legs striding. */
   hopper?: boolean;
@@ -4562,10 +4869,22 @@ export class GameRenderer {
     }[kind] ?? 0.5;
     group.add(body, makeBlobShadow(shadowSize));
     const anim: EnemyAnim = { body, legs: [], head: null, headRestZ: 0, segments: [], walkPhase: 0, lungeT: 0, groundBird: kind === "chicken" };
+    const undeadStyle = undeadStyleFor(defId);
+    const constructStyle = constructStyleFor(defId);
+    const oozeStyle = oozeStyleFor(defId);
+    const canidStyle = canidStyleFor(defId);
+    const ungulateStyle = ungulateStyleFor(defId);
+    const raiderStyle = raiderStyleFor(defId);
+    const flierStyle = flierStyleFor(defId);
+    const signatureStyle = signatureStyleFor(defId);
     // BetaSharp vanilla mob models: exact box-UV geometry skinned with the
     // Faithful entity textures baked in. Static for now (the source files carry
     // no keyframe animation), but a clear upgrade over the approximate rigs.
-    const mobModelId = GameRenderer.MOB_VIEW_MODEL[kind];
+    const mobModelId = undeadStyle || constructStyle || oozeStyle || canidStyle || ungulateStyle
+      || raiderStyle || flierStyle
+      || signatureStyle
+      ? undefined
+      : GameRenderer.MOB_VIEW_MODEL[kind];
     if (mobModelId) {
       // NOTE: never feed pack/original rig skins into baked BB models — their
       // UV islands are baked for their own texture layout, and an override
@@ -4625,6 +4944,3014 @@ export class GameRenderer {
         }
         return { barHeight: built.height + 0.4, anim };
       }
+    }
+    if (undeadStyle) {
+      const style = undeadStyle;
+      const feature = style.feature;
+      const skeletal = feature === "hollow" || feature === "dune"
+        || feature === "glacial" || feature === "barrow"
+        || feature === "skeleton" || feature === "stray";
+      const limbColor = skeletal ? style.bone : style.flesh;
+      const undead: UndeadAnim = {
+        legs: [],
+        arms: [],
+        torso: new THREE.Group(),
+        head: new THREE.Group(),
+        headRestX: 0,
+        headRestZ: 0,
+        hangers: [],
+      };
+      anim.undead = undead;
+
+      const voxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = box(w, h, d, color);
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const glowVoxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w * P, h * P, d * P),
+          new THREE.MeshBasicMaterial({ color }),
+        );
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const hangingStrip = (
+        x: number,
+        y: number,
+        z: number,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        phase: number,
+      ): THREE.Group => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        const strip = voxel(root, w, h, d, color);
+        strip.geometry.translate(0, -h * 0.5 * P, 0);
+        body.add(root);
+        undead.hangers.push({ obj: root, restX: 0, restZ: 0, phase });
+        return root;
+      };
+      const layeredSpike = (
+        parent: THREE.Object3D,
+        x: number,
+        y: number,
+        z: number,
+        height: number,
+        color = style.accent,
+        tipColor = style.eye,
+      ): void => {
+        voxel(parent, 1.8, height * 0.62, 1.8, color, x, y + height * 0.31, z);
+        voxel(parent, 0.8, height * 0.38, 0.8, tipColor, x, y + height * 0.81, z);
+      };
+
+      // Pelvis and articulated legs: every lower leg is a separate knee chain,
+      // with block feet and exposed joint caps instead of one swinging prism.
+      const pelvis = new THREE.Group();
+      pelvis.position.set(0, 13.2 * P, 0);
+      voxel(pelvis, style.torsoWidth, 3.2, 5.2, style.cloth);
+      voxel(pelvis, style.torsoWidth + 0.9, 1.1, 5.8, style.accent, 0, 1.35, 0);
+      body.add(pelvis);
+      const upperLegLength = feature === "mire" ? 6.4 : 7;
+      const lowerLegLength = feature === "mire" ? 6.2 : 6;
+      for (const side of [-1, 1] as const) {
+        const hip = new THREE.Group();
+        hip.position.set(side * style.torsoWidth * 0.26 * P, 13 * P, 0);
+        const upperLeg = skinned(
+          rigSkin, style.legWidth, upperLegLength, style.legWidth, limbColor,
+          0, 16, [4, 12, 4],
+        );
+        upperLeg.geometry.translate(0, -upperLegLength * 0.5 * P, 0);
+        hip.add(upperLeg);
+        voxel(hip, style.legWidth + 0.7, 1.3, style.legWidth + 0.7, style.accent, 0, -1.2, 0);
+
+        const knee = new THREE.Group();
+        knee.position.y = -upperLegLength * P;
+        const lowerLeg = skinned(
+          rigSkin, style.legWidth * 0.88, lowerLegLength, style.legWidth * 0.88,
+          limbColor, 0, 16, [4, 12, 4],
+        );
+        lowerLeg.geometry.translate(0, -lowerLegLength * 0.5 * P, 0);
+        knee.add(lowerLeg);
+        voxel(knee, style.legWidth + 0.9, 2, style.legWidth + 0.8, style.bone, 0, 0, -0.2);
+        voxel(
+          knee, style.legWidth + 1.1, 1.45, style.legWidth + 2.2, style.shadow,
+          0, -lowerLegLength + 0.75, -1.05,
+        );
+        voxel(
+          knee, style.legWidth * 0.72, 0.75, 1.7, style.bone,
+          side * style.legWidth * 0.22, -lowerLegLength + 0.4, -2.4,
+        );
+        hip.add(knee);
+        body.add(hip);
+        undead.legs.push({
+          side,
+          phase: side === -1 ? 0 : Math.PI,
+          upper: hip,
+          lower: knee,
+          restUpperX: 0,
+          restUpperZ: side * (feature === "mire" ? 0.05 : 0.025),
+          restLowerX: 0,
+        });
+      }
+
+      // A deep chest backing, offset ribs, sternum, collar and layered pelvis
+      // keep the torso readable even when the active texture pack is dark.
+      const torso = undead.torso;
+      torso.position.set(0, 19.2 * P, -style.hunch * 0.18 * P);
+      torso.add(skinned(rigSkin, style.torsoWidth, 11, 5, style.cloth, 16, 16, [8, 12, 4]));
+      voxel(torso, style.torsoWidth - 1.5, 7.4, 0.7, style.shadow, 0, 0.4, -2.65);
+      voxel(torso, 1.15, 8.2, 0.9, style.bone, 0, 0.4, -3.05);
+      for (const y of [-2.4, -0.4, 1.6, 3.35]) {
+        voxel(torso, style.torsoWidth * 0.39, 0.75, 0.9, style.bone, -style.torsoWidth * 0.23, y, -3.08);
+        voxel(torso, style.torsoWidth * 0.39, 0.75, 0.9, style.bone, style.torsoWidth * 0.23, y, -3.08);
+      }
+      voxel(torso, style.shoulderWidth, 1.6, 5.8, style.cloth, 0, 5, 0);
+      voxel(torso, style.shoulderWidth - 1, 1.05, 6.3, style.accent, 0, 5.85, 0);
+      body.add(torso);
+
+      // Elbows and hands articulate independently. The common rest pose hangs
+      // low like the turnarounds; the attack pulse brings both hands forward.
+      const upperArmLength = feature === "mire" ? 7.2 : 6.5;
+      const lowerArmLength = feature === "mire" ? 7.1 : 6.3;
+      for (const side of [-1, 1] as const) {
+        const shoulder = new THREE.Group();
+        shoulder.position.set(
+          side * style.shoulderWidth * 0.5 * P,
+          24.2 * P,
+          -style.hunch * 0.18 * P,
+        );
+        const upperArm = skinned(
+          rigSkin, style.armWidth, upperArmLength, style.armWidth, limbColor,
+          40, 16, [4, 12, 4],
+        );
+        upperArm.geometry.translate(0, -upperArmLength * 0.5 * P, 0);
+        shoulder.add(upperArm);
+        voxel(shoulder, style.armWidth + 1.4, 2.2, style.armWidth + 1.3, style.cloth, 0, -0.4, 0);
+
+        const elbow = new THREE.Group();
+        elbow.position.y = -upperArmLength * P;
+        const forearm = skinned(
+          rigSkin, style.armWidth * 0.88, lowerArmLength, style.armWidth * 0.88,
+          limbColor, 40, 16, [4, 12, 4],
+        );
+        forearm.geometry.translate(0, -lowerArmLength * 0.5 * P, 0);
+        elbow.add(forearm);
+        voxel(elbow, style.armWidth + 0.8, 1.8, style.armWidth + 0.8, style.bone, 0, 0, -0.15);
+        voxel(
+          elbow, style.armWidth + 0.7, 1.7, style.armWidth + 0.5, limbColor,
+          0, -lowerArmLength - 0.55, -0.35,
+        );
+        for (const finger of [-1, 0, 1]) {
+          voxel(
+            elbow, 0.55, 2.3 + Math.abs(finger) * 0.2, 0.55, style.bone,
+            finger * 0.78, -lowerArmLength - 2.15, -0.8,
+          );
+        }
+        shoulder.add(elbow);
+        body.add(shoulder);
+        const restUpperZ = side * (feature === "spore" ? 0.09 : feature === "grave" ? -0.06 : 0.025);
+        shoulder.rotation.z = restUpperZ;
+        undead.arms.push({
+          side,
+          phase: side === -1 ? Math.PI : 0,
+          upper: shoulder,
+          lower: elbow,
+          restUpperX: feature === "mire" ? 0.12 : 0.04,
+          restUpperZ,
+          restLowerX: feature === "grave" ? -0.1 : 0.04,
+        });
+      }
+
+      // Layered skull with jaw, cheekbones and visible eye lights. The head
+      // retains the existing renderer's lunge translation hook.
+      const head = undead.head;
+      head.position.set(0, 24.3 * P, -style.hunch * P);
+      const skull = skinned(rigSkin, 8, 8, 8, skeletal ? style.bone : style.flesh, 0, 0);
+      skull.position.y = 4 * P;
+      head.add(skull);
+      voxel(head, 7.2, 1.4, 1.3, style.bone, 0, 7.2, -3.75);
+      voxel(head, 2.1, 3, 1, style.bone, -3, 3.2, -4.05);
+      voxel(head, 2.1, 3, 1, style.bone, 3, 3.2, -4.05);
+      voxel(head, 5.7, 2.1, 1.6, style.bone, 0, 0.65, -3.5);
+      voxel(head, 4.5, 0.55, 0.5, style.shadow, 0, 1, -4.38);
+      for (const side of [-1, 1] as const) {
+        voxel(head, 2.15, 2.15, 0.55, style.shadow, side * 2, 4.7, -4.28);
+        glowVoxel(head, 0.8, 0.8, 0.62, style.eye, side * 2, 4.65, -4.63);
+      }
+      head.rotation.x = feature === "grave" || feature === "spore" ? 0.09 : 0;
+      undead.headRestX = head.rotation.x;
+      undead.headRestZ = head.rotation.z;
+      anim.head = head;
+      anim.headRestZ = head.position.z;
+      body.add(head);
+
+      // Ragged waist strips are separate pivots so the silhouette never
+      // freezes. Their lengths are intentionally uneven.
+      const stripCount = feature === "hollow" ? 5 : feature === "glacial" ? 7 : 8;
+      for (let i = 0; i < stripCount; i++) {
+        const x = (i - (stripCount - 1) / 2) * (style.torsoWidth / Math.max(5, stripCount - 1));
+        const height = 3.6 + ((i * 7 + stripCount) % 4) * 0.85;
+        hangingStrip(x, 13.9, i % 2 === 0 ? -2.4 : 2.35, 1.15, height, 0.7, style.cloth, i * 0.7);
+      }
+
+      switch (feature) {
+        case "zombie": {
+          // Torn work-clothes, exposed rot and an uneven scalp turn the base
+          // zombie into an authored RuneCraft corpse rather than a skin cube.
+          voxel(torso, style.torsoWidth + 0.9, 4.8, 1.05, style.cloth, 0, 2.2, -3.05);
+          voxel(torso, 3.1, 3.4, 0.85, style.flesh, -2.4, -1.8, -3.45);
+          voxel(torso, 2.2, 4.2, 0.85, style.shadow, 2.7, 0.1, -3.42);
+          voxel(head, 8.7, 2, 8.5, style.shadow, 0, 7.9, 0.2);
+          voxel(head, 3.8, 2.5, 1, style.flesh, -2.1, 6.2, -4.2);
+          for (const arm of undead.arms) {
+            voxel(arm.upper, style.armWidth + 0.9, 2.2, style.armWidth + 0.8, style.cloth, 0, -1, 0);
+            voxel(arm.lower, style.armWidth + 0.65, 1.1, style.armWidth + 0.65, style.bone, 0, -4.8, 0);
+          }
+          for (const x of [-3.5, -1.2, 1.4, 3.6]) {
+            hangingStrip(x, 18.2, -2.7, 1.2, 4.5 + Math.abs(x) * 0.3, 0.7, style.cloth, x);
+          }
+          break;
+        }
+        case "skeleton": {
+          // Deep negative rib spaces, stepped clavicles and cracked brow keep
+          // the unarmored skeleton readable beside the crowned Barrow Lord.
+          voxel(torso, style.torsoWidth - 2.8, 8.8, 1, style.shadow, 0, 0.4, -3.25);
+          for (const y of [-3, -1.1, 0.8, 2.7, 4.2]) {
+            voxel(torso, style.torsoWidth + 0.5, 0.7, 1, style.bone, 0, y, -3.55);
+          }
+          voxel(torso, style.shoulderWidth + 0.9, 1.2, 1.2, style.bone, 0, 5.2, -3);
+          voxel(head, 3.1, 1.1, 0.75, style.shadow, -1.9, 6.7, -4.25).rotation.z = -0.22;
+          voxel(head, 1.1, 3.5, 0.8, style.shadow, 0.7, 6.2, -4.2).rotation.z = 0.18;
+          voxel(pelvis, style.torsoWidth + 0.8, 1, 5.8, style.bone, 0, -0.8, 0);
+          break;
+        }
+        case "drowned": {
+          // Waterlogged shoulder mass, barnacle chips and kelp streamers give
+          // this corpse a broad tidal outline without changing movement rules.
+          voxel(torso, style.shoulderWidth + 1.8, 3.2, 6.8, style.flesh, -0.6, 5.3, 0.4);
+          voxel(torso, style.torsoWidth + 1.2, 5.4, 1, style.cloth, 0, 0.2, -3.1);
+          for (const [x, y, z] of [[-5.3, 5.8, -1], [4.7, 4.9, 1.3], [-2.8, 2.8, -2.8], [2.9, -1.6, -2.7]] as const) {
+            voxel(torso, 1.5, 1.2, 1.4, style.accent, x, y, z);
+            glowVoxel(torso, 0.45, 0.45, 1.55, style.eye, x, y, z - 0.3);
+          }
+          for (const x of [-4.3, -2.4, 1.7, 4]) {
+            hangingStrip(x, 24, 1.8, 0.9, 6 + Math.abs(x) * 0.35, 0.65, "#466c55", x * 0.8);
+          }
+          voxel(head, 9, 2.2, 8.7, style.cloth, 0, 8, 0.2);
+          voxel(head, 2.1, 3.5, 1.1, style.accent, 3.2, 5.8, -3.8);
+          break;
+        }
+        case "stray": {
+          // Layered frost hood, narrow bone plates and icicle hangers define
+          // the archer even without relying on the vanilla stray texture.
+          voxel(head, 9.4, 2.1, 9, style.cloth, 0, 8, 0.35);
+          voxel(head, 2.1, 7.2, 8.3, style.cloth, -4.2, 4.4, 0.5);
+          voxel(head, 2.1, 6.2, 8.3, style.cloth, 4.2, 4.9, 0.5);
+          voxel(torso, style.shoulderWidth + 1.7, 2.7, 6.7, style.cloth, 0, 5.5, 0.4);
+          for (const [x, h] of [[-4.5, 4.8], [-2.3, 6.2], [2.1, 5.6], [4.4, 4.3]] as const) {
+            hangingStrip(x, 24.2, 1.8, 0.9, h, 0.7, style.accent, x);
+            layeredSpike(torso, x * 0.72, 6.4, 1.2, 2.4, style.accent, style.eye);
+          }
+          for (const limb of [...undead.arms, ...undead.legs]) {
+            voxel(limb.lower, 1.1, 3.5, 0.9, style.accent, 0, -3.8, -2);
+          }
+          break;
+        }
+        case "grave": {
+          // Heavy hood, rotten mantle, moss and the broken grave stakes from
+          // the back view establish a crooked, scavenged silhouette.
+          voxel(head, 9, 2, 8.8, style.cloth, 0, 8.2, 0.3);
+          voxel(head, 2, 7.5, 8, style.cloth, -4.25, 4.2, 0.6);
+          voxel(head, 2, 6.2, 8, style.cloth, 4.25, 4.8, 0.6);
+          voxel(torso, style.shoulderWidth + 1.4, 2.2, 6.5, style.shadow, 0, 5.9, 0.5);
+          for (const x of [-4.4, -2.7, 2.4, 4.1]) {
+            hangingStrip(x, 24.4, 1.8, 1.3, 5 + Math.abs(x) * 0.35, 0.8, style.cloth, x);
+          }
+          for (const [x, h, z] of [[-3.5, 12, 2.6], [3.2, 10, 3.1]] as const) {
+            const stake = voxel(body, 1.15, h, 1.15, "#66513a", x, 21, z);
+            stake.rotation.z = x < 0 ? -0.13 : 0.16;
+          }
+          voxel(torso, 3.3, 1, 1, style.accent, -2.2, 2.8, -3.65);
+          break;
+        }
+        case "hollow":
+          voxel(torso, style.torsoWidth - 2.2, 8.3, 1.2, style.shadow, 0, 0, -2.7);
+          voxel(torso, 1, 8.8, 0.9, style.bone, 0, 0, -3.5);
+          for (const y of [-2.6, -0.4, 1.8, 3.8]) {
+            voxel(torso, style.torsoWidth - 1.7, 0.65, 0.85, style.bone, 0, y, -3.45);
+          }
+          for (const x of [-4.1, -2.7, 2.7, 4.1]) {
+            hangingStrip(x, 24.3, 0.9, 1.05, 4.5 + Math.abs(x) * 0.35, 0.65, style.accent, x * 0.8);
+          }
+          voxel(head, 5.5, 1.1, 6.2, style.accent, 0.8, 8.25, 0.5);
+          break;
+        case "mire":
+          // Knotted root cuffs, moss slabs, reeds and an asymmetric shoulder
+          // mass make the bog corpse much broader than the skeletal wights.
+          for (const arm of undead.arms) {
+            voxel(arm.upper, style.armWidth + 1.3, 1.3, style.armWidth + 1.3, style.accent, 0, -3.8, 0);
+            voxel(arm.lower, style.armWidth + 1, 2.1, style.armWidth + 1, "#4a3b2d", 0, -4.2, 0);
+          }
+          voxel(torso, style.shoulderWidth + 2.2, 3.4, 6.7, style.flesh, -0.8, 5.4, 0.4);
+          voxel(torso, 5.5, 1.2, 2, style.accent, -2.6, 6.8, -1.6);
+          for (const [x, y, h] of [[-5.7, 6.2, 5], [4.9, 5.8, 3.7], [-3.1, 4, 3]] as const) {
+            layeredSpike(torso, x, y, 1.5, h, "#624a34", "#8b6d48");
+          }
+          for (const x of [-4, -2.1, 2.3, 4.2]) {
+            hangingStrip(x, 23.8, 2.6, 1.3, 5.5 + Math.abs(x) * 0.35, 0.9, style.flesh, x);
+          }
+          break;
+        case "dune": {
+          // Layered mummy wraps and a burnt-orange sash read from every angle.
+          for (const y of [1.8, 3.5, 5.3, 7.1]) {
+            voxel(head, 8.8, 1.05, 8.7, style.accent, (y % 2) * 0.25 - 0.2, y, 0);
+          }
+          for (const y of [-4.2, -1.8, 0.8, 3.3]) {
+            voxel(torso, style.torsoWidth + 0.7, 0.85, 5.7, style.bone, 0, y, 0);
+          }
+          const sash = voxel(torso, 2.2, 15, 0.8, style.cloth, 0.5, 0.2, -3.35);
+          sash.rotation.z = -0.56;
+          for (const limb of [...undead.arms, ...undead.legs]) {
+            voxel(limb.upper, (limb === undead.arms[0] || limb === undead.arms[1] ? style.armWidth : style.legWidth) + 0.7, 1, 0.8, style.accent, 0, -3.1, -2);
+          }
+          for (const x of [-3.7, -1.8, 0.2, 2.2, 4]) {
+            hangingStrip(x, 14.2, -2.65, 1.1, 5.5 + ((x + 4) % 2), 0.6, style.cloth, x);
+          }
+          break;
+        }
+        case "spore": {
+          const mushroom = (parent: THREE.Object3D, x: number, y: number, z: number, size: number): void => {
+            voxel(parent, size * 0.45, size, size * 0.45, "#c9b4a0", x, y + size * 0.5, z);
+            voxel(parent, size * 1.8, size * 0.42, size * 1.55, style.accent, x, y + size * 1.06, z);
+            voxel(parent, size, size * 0.28, size * 0.9, "#c28ab6", x, y + size * 1.4, z);
+          };
+          for (const [x, y, z, size] of [
+            [-5.2, 5.4, 0, 2.5], [-3.3, 7, 1.5, 1.8], [4.6, 5.6, 1, 1.5],
+            [2.6, 4, 2.6, 1.25],
+          ] as const) mushroom(torso, x, y, z, size);
+          mushroom(head, 1.6, 8, 1.1, 2.2);
+          mushroom(head, -1.1, 8.2, 1.8, 1.35);
+          for (const x of [-4.4, -2.9, 2.7, 4.2]) {
+            hangingStrip(x, 24.2, 2.2, 1.05, 5.6 + Math.abs(x) * 0.25, 0.65, style.flesh, x);
+          }
+          break;
+        }
+        case "glacial":
+          // Deep-blue plate masses with stepped ice spires create the widest
+          // silhouette in this family and echo the authored turnaround armor.
+          voxel(torso, style.shoulderWidth + 2.4, 3.1, 7.2, style.cloth, 0, 5.5, 0.4);
+          voxel(torso, style.torsoWidth + 1.5, 3.2, 6.1, style.cloth, 0, 2.2, 0.2);
+          for (const [x, y, z, h] of [
+            [-6.1, 6.7, 0, 5.2], [-4.2, 7.2, 1.7, 3.7], [6.1, 6.7, 0, 5.2],
+            [4.2, 7.2, 1.7, 3.7], [-2.6, 6.5, 2.5, 4.5], [2.6, 6.5, 2.5, 4.5],
+          ] as const) layeredSpike(torso, x, y, z, h);
+          for (const [x, h] of [[-2.6, 4.3], [0, 6], [2.6, 4.3]] as const) {
+            layeredSpike(head, x, 8, 0.8, h);
+          }
+          for (const limb of [...undead.arms, ...undead.legs]) {
+            layeredSpike(limb.lower, 0, -3.8, 0.5, 2.7);
+          }
+          for (const x of [-3.6, -1.8, 0, 1.8, 3.6]) {
+            hangingStrip(x, 14, -2.7, 1.1, 4.2 + Math.abs(x) * 0.25, 0.65, style.cloth, x);
+          }
+          break;
+        case "barrow":
+          // Crown, gold-trimmed pauldrons and a split royal cape distinguish
+          // the boss even when it shares the base skeleton skin.
+          voxel(torso, style.shoulderWidth + 1.8, 3, 7, style.cloth, 0, 5.5, 0.5);
+          voxel(torso, style.shoulderWidth + 2.4, 0.75, 7.4, style.accent, 0, 6.8, 0.5);
+          voxel(torso, style.torsoWidth + 1, 0.8, 0.7, style.accent, 0, 3.6, -3.55);
+          voxel(head, 8.8, 1.2, 8.6, style.accent, 0, 8.1, 0);
+          for (const [x, h] of [[-3.4, 3.4], [-1.7, 4.4], [0, 5.2], [1.7, 4.4], [3.4, 3.4]] as const) {
+            voxel(head, 1.25, h, 1.25, style.accent, x, 8.4 + h * 0.5, 0);
+            glowVoxel(head, 0.65, 0.65, 0.65, style.eye, x, 8.6 + h, -0.5);
+          }
+          for (const x of [-4.5, -3, 3, 4.5]) {
+            hangingStrip(x, 24.2, 2.4, 1.35, 8.5 - Math.abs(x) * 0.4, 0.8, style.cloth, x);
+          }
+          voxel(pelvis, style.torsoWidth + 1.2, 0.8, 6, style.accent, 0, -1, 0);
+          break;
+      }
+
+      const barPixels = feature === "glacial" ? 40 : feature === "barrow" ? 39
+        : feature === "spore" ? 37 : feature === "mire" ? 36 : 35;
+      return { barHeight: barPixels * P + 0.24, anim };
+    }
+    if (constructStyle) {
+      const style = constructStyle;
+      const feature = style.feature;
+      const construct: ConstructAnim = {
+        legs: [],
+        arms: [],
+        torso: new THREE.Group(),
+        head: new THREE.Group(),
+        core: new THREE.Group(),
+        headRestX: 0,
+        headRestZ: 0,
+        panels: [],
+        gears: [],
+        details: [],
+      };
+      anim.construct = construct;
+
+      const voxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = box(w, h, d, color);
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const glowVoxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w * P, h * P, d * P),
+          new THREE.MeshBasicMaterial({ color }),
+        );
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const swayingDetail = (
+        x: number,
+        y: number,
+        z: number,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        phase: number,
+      ): THREE.Group => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        const mesh = voxel(root, w, h, d, color);
+        mesh.geometry.translate(0, -h * 0.5 * P, 0);
+        body.add(root);
+        construct.details.push({ obj: root, restX: 0, restZ: 0, phase });
+        return root;
+      };
+      const gear = (
+        parent: THREE.Object3D,
+        x: number,
+        y: number,
+        z: number,
+        radius: number,
+        color: string,
+        speed: number,
+        phase = 0,
+      ): THREE.Group => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        voxel(root, radius * 1.45, radius * 1.45, 1.3, style.joint);
+        glowVoxel(root, radius * 0.45, radius * 0.45, 1.55, style.core);
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          const tooth = voxel(
+            root, 1.15, 2.1, 1.2, color,
+            Math.cos(angle) * radius,
+            Math.sin(angle) * radius,
+            0,
+          );
+          tooth.rotation.z = angle;
+        }
+        root.rotation.z = phase;
+        parent.add(root);
+        construct.gears.push({ obj: root, speed });
+        return root;
+      };
+
+      // Hip/knee chains form broad, planted legs with inset piston joints.
+      const pelvis = new THREE.Group();
+      pelvis.position.set(0, 9.3 * P, 0);
+      voxel(pelvis, style.torsoWidth - 1, 3.3, 6.8, style.slab);
+      voxel(pelvis, style.torsoWidth, 1.1, 7.2, style.metal, 0, 1.45, 0);
+      glowVoxel(pelvis, style.torsoWidth - 3, 0.45, 0.5, style.core, 0, 0.2, -3.65);
+      body.add(pelvis);
+      const upperLegLength = feature === "liftworks" ? 5.8 : 5.2;
+      const lowerLegLength = feature === "moss" || feature === "rootbound" ? 4.8 : 4.4;
+      for (const side of [-1, 1] as const) {
+        const hip = new THREE.Group();
+        hip.position.set(
+          side * style.torsoWidth * 0.27 * P,
+          (upperLegLength + lowerLegLength + 0.35) * P,
+          0,
+        );
+        const thigh = skinned(
+          rigSkin, style.limbWidth, upperLegLength, style.limbWidth, style.body,
+          0, 0, [4, 8, 4],
+        );
+        thigh.geometry.translate(0, -upperLegLength * 0.5 * P, 0);
+        hip.add(thigh);
+        voxel(hip, style.limbWidth + 1.5, 2, style.limbWidth + 1.3, style.slab, 0, -0.5, 0);
+        glowVoxel(hip, 1.1, 1.1, style.limbWidth + 1.6, style.core, 0, -1.1, 0);
+
+        const knee = new THREE.Group();
+        knee.position.y = -upperLegLength * P;
+        const shin = skinned(
+          rigSkin, style.limbWidth * 0.92, lowerLegLength, style.limbWidth * 0.92,
+          style.slab, 0, 0, [4, 8, 4],
+        );
+        shin.geometry.translate(0, -lowerLegLength * 0.5 * P, 0);
+        knee.add(shin);
+        voxel(knee, style.limbWidth + 1.2, 2, style.limbWidth + 1.5, style.metal, 0, 0, -0.25);
+        voxel(
+          knee, style.limbWidth + 1.8, 1.5, style.limbWidth + 2.5, style.joint,
+          0, -lowerLegLength + 0.75, -0.9,
+        );
+        voxel(
+          knee, style.limbWidth + 0.8, 0.7, 2.2, style.accent,
+          0, -lowerLegLength + 0.4, -2.75,
+        );
+        hip.add(knee);
+        body.add(hip);
+        construct.legs.push({
+          side,
+          phase: side === -1 ? 0 : Math.PI,
+          upper: hip,
+          lower: knee,
+          restUpperX: 0,
+          restUpperZ: side * 0.025,
+          restLowerX: 0,
+        });
+      }
+
+      // The chest has a recessed rune core and two independently hinged
+      // shutters. Their animation makes attacks read before the body lunge.
+      const torso = construct.torso;
+      torso.position.set(0, 14.5 * P, 0);
+      const torsoDepth = feature === "liftworks" ? 8 : 7;
+      torso.add(skinned(
+        rigSkin, style.torsoWidth, style.torsoHeight, torsoDepth,
+        style.body, 0, 16, [10, 10, 6],
+      ));
+      voxel(torso, style.torsoWidth + 1.3, 1.4, torsoDepth + 0.6, style.slab, 0, style.torsoHeight * 0.38, 0);
+      voxel(torso, style.torsoWidth - 1.5, 6.2, 0.9, style.joint, 0, -0.1, -torsoDepth * 0.52);
+      voxel(torso, style.torsoWidth - 4, 5, 0.75, "#171f20", 0, 0, -torsoDepth * 0.59);
+      const core = new THREE.Group();
+      core.position.set(0, 0, -torsoDepth * 0.65 * P);
+      glowVoxel(core, 3.5, 4, 0.75, style.core);
+      glowVoxel(core, 5.4, 0.7, 0.9, style.core);
+      glowVoxel(core, 0.7, 5.6, 0.9, style.core);
+      voxel(core, 1.3, 1.3, 1.15, style.accent, 0, 0, -0.2);
+      torso.add(core);
+      construct.core = core;
+      for (const side of [-1, 1] as const) {
+        const panel = new THREE.Group();
+        const panelWidth = (style.torsoWidth - 3.6) * 0.5;
+        panel.position.set(side * 1.7 * P, 0, -torsoDepth * 0.67 * P);
+        voxel(panel, panelWidth, 5.7, 1.1, style.slab, side * panelWidth * 0.5, 0, 0);
+        voxel(panel, panelWidth - 0.8, 0.65, 1.35, style.metal, side * panelWidth * 0.5, 1.85, 0);
+        voxel(panel, panelWidth - 0.8, 0.65, 1.35, style.metal, side * panelWidth * 0.5, -1.85, 0);
+        torso.add(panel);
+        construct.panels.push({ obj: panel, restY: 0, sign: side });
+      }
+      body.add(torso);
+
+      // Shoulder and elbow pivots make the heavy slam distinct from the old
+      // one-piece arms. Each hand is a layered masonry clamp.
+      const upperArmLength = feature === "liftworks" ? 6.8 : 6.1;
+      const lowerArmLength = feature === "rootbound" || feature === "moss" ? 6.2 : 5.6;
+      for (const side of [-1, 1] as const) {
+        const shoulder = new THREE.Group();
+        shoulder.position.set(side * style.shoulderWidth * 0.5 * P, 20.2 * P, 0);
+        const upperArm = skinned(
+          rigSkin, style.limbWidth, upperArmLength, style.limbWidth, style.body,
+          0, 44, [4, 12, 4],
+        );
+        upperArm.geometry.translate(0, -upperArmLength * 0.5 * P, 0);
+        shoulder.add(upperArm);
+        voxel(shoulder, style.limbWidth + 2.2, 3.3, style.limbWidth + 2, style.slab, 0, -0.6, 0);
+        voxel(shoulder, style.limbWidth + 2.6, 0.7, style.limbWidth + 2.4, style.accent, 0, 0.8, 0);
+
+        const elbow = new THREE.Group();
+        elbow.position.y = -upperArmLength * P;
+        const forearm = skinned(
+          rigSkin, style.limbWidth * 0.92, lowerArmLength, style.limbWidth * 0.92,
+          style.slab, 0, 44, [4, 12, 4],
+        );
+        forearm.geometry.translate(0, -lowerArmLength * 0.5 * P, 0);
+        elbow.add(forearm);
+        voxel(elbow, style.limbWidth + 1.5, 2, style.limbWidth + 1.6, style.metal, 0, 0, -0.2);
+        glowVoxel(elbow, 1.05, 1.05, style.limbWidth + 1.9, style.core, 0, -0.1, 0);
+        voxel(
+          elbow, style.limbWidth + 1.8, 2.3, style.limbWidth + 2.1, style.joint,
+          0, -lowerArmLength - 0.5, -0.4,
+        );
+        for (const finger of [-1, 0, 1]) {
+          voxel(
+            elbow, 0.8, 1.8, 1, style.accent,
+            finger * 1.15, -lowerArmLength - 2, -1.4,
+          );
+        }
+        shoulder.add(elbow);
+        body.add(shoulder);
+        construct.arms.push({
+          side,
+          phase: side === -1 ? Math.PI : 0,
+          upper: shoulder,
+          lower: elbow,
+          restUpperX: 0.04,
+          restUpperZ: side * 0.035,
+          restLowerX: 0.05,
+        });
+      }
+
+      // A separately animated helm with cheek slabs and a permanent rune eye.
+      const head = construct.head;
+      head.position.set(0, 20.5 * P, -0.3 * P);
+      const skull = skinned(rigSkin, style.headWidth, 5.8, 6.2, style.body, 40, 0, [6, 5, 6]);
+      skull.position.y = 2.9 * P;
+      head.add(skull);
+      voxel(head, style.headWidth + 1.3, 1.4, 6.9, style.slab, 0, 5.4, 0);
+      voxel(head, 1.5, 3.8, 1.2, style.metal, -style.headWidth * 0.45, 2.7, -3.15);
+      voxel(head, 1.5, 3.8, 1.2, style.metal, style.headWidth * 0.45, 2.7, -3.15);
+      glowVoxel(head, style.headWidth - 2, 0.85, 0.75, style.core, 0, 3.35, -3.55);
+      voxel(head, style.headWidth - 1.5, 1.2, 1.3, style.joint, 0, 0.3, -2.8);
+      anim.head = head;
+      anim.headRestZ = head.position.z;
+      construct.headRestX = head.rotation.x;
+      construct.headRestZ = head.rotation.z;
+      body.add(head);
+
+      switch (feature) {
+        case "canyon":
+          // Sandstone strata, chipped brick corners and a carved core frame.
+          for (const y of [-3.6, -1.5, 1.8, 4]) {
+            voxel(torso, style.torsoWidth + 0.9, 0.8, torsoDepth + 0.8, style.accent, 0, y, 0);
+          }
+          for (const [x, y, z] of [[-5.5, 3, -3], [4.8, -3.2, -3.4], [-3.8, -4, 3.2], [5.1, 4.2, 2.7]] as const) {
+            voxel(torso, 2.2, 1.7, 1.2, "#c28b5c", x, y, z);
+          }
+          for (const arm of construct.arms) {
+            voxel(arm.upper, style.limbWidth + 1, 0.8, style.limbWidth + 1, style.accent, 0, -3.1, 0);
+          }
+          break;
+        case "rust":
+          // Riveted iron, asymmetric corrosion, exhaust stacks and a live cog.
+          voxel(torso, style.torsoWidth + 1.4, 3.4, torsoDepth + 0.9, style.metal, -1, 2.9, 0.3);
+          for (const [x, y] of [[-4.7, 4], [4.7, 4], [-4.7, -3.8], [4.7, -3.8]] as const) {
+            voxel(torso, 0.8, 0.8, 0.8, style.accent, x, y, -4);
+          }
+          gear(torso, 3.2, -1.1, -4.2, 2.2, style.metal, 1.15, 0.4);
+          for (const [x, h] of [[-4.1, 7], [-2.4, 5.2]] as const) {
+            voxel(torso, 1.4, h, 1.4, style.joint, x, 5 + h * 0.5, 2.7);
+            voxel(torso, 1.8, 1, 1.8, style.accent, x, 5 + h, 2.7);
+          }
+          for (const limb of [...construct.arms, ...construct.legs]) {
+            voxel(limb.lower, style.limbWidth + 0.9, 1, style.limbWidth + 0.9, style.accent, 0, -3, 0);
+          }
+          break;
+        case "rootbound":
+          // Root cage over the core, woody wraps, moss and branch antlers.
+          for (const x of [-4.2, -2.1, 2.1, 4.2]) {
+            const root = voxel(torso, 1.05, style.torsoHeight + 3, 1.1, style.metal, x, 0, -4.2);
+            root.rotation.z = x * 0.035;
+          }
+          for (const limb of [...construct.arms, ...construct.legs]) {
+            voxel(limb.upper, style.limbWidth + 1, 1.05, style.limbWidth + 1, style.metal, 0, -2.1, 0);
+            voxel(limb.lower, style.limbWidth + 0.7, 1.05, style.limbWidth + 0.7, style.accent, 0, -3.2, 0);
+          }
+          voxel(torso, style.shoulderWidth + 1.5, 1.5, 7.8, style.accent, 0, 5.5, 0.6);
+          for (const [x, h] of [[-3, 6], [-1.4, 4], [2, 5], [3.7, 3.5]] as const) {
+            voxel(head, 1.2, h, 1.2, style.metal, x, 6 + h * 0.5, 1.7);
+          }
+          for (const [x, h] of [[-6.5, 6], [-4.8, 4.5], [4.9, 5.5], [6.4, 4]] as const) {
+            swayingDetail(x, 21.2, 2.3, 1, h, 0.9, style.accent, x);
+          }
+          break;
+        case "liftworks":
+          // Lift rails, twin shoulder cogs, piston boxes and cable counterweight.
+          voxel(torso, 2, style.torsoHeight + 4, torsoDepth + 1, style.metal, -5.1, 0, 0);
+          voxel(torso, 2, style.torsoHeight + 4, torsoDepth + 1, style.metal, 5.1, 0, 0);
+          for (const side of [-1, 1] as const) {
+            gear(torso, side * 5.5, 4.7, -4.4, 2.5, style.accent, side * 1.35, side * 0.5);
+            voxel(torso, 2.2, 8, 2.2, style.joint, side * 5.2, -2.2, 3.8);
+            glowVoxel(torso, 0.8, 5.5, 0.8, style.core, side * 5.2, -2.2, 5);
+          }
+          voxel(torso, 7.2, 7.2, 3.3, style.slab, 0, 0.5, 4.4);
+          gear(torso, 0, 0.5, 6.2, 2.35, style.metal, -0.9, 1.1);
+          for (const arm of construct.arms) {
+            voxel(arm.lower, style.limbWidth + 1.4, 4, style.limbWidth + 1.4, style.metal, 0, -3, 0);
+          }
+          break;
+        case "moss":
+          // Overgrown capstones, hanging vines, leaf clumps and sprouting twigs.
+          voxel(torso, style.shoulderWidth + 1.8, 2.4, 8.1, style.slab, 0, 5.4, 0.5);
+          voxel(torso, style.shoulderWidth - 1, 1.1, 7.4, style.accent, -1, 6.9, -0.3);
+          for (const [x, y, z, w] of [[-4, 2.5, -4, 3], [3.6, -2, -4, 2.6], [-3, -4, 3.5, 2.2], [4.5, 4, 2.8, 2.5]] as const) {
+            voxel(torso, w, 1, 1.3, style.accent, x, y, z);
+          }
+          for (const [x, h] of [[-6.7, 6], [-5.1, 4], [4.9, 5.2], [6.6, 6.8]] as const) {
+            swayingDetail(x, 21.4, 2.8, 1.15, h, 0.8, style.accent, x * 0.7);
+          }
+          for (const [x, h] of [[-2.7, 3.4], [0.2, 4.5], [2.5, 2.8]] as const) {
+            voxel(head, 0.9, h, 0.9, style.metal, x, 5.8 + h * 0.5, 1.2);
+            voxel(head, 2, 0.8, 1.6, style.accent, x, 5.8 + h, 1.2);
+          }
+          break;
+        case "sentinel":
+          // Formal symmetric armor, crest, rune bands and framed core panels.
+          voxel(torso, style.shoulderWidth + 2, 3.5, 7.8, style.slab, 0, 5, 0.4);
+          voxel(torso, style.shoulderWidth + 2.5, 0.75, 8.1, style.accent, 0, 6.7, 0.4);
+          for (const y of [-3.7, 3.4]) {
+            glowVoxel(torso, style.torsoWidth - 1.2, 0.45, 0.55, style.core, 0, y, -4.1);
+          }
+          voxel(head, 2.2, 4.8, 6.8, style.slab, 0, 7.3, 0);
+          voxel(head, 0.8, 5.6, 7.1, style.accent, 0, 7.8, 0);
+          for (const limb of [...construct.arms, ...construct.legs]) {
+            voxel(limb.upper, style.limbWidth + 1, 0.75, style.limbWidth + 1, style.accent, 0, -2.4, 0);
+          }
+          break;
+      }
+
+      const barPixels = feature === "liftworks" ? 35 : feature === "rootbound" || feature === "moss" ? 34 : 32;
+      return { barHeight: barPixels * P + 0.28, anim };
+    }
+    if (oozeStyle) {
+      const style = oozeStyle;
+      const feature = style.feature;
+      const ooze: OozeAnim = {
+        segments: [],
+        core: new THREE.Group(),
+        mouth: new THREE.Group(),
+        eyes: [],
+        details: [],
+      };
+      anim.ooze = ooze;
+
+      const voxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = box(w, h, d, color);
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const gelVoxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        opacity: number,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w * P, h * P, d * P),
+          new THREE.MeshLambertMaterial({
+            color,
+            transparent: true,
+            opacity,
+            depthWrite: false,
+          }),
+        );
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const glowVoxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w * P, h * P, d * P),
+          new THREE.MeshBasicMaterial({ color }),
+        );
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const segment = (
+        w: number,
+        h: number,
+        d: number,
+        y: number,
+        phase: number,
+        squash: number,
+        x = 0,
+        z = 0,
+      ): THREE.Group => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        gelVoxel(root, w, h, d, style.outer, style.opacity);
+        voxel(root, w * 0.8, 0.55, d * 0.75, style.crust, 0, h * 0.33, 0);
+        body.add(root);
+        ooze.segments.push({ obj: root, baseY: root.position.y, phase, squash });
+        return root;
+      };
+      const swayingDetail = (
+        parent: THREE.Object3D,
+        x: number,
+        y: number,
+        z: number,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        phase: number,
+      ): THREE.Group => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        const mesh = voxel(root, w, h, d, color);
+        mesh.geometry.translate(0, h * 0.5 * P, 0);
+        parent.add(root);
+        ooze.details.push({ obj: root, restX: 0, restZ: 0, phase });
+        return root;
+      };
+
+      // Four overlapping gel layers deform independently. The wider foot and
+      // stepped cap give these oozes an authored silhouette instead of one cube.
+      const base = segment(style.width * 1.1, 3.2, style.depth * 1.1, 1.6, 0, 0.65);
+      const lower = segment(style.width, style.height * 0.55, style.depth, style.height * 0.43, 1.2, 0.5);
+      const upper = segment(style.width * 0.8, style.height * 0.45, style.depth * 0.82, style.height * 0.72, 2.4, 0.38);
+      const cap = segment(style.width * 0.58, style.height * 0.25, style.depth * 0.6, style.height * 0.96, 3.1, 0.28);
+      voxel(base, style.width * 0.75, 0.8, style.depth * 0.8, style.inner, 0, -1, 0);
+
+      // A solid internal knot remains visible through the translucent layers.
+      const core = ooze.core;
+      core.position.set(0, style.height * 0.52 * P, 0);
+      voxel(core, style.width * 0.34, style.height * 0.42, style.depth * 0.32, style.inner);
+      glowVoxel(core, style.width * 0.19, style.height * 0.28, style.depth * 0.34, style.accent);
+      glowVoxel(core, style.width * 0.3, 0.65, style.depth * 0.36, style.eye);
+      body.add(core);
+
+      // Eyes and mouth live on the upper deforming layer so expression follows
+      // the bounce rather than floating in front of the creature.
+      const faceZ = -style.depth * 0.43;
+      const faceY = -style.height * 0.06;
+      for (const side of [-1, 1] as const) {
+        const eye = glowVoxel(
+          upper, 1.7, 1.7, 0.7, style.eye,
+          side * style.width * 0.2, faceY + 1.3, faceZ,
+        );
+        voxel(upper, 2.4, 2.4, 0.45, style.inner, side * style.width * 0.2, faceY + 1.3, faceZ + 0.25);
+        upper.remove(eye);
+        upper.add(eye); // keep the glow in front of its dark socket
+        ooze.eyes.push(eye);
+      }
+      const mouth = new THREE.Group();
+      mouth.position.set(0, (faceY - 1.8) * P, (faceZ - 0.05) * P);
+      voxel(mouth, 4.8, 1.15, 0.75, "#151a15");
+      voxel(mouth, 2.4, 0.45, 0.85, style.accent, 0, -0.65, -0.05);
+      upper.add(mouth);
+      ooze.mouth = mouth;
+
+      switch (feature) {
+        case "bog":
+          // Muck shelf, peat clods, bubbles and half-swallowed old bones.
+          voxel(base, style.width + 1.8, 1.1, style.depth + 1.4, style.crust, 0, 0.1, 0);
+          for (const [x, y, z, size] of [
+            [-5.2, 2.2, -3, 1.7], [4.8, 1.8, 2.5, 2], [-2, 1.6, 5.3, 1.4],
+          ] as const) gelVoxel(lower, size, size, size, "#8ca35a", 0.62, x, y, z);
+          for (const [x, y, z] of [[-4, 1.6, -5], [3.4, -1.8, -5.7], [5, 0.8, 2]] as const) {
+            voxel(lower, 2.4, 1, 1.2, style.accent, x, y, z);
+          }
+          voxel(upper, 4.8, 0.8, 0.9, "#c5c0a2", -1, -1.5, -6.5).rotation.z = -0.25;
+          break;
+        case "blight": {
+          const crystal = (parent: THREE.Object3D, x: number, y: number, z: number, h: number): void => {
+            voxel(parent, 1.9, h * 0.65, 1.9, style.accent, x, y + h * 0.325, z);
+            glowVoxel(parent, 0.8, h * 0.35, 0.8, style.eye, x, y + h * 0.825, z);
+          };
+          for (const [x, y, z, h] of [
+            [-3.2, 1.3, 0, 5.2], [2.4, 1.3, 1.2, 4], [0, 1.3, -1.8, 3.5],
+          ] as const) crystal(cap, x, y, z, h);
+          for (const [x, y, z] of [[-4.8, 0.5, -5], [4.2, -1.5, -4.7], [-3, -2, 5]] as const) {
+            voxel(lower, 3, 2.2, 0.75, "#241c2b", x, y, z);
+            glowVoxel(lower, 1.2, 0.45, 0.9, style.eye, x, y, z - 0.4);
+          }
+          break;
+        }
+        case "bramble":
+          // Root cage, woody shelf and stepped thorns break the low silhouette.
+          for (const [x, z, h] of [[-5.8, -2, 4.5], [-3.5, 4, 3.5], [4.8, 2.7, 5], [5.7, -3.2, 3.8]] as const) {
+            voxel(lower, 1.1, h, 1.1, style.crust, x, 0, z).rotation.z = x < 0 ? -0.2 : 0.2;
+            voxel(lower, 0.65, 2, 0.65, style.accent, x, h * 0.55, z);
+          }
+          for (const z of [-4.8, 0, 4.8]) {
+            voxel(base, style.width + 1.8, 0.9, 1.1, style.crust, 0, 1.3, z);
+          }
+          for (const [x, h] of [[-5.8, 4], [-3.8, 5.2], [4.1, 4.5], [5.9, 3.6]] as const) {
+            swayingDetail(body, x, style.height * 0.72, 2.5, 0.8, h, 0.8, style.accent, x);
+          }
+          break;
+        case "marsh":
+          // Waterlogged skirt, side lobes, reeds and cattail heads.
+          gelVoxel(base, style.width + 3, 1.3, style.depth + 3, "#4d8a78", 0.48, 0, -0.2, 0);
+          segment(6.5, 4.5, 7, 2.5, 1.7, 0.7, -6.8, 1.8);
+          segment(5.8, 3.8, 6.2, 2, 2.7, 0.65, 6.7, -1.5);
+          for (const [x, z, h] of [
+            [-6, 2, 7], [-4.2, 4.5, 9], [4.5, 3.5, 8], [6.2, -1, 6.5], [1.5, 5, 7.5],
+          ] as const) {
+            const reed = swayingDetail(body, x, 4.8, z, 0.7, h, 0.7, "#809052", x + z);
+            voxel(reed, 1.4, 2.4, 1.4, "#6a4b32", 0, h + 1.2, 0);
+          }
+          break;
+        case "silt":
+          // Sediment bands, embedded relics and a block crown for the boss.
+          for (const y of [-1.6, 0.2, 2]) {
+            voxel(lower, style.width + 0.8, 0.8, style.depth + 0.8, style.crust, 0, y, 0);
+          }
+          voxel(upper, 3.5, 2.8, 0.9, "#b8ae88", -3.8, -1.2, -6);
+          voxel(cap, 9.5, 1.5, 8.7, style.accent, 0, 1.6, 0);
+          for (const [x, h] of [[-4, 3.2], [-2, 4.4], [0, 5.2], [2, 4.4], [4, 3.2]] as const) {
+            voxel(cap, 1.4, h, 1.4, style.accent, x, 2 + h * 0.5, 0);
+            glowVoxel(cap, 0.65, 0.65, 0.75, style.eye, x, 2 + h, -0.8);
+          }
+          for (const [x, y, z] of [[-5, 0.5, 4], [4.7, -1, 3.8], [2.5, 1.5, -5.5]] as const) {
+            voxel(lower, 2.2, 1.4, 1.5, style.accent, x, y, z);
+          }
+          break;
+      }
+
+      const featureHeight = feature === "blight" ? 6 : feature === "silt" ? 5.5
+        : feature === "marsh" ? 9 : feature === "bramble" ? 4 : 1.5;
+      return { barHeight: (style.height + featureHeight) * P + 0.25, anim };
+    }
+    if (canidStyle) {
+      const style = canidStyle;
+      const feature = style.feature;
+      const canid: CanidAnim = {
+        legs: [],
+        trunk: new THREE.Group(),
+        neck: new THREE.Group(),
+        head: new THREE.Group(),
+        jaw: new THREE.Group(),
+        headRestX: 0,
+        headRestZ: 0,
+        tail: [],
+        details: [],
+      };
+      anim.canid = canid;
+
+      const voxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = box(w, h, d, color);
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const glowVoxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w * P, h * P, d * P),
+          new THREE.MeshBasicMaterial({ color }),
+        );
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const swayingDetail = (
+        parent: THREE.Object3D,
+        x: number,
+        y: number,
+        z: number,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        phase: number,
+      ): THREE.Group => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        const mesh = voxel(root, w, h, d, color);
+        mesh.geometry.translate(0, h * 0.5 * P, 0);
+        parent.add(root);
+        canid.details.push({ obj: root, restX: 0, restZ: 0, phase });
+        return root;
+      };
+      const layeredSpike = (
+        parent: THREE.Object3D,
+        x: number,
+        y: number,
+        z: number,
+        h: number,
+        color = style.accent,
+        tipColor = style.eye,
+      ): void => {
+        voxel(parent, 1.5, h * 0.62, 1.5, color, x, y + h * 0.31, z);
+        voxel(parent, 0.65, h * 0.38, 0.65, tipColor, x, y + h * 0.81, z);
+      };
+
+      // Long, layered torso with separate shoulder ruff and rump armor.
+      const trunk = canid.trunk;
+      trunk.position.set(0, 10.2 * P, 1.5 * P);
+      trunk.add(skinned(
+        rigSkin,
+        style.bodyWidth,
+        style.bodyHeight,
+        style.bodyLength,
+        style.fur,
+        18,
+        14,
+        [6, 9, 6],
+      ));
+      voxel(
+        trunk,
+        style.bodyWidth * 0.78,
+        1.25,
+        style.bodyLength * 0.75,
+        style.dark,
+        0,
+        style.bodyHeight * 0.5,
+        0.7,
+      );
+      voxel(
+        trunk,
+        style.bodyWidth + 0.9,
+        style.bodyHeight * 0.48,
+        2.5,
+        style.ruff,
+        0,
+        0.4,
+        -style.bodyLength * 0.35,
+      );
+      voxel(
+        trunk,
+        style.bodyWidth + 0.5,
+        style.bodyHeight * 0.4,
+        2.2,
+        style.dark,
+        0,
+        0,
+        style.bodyLength * 0.38,
+      );
+      body.add(trunk);
+
+      // Four three-joint limbs: shoulder/hip, elbow/knee and ankle/paw.
+      const upperLength = feature === "dire" ? 4 : 3.6;
+      const lowerLength = feature === "dire" ? 3.2 : 2.9;
+      const legRootY = upperLength + lowerLength + 1.8;
+      for (const front of [true, false]) {
+        const z = 1.5 + (front ? -style.bodyLength * 0.34 : style.bodyLength * 0.34);
+        for (const side of [-1, 1] as const) {
+          const upper = new THREE.Group();
+          upper.position.set(side * style.bodyWidth * 0.37 * P, legRootY * P, z * P);
+          const upperMesh = skinned(
+            rigSkin, style.limbWidth, upperLength, style.limbWidth, style.fur,
+            0, 18, [2, 8, 2],
+          );
+          upperMesh.geometry.translate(0, -upperLength * 0.5 * P, 0);
+          upper.add(upperMesh);
+          voxel(upper, style.limbWidth + 1.1, 1.6, style.limbWidth + 1, style.ruff, 0, -0.6, 0);
+
+          const knee = new THREE.Group();
+          knee.position.y = -upperLength * P;
+          const lowerMesh = skinned(
+            rigSkin, style.limbWidth * 0.84, lowerLength, style.limbWidth * 0.84,
+            style.dark, 0, 18, [2, 8, 2],
+          );
+          lowerMesh.geometry.translate(0, -lowerLength * 0.5 * P, 0);
+          knee.add(lowerMesh);
+          voxel(knee, style.limbWidth + 0.8, 1.5, style.limbWidth + 0.9, style.accent, 0, -0.1, -0.2);
+
+          const ankle = new THREE.Group();
+          ankle.position.y = -lowerLength * P;
+          voxel(ankle, style.limbWidth * 0.78, 1.5, style.limbWidth * 0.8, style.dark, 0, -0.55, -0.15);
+          voxel(ankle, style.limbWidth + 1.25, 1.3, style.limbWidth + 2.1, style.ruff, 0, -1.05, -1.05);
+          for (const toe of [-1, 0, 1]) {
+            voxel(ankle, 0.55, 0.5, 1.35, style.accent, toe * 0.78, -1.45, -2.2);
+          }
+          knee.add(ankle);
+          upper.add(knee);
+          body.add(upper);
+
+          const diagonal = front ? (side === -1 ? 0 : Math.PI) : (side === -1 ? Math.PI : 0);
+          const restKneeX = front ? 0.12 : -0.28;
+          const restAnkleX = front ? -0.06 : 0.18;
+          knee.rotation.x = restKneeX;
+          ankle.rotation.x = restAnkleX;
+          canid.legs.push({
+            side,
+            front,
+            phase: diagonal,
+            upper,
+            knee,
+            ankle,
+            restUpperX: front ? 0.02 : -0.03,
+            restUpperZ: side * 0.02,
+            restKneeX,
+            restAnkleX,
+          });
+        }
+      }
+
+      // Neck bridge and mane connect the trunk to a low hunting head.
+      const neck = canid.neck;
+      neck.position.set(0, 10.8 * P, (1.5 - style.bodyLength * 0.45) * P);
+      neck.rotation.x = -0.12;
+      neck.userData.baseX = neck.rotation.x;
+      voxel(neck, style.bodyWidth * 0.72, 6, 6, style.fur);
+      voxel(neck, style.bodyWidth + 2, 5.4, 6.8, style.ruff, 0, 0.5, 0.6);
+      voxel(neck, style.bodyWidth + 0.6, 1.1, 7.4, style.dark, 0, 3.1, 0.5);
+      body.add(neck);
+
+      const head = canid.head;
+      head.position.set(0, 11.1 * P, (-style.bodyLength * 0.5 - 1.25) * P);
+      const skull = skinned(
+        rigSkin, style.headWidth, 5.8, 5.6, style.fur,
+        0, 0, [6, 6, 4],
+      );
+      skull.position.z = -2.1 * P;
+      head.add(skull);
+      voxel(head, style.headWidth + 0.8, 1.25, 5.8, style.dark, 0, 2.8, -2.1);
+      voxel(head, style.headWidth * 0.58, 2.8, 4.8, style.dark, 0, -0.9, -5.1);
+      voxel(head, style.headWidth * 0.38, 1.2, 1.2, "#181719", 0, -0.7, -7.7);
+      for (const side of [-1, 1] as const) {
+        const ear = new THREE.Group();
+        ear.position.set(side * style.headWidth * 0.34 * P, 3.2 * P, -1.2 * P);
+        ear.rotation.z = side * -0.12;
+        voxel(ear, 1.7, 3.4, 1.4, style.dark, 0, 1.5, 0);
+        voxel(ear, 0.75, 2, 0.8, style.accent, 0, 1.5, -0.45);
+        head.add(ear);
+        glowVoxel(head, 1.05, 1.05, 0.6, style.eye, side * style.headWidth * 0.28, 0.8, -5);
+      }
+      const jaw = canid.jaw;
+      jaw.position.set(0, -1.45 * P, -4.8 * P);
+      voxel(jaw, style.headWidth * 0.55, 1.35, 4.5, style.ruff, 0, -0.6, -1.2);
+      voxel(jaw, style.headWidth * 0.42, 0.55, 3.8, "#191719", 0, 0.2, -1.3);
+      for (const side of [-1, 1] as const) {
+        voxel(jaw, 0.6, 1.3, 0.65, "#ded5bd", side * 1.35, 0.15, -2.8);
+      }
+      head.add(jaw);
+      anim.head = head;
+      anim.headRestZ = head.position.z;
+      canid.headRestX = head.rotation.x;
+      canid.headRestZ = head.rotation.z;
+      body.add(head);
+
+      // Three tail pivots provide idle wag, run balance and attack bracing.
+      let tailParent: THREE.Object3D = body;
+      let tailZ = 1.5 + style.bodyLength * 0.5;
+      for (let i = 0; i < 3; i++) {
+        const tail = new THREE.Group();
+        const length = 4.2 - i * 0.65;
+        const width = Math.max(1.4, 3 - i * 0.55);
+        if (i === 0) tail.position.set(0, 11.1 * P, tailZ * P);
+        else tail.position.z = tailZ * P;
+        const segmentMesh = skinned(rigSkin, width, width, length, style.fur, 9, 18, [2, 8, 2]);
+        segmentMesh.geometry.translate(0, 0, length * 0.5 * P);
+        tail.add(segmentMesh);
+        voxel(tail, width + 0.7, width * 0.75, 1.2, i === 0 ? style.ruff : style.dark, 0, 0, 0.6);
+        const restX = -0.22 + i * 0.14;
+        tail.rotation.x = restX;
+        tailParent.add(tail);
+        canid.tail.push({ obj: tail, restX, restY: 0, restZ: 0, phase: i * 0.8 });
+        tailParent = tail;
+        tailZ = length;
+      }
+
+      switch (feature) {
+        case "timber":
+          // Bark-like flank plates, coarse mane tufts and woodland moss chips.
+          for (const z of [-4.4, -1.3, 2, 5]) {
+            voxel(trunk, style.bodyWidth + 0.8, 1.1, 2, style.accent, 0, style.bodyHeight * 0.36, z);
+          }
+          for (const [x, y, z] of [[-3.6, 1.6, -2], [3.5, -0.6, 2.8], [-2.8, 0.4, 5]] as const) {
+            voxel(trunk, 2.1, 1.3, 1.5, "#62734a", x, y, z);
+          }
+          for (const x of [-3.6, -1.8, 1.8, 3.6]) {
+            swayingDetail(neck, x, 1.4, 2.8, 0.75, 3.4 + Math.abs(x) * 0.2, 0.8, style.ruff, x);
+          }
+          break;
+        case "frost":
+          // Ice ruff, dorsal shards, frozen cuffs and crystal tail armor.
+          voxel(neck, style.bodyWidth + 3.4, 6.4, 7.5, style.ruff, 0, 0.6, 0.8);
+          for (const [x, z, h] of [[-2.8, -4, 3.8], [2.7, -1, 4.6], [-2.2, 2.2, 3.4], [2.1, 5, 4]] as const) {
+            layeredSpike(trunk, x, style.bodyHeight * 0.5, z, h);
+          }
+          for (const leg of canid.legs) {
+            voxel(leg.ankle, style.limbWidth + 1.6, 1.5, style.limbWidth + 1.8, style.accent, 0, -0.2, 0);
+          }
+          for (const side of [-1, 1] as const) {
+            layeredSpike(head, side * 2.2, 2.8, -0.2, 2.8);
+          }
+          break;
+        case "dire":
+          // Massive shoulder armor, rib plates, brow blocks and bone spikes.
+          voxel(neck, style.bodyWidth + 4, 6.5, 8, style.dark, 0, 0.5, 1);
+          voxel(neck, style.bodyWidth + 4.8, 2.2, 8.5, style.ruff, 0, 2.7, 1);
+          for (const z of [-4.8, -1.6, 1.8, 5.2]) {
+            voxel(trunk, style.bodyWidth + 1.8, 1.4, 2, style.accent, 0, style.bodyHeight * 0.3, z);
+          }
+          for (const [x, z, h] of [[-3.8, -3.2, 3.2], [3.8, -0.5, 3.8], [-3.4, 3.2, 3.4], [3.5, 5.5, 3]] as const) {
+            layeredSpike(trunk, x, style.bodyHeight * 0.5, z, h, "#6b6258", "#c4b8a2");
+          }
+          voxel(head, style.headWidth + 1.5, 2, 5.9, style.dark, 0, 2, -2.2);
+          voxel(jaw, style.headWidth * 0.7, 1.7, 4.8, style.dark, 0, -0.8, -1.1);
+          break;
+        case "ash":
+          // Basalt plates and emissive ember seams run through body and limbs.
+          for (const z of [-4.8, -1.5, 1.8, 5]) {
+            voxel(trunk, style.bodyWidth + 0.9, 1.5, 2, style.dark, 0, style.bodyHeight * 0.3, z);
+            glowVoxel(trunk, style.bodyWidth * 0.65, 0.4, 0.55, style.eye, 0, style.bodyHeight * 0.56, z - 0.4);
+          }
+          for (const leg of canid.legs) {
+            glowVoxel(leg.upper, 0.45, 2.8, style.limbWidth + 0.4, style.eye, 0, -2.1, -0.3);
+            voxel(leg.ankle, style.limbWidth + 1.3, 1.3, style.limbWidth + 1.4, style.dark, 0, -0.2, 0);
+          }
+          glowVoxel(head, style.headWidth - 1.8, 0.45, 0.6, style.eye, 0, 1.8, -5);
+          for (const tail of canid.tail) {
+            glowVoxel(tail.obj, 0.45, 0.45, 2.3, style.eye, 0, 0.4, 1.8);
+          }
+          break;
+      }
+
+      const barPixels = feature === "frost" || feature === "dire" ? 20 : 18;
+      return { barHeight: barPixels * P + 0.28, anim };
+    }
+    if (ungulateStyle) {
+      const style = ungulateStyle;
+      const feature = style.feature;
+      const ungulate: UngulateAnim = {
+        legs: [],
+        trunk: new THREE.Group(),
+        neck: new THREE.Group(),
+        head: new THREE.Group(),
+        jaw: new THREE.Group(),
+        headRestX: 0,
+        headRestY: 0,
+        headRestZ: 0,
+        neckRestX: 0,
+        tail: [],
+        details: [],
+      };
+      anim.ungulate = ungulate;
+
+      const voxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = box(w, h, d, color);
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const glowVoxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w * P, h * P, d * P),
+          new THREE.MeshBasicMaterial({ color }),
+        );
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const swayingDetail = (
+        parent: THREE.Object3D,
+        x: number,
+        y: number,
+        z: number,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        phase: number,
+        restZ = 0,
+      ): THREE.Group => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        root.rotation.z = restZ;
+        const mesh = voxel(root, w, h, d, color);
+        mesh.geometry.translate(0, h * 0.5 * P, 0);
+        parent.add(root);
+        ungulate.details.push({ obj: root, restX: 0, restZ, phase });
+        return root;
+      };
+
+      const trunkY = feature === "bull" ? 11.8
+        : feature === "pig" ? 9.4
+          : feature === "boar" ? 10.2
+            : 10.8;
+      const trunk = ungulate.trunk;
+      trunk.position.set(0, trunkY * P, 1.5 * P);
+      const coreSkin = feature === "sheep" ? (woolSkin ?? rigSkin) : rigSkin;
+      const bodyRegion: [number, number, number] = feature === "pig"
+        ? [10, 8, 16]
+        : feature === "sheep" ? [8, 6, 16] : [12, 10, 18];
+      const core = skinned(
+        coreSkin,
+        style.bodyWidth,
+        style.bodyHeight,
+        style.bodyLength,
+        feature === "sheep" ? style.coat : style.hide,
+        feature === "pig" || feature === "sheep" ? 28 : 18,
+        feature === "pig" || feature === "sheep" ? 8 : 4,
+        bodyRegion,
+      );
+      trunk.add(core);
+      // The core carries atlas texture where available; offset voxel plates make
+      // the silhouette read as RuneCraft art instead of a stretched vanilla box.
+      voxel(
+        trunk,
+        style.bodyWidth * 0.82,
+        1.15,
+        style.bodyLength * 0.8,
+        style.coat,
+        0,
+        style.bodyHeight * 0.5,
+        0,
+      );
+      voxel(
+        trunk,
+        style.bodyWidth + 0.8,
+        style.bodyHeight * 0.54,
+        2.7,
+        feature === "bull" || feature === "boar" ? style.dark : style.coat,
+        0,
+        0.35,
+        -style.bodyLength * 0.35,
+      );
+      voxel(
+        trunk,
+        style.bodyWidth + 0.35,
+        style.bodyHeight * 0.42,
+        2.4,
+        style.accent,
+        0,
+        -0.25,
+        style.bodyLength * 0.38,
+      );
+      body.add(trunk);
+
+      // Four articulated hoof chains. Every leg has a hip, knee and ankle;
+      // paired cloven toes remain planted while the joints stride and compress.
+      const upperLength = feature === "bull" ? 4.8
+        : feature === "cow" || feature === "sheep" || feature === "mooshroom" ? 4.35 : 3.75;
+      const lowerLength = feature === "bull" ? 3.6
+        : feature === "cow" || feature === "sheep" || feature === "mooshroom" ? 3.25 : 2.85;
+      const legRootY = upperLength + lowerLength + 1.4;
+      for (const front of [true, false]) {
+        const z = 1.5 + (front ? -style.bodyLength * 0.34 : style.bodyLength * 0.34);
+        for (const side of [-1, 1] as const) {
+          const upper = new THREE.Group();
+          upper.position.set(side * style.bodyWidth * 0.37 * P, legRootY * P, z * P);
+          const upperMesh = voxel(
+            upper,
+            style.limbWidth,
+            upperLength,
+            style.limbWidth,
+            front && (feature === "bull" || feature === "boar") ? style.dark : style.hide,
+          );
+          upperMesh.geometry.translate(0, -upperLength * 0.5 * P, 0);
+          voxel(
+            upper,
+            style.limbWidth + 0.9,
+            1.25,
+            style.limbWidth + 0.8,
+            style.coat,
+            0,
+            -0.55,
+            0,
+          );
+
+          const knee = new THREE.Group();
+          knee.position.y = -upperLength * P;
+          const lowerMesh = voxel(
+            knee,
+            style.limbWidth * 0.82,
+            lowerLength,
+            style.limbWidth * 0.82,
+            style.accent,
+          );
+          lowerMesh.geometry.translate(0, -lowerLength * 0.5 * P, 0);
+          voxel(
+            knee,
+            style.limbWidth + 0.55,
+            1.15,
+            style.limbWidth + 0.45,
+            style.hide,
+            0,
+            -0.2,
+            0,
+          );
+
+          const ankle = new THREE.Group();
+          ankle.position.y = -lowerLength * P;
+          voxel(ankle, style.limbWidth * 0.78, 1.2, style.limbWidth * 0.8, style.dark, 0, -0.45, 0);
+          voxel(ankle, style.limbWidth + 0.5, 0.9, style.limbWidth + 1, style.dark, 0, -1.05, -0.45);
+          for (const toe of [-1, 1] as const) {
+            voxel(
+              ankle,
+              style.limbWidth * 0.34,
+              0.65,
+              1.7,
+              feature === "sheep" ? "#3d3732" : "#282421",
+              toe * style.limbWidth * 0.22,
+              -1.4,
+              -1.15,
+            );
+          }
+          knee.add(ankle);
+          upper.add(knee);
+          body.add(upper);
+
+          const diagonal = front
+            ? (side === -1 ? 0 : Math.PI)
+            : (side === -1 ? Math.PI : 0);
+          const restUpperX = front ? 0.035 : -0.045;
+          const restKneeX = front ? 0.1 : -0.2;
+          const restAnkleX = front ? -0.05 : 0.14;
+          upper.rotation.x = restUpperX;
+          upper.rotation.z = side * 0.012;
+          knee.rotation.x = restKneeX;
+          ankle.rotation.x = restAnkleX;
+          ungulate.legs.push({
+            side,
+            front,
+            phase: diagonal,
+            upper,
+            knee,
+            ankle,
+            restUpperX,
+            restUpperZ: side * 0.012,
+            restKneeX,
+            restAnkleX,
+          });
+        }
+      }
+
+      // A real neck bridge keeps the face attached through grazing and charge
+      // poses; the separate jaw supports chewing as well as attack animation.
+      const neck = ungulate.neck;
+      neck.position.set(0, (trunkY + 0.15) * P, (1.5 - style.bodyLength * 0.43) * P);
+      const neckRestX = feature === "pig" || feature === "boar" ? -0.2 : -0.1;
+      neck.rotation.x = neckRestX;
+      ungulate.neckRestX = neckRestX;
+      voxel(
+        neck,
+        style.bodyWidth * (feature === "bull" ? 0.92 : 0.7),
+        feature === "bull" ? 7.5 : 5.8,
+        feature === "bull" ? 7 : 5.5,
+        feature === "sheep" ? style.coat : style.hide,
+      );
+      voxel(
+        neck,
+        style.bodyWidth * (feature === "bull" ? 1.02 : 0.78),
+        1.2,
+        feature === "bull" ? 7.4 : 6,
+        style.coat,
+        0,
+        feature === "bull" ? 3.75 : 2.95,
+        0.2,
+      );
+      body.add(neck);
+
+      const head = ungulate.head;
+      const headY = trunkY + (feature === "bull" ? 0.15 : feature === "pig" || feature === "boar" ? -0.55 : 0.05);
+      const headZ = 1.5 - style.bodyLength * 0.5 - (feature === "boar" ? 1.2 : 1.35);
+      head.position.set(0, headY * P, headZ * P);
+      const headHeight = feature === "bull" ? 6.8 : feature === "pig" ? 5.4 : 6;
+      const skullDepth = feature === "boar" ? 7 : feature === "pig" ? 5.8 : 6.2;
+      const skull = skinned(
+        rigSkin,
+        style.headWidth,
+        headHeight,
+        skullDepth,
+        style.hide,
+        0,
+        0,
+        [feature === "sheep" ? 6 : 8, feature === "pig" ? 8 : 8, feature === "pig" ? 8 : 6],
+      );
+      skull.position.z = -2.2 * P;
+      head.add(skull);
+      voxel(head, style.headWidth + 0.55, 1.15, skullDepth * 0.82, style.coat, 0, headHeight * 0.47, -2.25);
+      const eyeZ = -2.2 - skullDepth * 0.5 - 0.18;
+      for (const side of [-1, 1] as const) {
+        glowVoxel(head, 0.9, 0.9, 0.55, style.eye, side * style.headWidth * 0.29, 0.75, eyeZ);
+        voxel(head, 1.7, 0.55, 0.6, style.dark, side * style.headWidth * 0.29, 1.45, eyeZ + 0.05);
+        const ear = new THREE.Group();
+        ear.position.set(side * style.headWidth * 0.49 * P, 2.25 * P, -1.55 * P);
+        ear.rotation.z = side * (feature === "pig" ? -0.42 : feature === "boar" ? -0.22 : 0.12);
+        const earW = feature === "sheep" || feature === "cow" ? 2.7 : 2.15;
+        voxel(ear, earW, feature === "pig" ? 2.5 : 1.8, 1.25, style.hide, side * earW * 0.34, 0, 0);
+        voxel(ear, earW * 0.56, 0.65, 0.75, style.accent, side * earW * 0.36, -0.2, -0.4);
+        head.add(ear);
+      }
+
+      const jaw = ungulate.jaw;
+      jaw.position.set(0, -1.45 * P, (-2.35 - skullDepth * 0.35) * P);
+      const muzzleLength = feature === "boar" ? 5.6 : feature === "pig" ? 3.7 : 3.3;
+      const muzzleWidth = feature === "boar" ? style.headWidth * 0.68
+        : feature === "pig" ? style.headWidth * 0.82 : style.headWidth * 0.7;
+      voxel(jaw, muzzleWidth, feature === "pig" ? 2.5 : 2.2, muzzleLength, style.accent, 0, -0.65, -muzzleLength * 0.48);
+      voxel(jaw, muzzleWidth * 0.88, 0.6, muzzleLength * 0.75, style.dark, 0, -1.7, -muzzleLength * 0.55);
+      if (feature === "pig" || feature === "boar") {
+        voxel(jaw, muzzleWidth + 0.5, 2.2, 0.8, style.coat, 0, -0.45, -muzzleLength - 0.15);
+        for (const side of [-1, 1] as const) {
+          voxel(jaw, 0.65, 0.65, 0.45, style.dark, side * muzzleWidth * 0.23, -0.45, -muzzleLength - 0.62);
+        }
+      }
+      head.add(jaw);
+      ungulate.headRestX = head.rotation.x;
+      ungulate.headRestY = head.position.y;
+      ungulate.headRestZ = head.position.z;
+      anim.head = head;
+      anim.headRestZ = head.position.z;
+      body.add(head);
+
+      const buildTail = (
+        lengths: number[],
+        widths: number[],
+        restXs: number[],
+        colors: string[],
+        tuft?: { w: number; h: number; d: number; color: string },
+      ): void => {
+        let parent: THREE.Object3D = body;
+        for (let i = 0; i < lengths.length; i++) {
+          const tail = new THREE.Group();
+          if (i === 0) {
+            tail.position.set(0, (trunkY + 0.6) * P, (1.5 + style.bodyLength * 0.49) * P);
+          } else {
+            tail.position.z = lengths[i - 1] * P;
+          }
+          const mesh = voxel(tail, widths[i], widths[i], lengths[i], colors[i] ?? style.hide);
+          mesh.geometry.translate(0, 0, lengths[i] * 0.5 * P);
+          const restX = restXs[i] ?? 0;
+          tail.rotation.x = restX;
+          parent.add(tail);
+          ungulate.tail.push({ obj: tail, restX, restY: 0, restZ: 0, phase: i * 0.85 });
+          parent = tail;
+        }
+        if (tuft && ungulate.tail.length > 0) {
+          const last = ungulate.tail[ungulate.tail.length - 1].obj;
+          voxel(last, tuft.w, tuft.h, tuft.d, tuft.color, 0, 0, lengths[lengths.length - 1] + tuft.d * 0.2);
+        }
+      };
+
+      switch (feature) {
+        case "cow": {
+          // Broken hide patches, udder, dewlap, stepped horns and tufted tail.
+          for (const [x, y, z, w, h, d] of [
+            [-4.45, 0.6, -2.7, 0.75, 4.2, 4.8],
+            [4.45, -0.8, 2.6, 0.75, 3.8, 5],
+            [-2.4, 4.45, 3.6, 3.7, 0.7, 3],
+            [2.1, 4.45, -4.8, 3.2, 0.7, 2.4],
+          ] as const) voxel(trunk, w, h, d, style.dark, x, y, z);
+          voxel(trunk, 4.5, 1.7, 5, "#d6a4a2", 0, -style.bodyHeight * 0.52, 2.2);
+          for (const x of [-1.4, 1.4]) voxel(trunk, 0.75, 1.5, 0.75, "#b97f83", x, -style.bodyHeight * 0.66, 2.6);
+          voxel(neck, 4.4, 3.2, 1.5, style.accent, 0, -2.3, -2.5);
+          for (const side of [-1, 1] as const) {
+            const horn = new THREE.Group();
+            horn.position.set(side * style.headWidth * 0.45 * P, 3.1 * P, -1.7 * P);
+            horn.rotation.z = side * -0.18;
+            voxel(horn, 2.8, 1.2, 1.35, "#c8b891", side * 1.15, 0, 0);
+            voxel(horn, 1.1, 2.3, 1, "#e0d4b7", side * 2.25, 0.8, -0.15).rotation.z = side * -0.2;
+            head.add(horn);
+          }
+          buildTail([3.4, 3], [1.35, 1], [0.18, 0.22], [style.hide, style.accent], {
+            w: 2.7, h: 2.8, d: 2.2, color: style.dark,
+          });
+          break;
+        }
+        case "pig": {
+          // Rounded haunch layers and a compact voxel curl distinguish the pig.
+          for (const z of [-4.4, -1.6, 1.6, 4.3]) {
+            voxel(trunk, style.bodyWidth + 0.65, 1.05, 1.5, z < 0 ? style.coat : style.accent, 0, 1.2, z);
+          }
+          voxel(trunk, style.bodyWidth + 1.1, 4.7, 3.5, style.coat, 0, 0.2, 4.6);
+          voxel(head, style.headWidth + 0.7, 1.25, 4.8, style.coat, 0, 2.1, -2.1);
+          buildTail(
+            [1.65, 1.45, 1.25, 1],
+            [1.2, 1.05, 0.9, 0.75],
+            [-0.65, -0.82, -0.82, -0.55],
+            [style.accent, style.accent, style.coat, style.coat],
+          );
+          break;
+        }
+        case "sheep": {
+          // A clustered fleece shell creates a shaggy outline rather than one
+          // oversized white cube; the narrow hide face stays plainly visible.
+          for (const z of [-5.2, -2.2, 0.8, 3.8, 5.5]) {
+            voxel(trunk, style.bodyWidth + 1.7, 2.25, 2.8, style.coat, 0, style.bodyHeight * 0.48, z);
+            for (const side of [-1, 1] as const) {
+              voxel(trunk, 2.2, 3, 2.6, style.coat, side * (style.bodyWidth * 0.5 + 0.45), 0.5, z);
+            }
+          }
+          for (const [x, z, phase] of [[-3.7, -4.4, 0], [0, -3, 1], [3.7, -0.7, 2], [-2.8, 2.5, 3], [2.8, 4.2, 4]] as const) {
+            swayingDetail(trunk, x, style.bodyHeight * 0.5 + 0.2, z, 2.2, 1.8, 2.2, style.coat, phase);
+          }
+          voxel(head, style.headWidth + 1.4, 2.5, 5.3, style.coat, 0, 2.6, -1.7);
+          voxel(neck, style.bodyWidth + 1.1, 5.4, 6.2, style.coat, 0, 0.3, 0.4);
+          buildTail([2.4], [2.2], [0.3], [style.coat], {
+            w: 3.2, h: 3, d: 2.4, color: style.coat,
+          });
+          break;
+        }
+        case "boar": {
+          // Low shoulder armor, coarse ridge bristles and paired tusks make the
+          // wild boar a separate combat silhouette, not a brown pig recolor.
+          voxel(trunk, style.bodyWidth + 2, style.bodyHeight * 0.75, 5.5, style.dark, 0, 1.05, -4.7);
+          voxel(trunk, style.bodyWidth + 1.1, 2.1, 8, style.coat, 0, 3.7, -1.4);
+          for (let i = 0; i < 7; i++) {
+            const z = -5.7 + i * 1.8;
+            swayingDetail(trunk, 0, style.bodyHeight * 0.5, z, 0.8, 3.2 - i * 0.16, 1, style.dark, i * 0.55);
+          }
+          voxel(head, style.headWidth + 1, 2, 5.8, style.dark, 0, 1.9, -2.2);
+          for (const side of [-1, 1] as const) {
+            const tusk = voxel(jaw, 0.9, 3.4, 0.9, "#ded1ad", side * muzzleWidth * 0.48, -0.15, -muzzleLength * 0.72);
+            tusk.rotation.z = side * -0.38;
+            voxel(jaw, 0.65, 1.8, 0.65, "#f0e5c9", side * (muzzleWidth * 0.48 + 0.5), 1.05, -muzzleLength * 0.78).rotation.z = side * -0.55;
+          }
+          buildTail([2.5, 1.8], [1.45, 1.05], [0.25, 0.28], [style.hide, style.dark], {
+            w: 2.2, h: 2, d: 1.8, color: style.dark,
+          });
+          break;
+        }
+        case "bull": {
+          // Monumental shoulder hump, chest mane and wide stepped horns carry
+          // the prairie bull's boss weight without scaling up the cow rig.
+          voxel(trunk, style.bodyWidth + 2.5, style.bodyHeight * 0.88, 6.6, style.dark, 0, 1.8, -4.7);
+          voxel(trunk, style.bodyWidth + 1.4, 3.6, 8, style.coat, 0, 5, -3.3);
+          voxel(neck, style.bodyWidth + 3.1, 7.8, 7.4, style.dark, 0, -0.2, 0.5);
+          for (const x of [-4.2, -2.1, 0, 2.1, 4.2]) {
+            swayingDetail(neck, x, -3.4, -2, 1.25, 4.6 - Math.abs(x) * 0.22, 1.2, style.coat, x * 0.4);
+          }
+          voxel(head, style.headWidth + 1.8, 2.2, 6.4, style.dark, 0, 2.15, -2.2);
+          voxel(head, 3.5, 3, 0.85, style.accent, 0, 0.4, eyeZ - 0.2);
+          for (const side of [-1, 1] as const) {
+            const hornRoot = new THREE.Group();
+            hornRoot.position.set(side * style.headWidth * 0.43 * P, 3.05 * P, -1.55 * P);
+            hornRoot.rotation.z = side * 0.12;
+            voxel(hornRoot, 4.1, 1.9, 1.8, "#a98d62", side * 1.85, 0, 0);
+            const mid = new THREE.Group();
+            mid.position.set(side * 3.7 * P, 0, -0.25 * P);
+            mid.rotation.z = side * -0.27;
+            voxel(mid, 3.3, 1.35, 1.35, "#c9b17f", side * 1.4, 0.2, -0.15);
+            const tip = new THREE.Group();
+            tip.position.set(side * 2.75 * P, 0.45 * P, -0.15 * P);
+            tip.rotation.z = side * -0.38;
+            voxel(tip, 2.25, 0.8, 0.85, "#eadcb7", side * 0.95, 0.35, -0.2);
+            mid.add(tip);
+            hornRoot.add(mid);
+            head.add(hornRoot);
+          }
+          for (const leg of ungulate.legs) {
+            voxel(leg.ankle, style.limbWidth + 1.3, 1.3, style.limbWidth + 1.8, style.dark, 0, -0.25, 0);
+          }
+          buildTail([3.8, 3.1], [1.65, 1.15], [0.18, 0.23], [style.hide, style.accent], {
+            w: 3.1, h: 3.4, d: 2.5, color: style.dark,
+          });
+          break;
+        }
+        case "mooshroom": {
+          // Layered fungal hide, shelf caps and crown growths make this a
+          // RuneCraft spore-beast rather than a red cow with mushrooms pasted on.
+          for (const [x, y, z, w, h, d] of [
+            [-5.1, 0.5, -3.7, 0.8, 4.5, 4.2],
+            [5.1, -0.7, 2.5, 0.8, 4.1, 5],
+            [-2.6, 4.8, 3.2, 3.4, 0.8, 3.1],
+            [2.5, 4.8, -4.2, 3.8, 0.8, 2.8],
+          ] as const) voxel(trunk, w, h, d, style.coat, x, y, z);
+          const mushroom = (
+            parent: THREE.Object3D,
+            x: number,
+            y: number,
+            z: number,
+            size: number,
+            phase: number,
+          ): void => {
+            const stem = swayingDetail(parent, x, y, z, size * 0.42, size, size * 0.42, style.coat, phase);
+            voxel(stem, size * 1.9, size * 0.48, size * 1.65, style.accent, 0, size * 1.05, 0);
+            voxel(stem, size * 1.2, size * 0.3, size * 1.05, "#d98568", 0, size * 1.42, 0);
+          };
+          mushroom(trunk, -3.2, style.bodyHeight * 0.5, -3.6, 2.7, 0);
+          mushroom(trunk, 2.7, style.bodyHeight * 0.5, 0.1, 3.2, 1.2);
+          mushroom(trunk, -1.4, style.bodyHeight * 0.5, 4.4, 2.2, 2.4);
+          mushroom(head, 1.4, 3.1, -0.8, 2.4, 3.1);
+          for (const side of [-1, 1] as const) {
+            const horn = new THREE.Group();
+            horn.position.set(side * style.headWidth * 0.44 * P, 3 * P, -1.6 * P);
+            horn.rotation.z = side * -0.16;
+            voxel(horn, 2.6, 1.25, 1.3, style.coat, side * 1.05, 0, 0);
+            voxel(horn, 1, 2.1, 1, "#eadbb8", side * 2.05, 0.7, -0.1).rotation.z = side * -0.22;
+            head.add(horn);
+          }
+          voxel(neck, 5, 3.4, 1.5, style.dark, 0, -2.2, -2.5);
+          buildTail([3.5, 2.8], [1.4, 1], [0.18, 0.24], [style.hide, style.accent], {
+            w: 2.8, h: 3, d: 2.2, color: style.coat,
+          });
+          break;
+        }
+      }
+
+      const barPixels = feature === "bull" ? 26
+        : feature === "mooshroom" ? 24
+          : feature === "cow" || feature === "sheep" ? 22
+          : feature === "boar" ? 21 : 19;
+      return { barHeight: barPixels * P + 0.3, anim };
+    }
+    if (raiderStyle) {
+      const style = raiderStyle;
+      const feature = style.feature;
+      const raider: RaiderAnim = {
+        role: style.role,
+        legs: [],
+        arms: [],
+        torso: new THREE.Group(),
+        head: new THREE.Group(),
+        headRestX: 0,
+        headRestZ: 0,
+        props: [],
+        focus: null,
+        dummyPivot: null,
+        details: [],
+      };
+      anim.raider = raider;
+
+      const voxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = box(w, h, d, color);
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const glowVoxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w * P, h * P, d * P),
+          new THREE.MeshBasicMaterial({ color }),
+        );
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const swayingDetail = (
+        parent: THREE.Object3D,
+        x: number,
+        y: number,
+        z: number,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        phase: number,
+        restZ = 0,
+      ): THREE.Group => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        root.rotation.z = restZ;
+        const mesh = voxel(root, w, h, d, color);
+        mesh.geometry.translate(0, h * 0.5 * P, 0);
+        parent.add(root);
+        raider.details.push({ obj: root, restX: 0, restZ, phase });
+        return root;
+      };
+      const heldProp = (
+        parent: THREE.Object3D,
+        kind: RaiderPropAnim["kind"],
+        phase: number,
+        restX = 0,
+        restY = 0,
+        restZ = 0,
+      ): THREE.Group => {
+        const prop = new THREE.Group();
+        prop.rotation.set(restX, restY, restZ);
+        parent.add(prop);
+        raider.props.push({ obj: prop, kind, phase, restX, restY, restZ });
+        return prop;
+      };
+
+      const upperLegLength = feature === "reaver" || feature === "effigy" ? 6.5 : 6.1;
+      const lowerLegLength = feature === "reaver" ? 5.5 : 5.2;
+      const legRootY = upperLegLength + lowerLegLength + 1.65;
+      const torsoY = legRootY + style.torsoHeight * 0.48;
+
+      // Split hip/knee/foot chains give the raiders grounded strides and let
+      // the training effigy flex on its lashings instead of sliding as a cube.
+      for (const side of [-1, 1] as const) {
+        const hip = new THREE.Group();
+        hip.position.set(side * style.torsoWidth * 0.24 * P, legRootY * P, 0.6 * P);
+        const thigh = voxel(
+          hip,
+          style.legWidth,
+          upperLegLength,
+          style.legWidth + 0.25,
+          feature === "effigy" ? style.skin : style.cloth,
+        );
+        thigh.geometry.translate(0, -upperLegLength * 0.5 * P, 0);
+        voxel(hip, style.legWidth + 0.7, 1.25, style.legWidth + 0.65, style.dark, 0, -0.55, 0);
+
+        const knee = new THREE.Group();
+        knee.position.y = -upperLegLength * P;
+        const shin = voxel(
+          knee,
+          style.legWidth * 0.9,
+          lowerLegLength,
+          style.legWidth * 0.92,
+          feature === "effigy" ? style.cloth : style.dark,
+        );
+        shin.geometry.translate(0, -lowerLegLength * 0.5 * P, 0);
+        voxel(knee, style.legWidth + 0.55, 1.4, style.legWidth + 0.6, style.metal, 0, -0.25, -0.2);
+
+        const foot = new THREE.Group();
+        foot.position.y = -lowerLegLength * P;
+        voxel(foot, style.legWidth + 0.8, 1.7, style.legWidth + 2.2, style.dark, 0, -0.7, -0.95);
+        voxel(foot, style.legWidth + 0.45, 0.6, style.legWidth + 1.4, style.metal, 0, -1.45, -1.35);
+        knee.add(foot);
+        hip.add(knee);
+        body.add(hip);
+
+        const restHipX = side === -1 ? 0.025 : -0.025;
+        const restHipZ = side * 0.012;
+        const restKneeX = -0.08;
+        const restFootX = 0.06;
+        hip.rotation.x = restHipX;
+        hip.rotation.z = restHipZ;
+        knee.rotation.x = restKneeX;
+        foot.rotation.x = restFootX;
+        raider.legs.push({
+          side,
+          phase: side === -1 ? 0 : Math.PI,
+          hip,
+          knee,
+          foot,
+          restHipX,
+          restHipZ,
+          restKneeX,
+          restFootX,
+        });
+      }
+
+      const torso = raider.torso;
+      torso.position.set(0, torsoY * P, 0.55 * P);
+      voxel(torso, style.torsoWidth, style.torsoHeight, 5.2, style.cloth);
+      voxel(torso, style.shoulderWidth, 2.3, 6, style.dark, 0, style.torsoHeight * 0.38, 0);
+      voxel(torso, style.torsoWidth + 0.7, 2, 5.8, style.accent, 0, -style.torsoHeight * 0.38, 0.1);
+      voxel(torso, style.torsoWidth + 1.2, 1.2, 6.1, style.metal, 0, -style.torsoHeight * 0.15, 0);
+      voxel(torso, style.torsoWidth * 0.62, style.torsoHeight * 0.48, 0.75, style.dark, 0, 0.6, -2.95);
+      body.add(torso);
+
+      const upperArmLength = feature === "reaver" ? 6 : 5.5;
+      const lowerArmLength = feature === "reaver" ? 5 : 4.7;
+      for (const side of [-1, 1] as const) {
+        const shoulder = new THREE.Group();
+        shoulder.position.set(
+          side * style.shoulderWidth * 0.49 * P,
+          (torsoY + style.torsoHeight * 0.4) * P,
+          0.4 * P,
+        );
+        const sleeve = voxel(
+          shoulder,
+          feature === "reaver" ? 4.4 : 3.7,
+          upperArmLength,
+          feature === "reaver" ? 4.2 : 3.6,
+          feature === "effigy" ? style.skin : style.cloth,
+        );
+        sleeve.geometry.translate(0, -upperArmLength * 0.5 * P, 0);
+        voxel(
+          shoulder,
+          feature === "reaver" ? 5.3 : 4.5,
+          2,
+          4.6,
+          feature === "effigy" ? style.dark : style.metal,
+          0,
+          -0.6,
+          0,
+        );
+
+        const elbow = new THREE.Group();
+        elbow.position.y = -upperArmLength * P;
+        const forearm = voxel(
+          elbow,
+          feature === "reaver" ? 3.8 : 3.25,
+          lowerArmLength,
+          feature === "reaver" ? 3.7 : 3.2,
+          feature === "effigy" ? style.cloth : style.dark,
+        );
+        forearm.geometry.translate(0, -lowerArmLength * 0.5 * P, 0);
+        voxel(elbow, 4, 1.35, 3.9, style.accent, 0, -0.25, -0.15);
+
+        const hand = new THREE.Group();
+        hand.position.y = -lowerArmLength * P;
+        voxel(hand, 3.1, 2.7, 3, feature === "effigy" ? style.skin : style.skin, 0, -1, -0.15);
+        voxel(hand, 3.4, 0.7, 3.3, style.dark, 0, -0.05, 0);
+        elbow.add(hand);
+        shoulder.add(elbow);
+        body.add(shoulder);
+
+        const restShoulderX = style.role === "ranged" ? 0.15 : style.role === "caster" ? 0.08 : 0.02;
+        const restShoulderZ = feature === "effigy" ? side * 1.28 : side * 0.035;
+        const restElbowX = style.role === "ranged" ? 0.35 : -0.08;
+        const restElbowZ = feature === "effigy" ? side * 0.08 : 0;
+        shoulder.rotation.x = restShoulderX;
+        shoulder.rotation.z = restShoulderZ;
+        elbow.rotation.x = restElbowX;
+        elbow.rotation.z = restElbowZ;
+        raider.arms.push({
+          side,
+          phase: side === -1 ? Math.PI : 0,
+          shoulder,
+          elbow,
+          hand,
+          restShoulderX,
+          restShoulderZ,
+          restElbowX,
+          restElbowZ,
+        });
+      }
+
+      const head = raider.head;
+      const headY = torsoY + style.torsoHeight * 0.5 + 3.9;
+      head.position.set(0, headY * P, -0.25 * P);
+      voxel(head, style.headWidth, 6.7, 6.1, feature === "effigy" ? style.skin : style.skin);
+      voxel(head, style.headWidth + 0.5, 1.2, 6.5, style.dark, 0, 2.8, 0);
+      voxel(head, style.headWidth * 0.72, 1.7, 0.75, style.accent, 0, -1.85, -3.35);
+      if (feature !== "effigy") {
+        for (const side of [-1, 1] as const) {
+          glowVoxel(head, 0.85, 0.7, 0.5, style.glow, side * style.headWidth * 0.22, 0.65, -3.35);
+          voxel(head, 1.45, 0.45, 0.55, style.dark, side * style.headWidth * 0.22, 1.25, -3.32);
+        }
+      }
+      voxel(head, 1.5, 2.3, 1.25, style.skin, 0, -0.25, -3.45);
+      raider.headRestX = head.rotation.x;
+      raider.headRestZ = head.rotation.z;
+      anim.head = head;
+      anim.headRestZ = head.position.z;
+      body.add(head);
+
+      const leftHand = raider.arms.find((arm) => arm.side === -1)!.hand;
+      const rightHand = raider.arms.find((arm) => arm.side === 1)!.hand;
+
+      switch (feature) {
+        case "marksman": {
+          // Hooded scout armor and a stock/limb/string crossbow held on its own
+          // pivot, allowing aim, recoil and walk-settle poses.
+          voxel(torso, style.torsoWidth + 1.4, 7.2, 1.1, style.accent, 0, 0.8, -3.1);
+          voxel(torso, 2.1, 8.5, 1, style.metal, -style.torsoWidth * 0.28, 0.5, -3.7).rotation.z = -0.2;
+          voxel(head, style.headWidth + 1.5, 3.6, 6.9, style.cloth, 0, 2.45, 0.25);
+          voxel(head, style.headWidth + 0.7, 2.1, 0.9, style.dark, 0, -1.2, -3.55);
+          for (const side of [-1, 1] as const) {
+            voxel(head, 2, 2.3, 1.7, style.metal, side * style.headWidth * 0.48, 0.2, -0.25);
+          }
+          const crossbow = heldProp(rightHand, "weapon", 0, -0.08, 0, 0.05);
+          crossbow.position.set(-3.6 * P, -0.4 * P, -0.5 * P);
+          voxel(crossbow, 1.4, 1.5, 8, style.accent, 0, 0, -3.1);
+          voxel(crossbow, 9.2, 1.25, 1.3, style.metal, 0, 0.2, -6.2);
+          voxel(crossbow, 6.8, 0.55, 0.65, style.glow, 0, 0.2, -5.75);
+          for (const side of [-1, 1] as const) {
+            const limb = voxel(crossbow, 1.2, 1, 4.1, style.accent, side * 4.2, 0.2, -4.7);
+            limb.rotation.y = side * 0.52;
+            voxel(crossbow, 0.45, 0.45, 6.4, style.glow, side * 2, 0.45, -4.9).rotation.y = side * -0.34;
+          }
+          voxel(crossbow, 0.55, 0.55, 5.8, style.glow, 0, 0.55, -8.2);
+          break;
+        }
+        case "reaver": {
+          // Broad plate shoulders, a tusked mask and oversized two-step axe.
+          voxel(torso, style.torsoWidth + 2.2, 7.4, 1.2, style.metal, 0, 1, -3.15);
+          for (const side of [-1, 1] as const) {
+            voxel(torso, 3.4, 5.4, 6.7, style.dark, side * style.torsoWidth * 0.52, 2.6, 0);
+            const spike = voxel(torso, 1.1, 3.4, 1.2, style.metal, side * style.torsoWidth * 0.64, 6.2, 0);
+            spike.rotation.z = side * -0.35;
+          }
+          voxel(head, style.headWidth + 1.4, 4.2, 1.1, style.metal, 0, -0.1, -3.55);
+          voxel(head, 5.4, 1.3, 0.7, style.dark, 0, 1.15, -4.15);
+          for (const side of [-1, 1] as const) {
+            voxel(head, 0.85, 2.7, 0.85, "#d6c7a5", side * 2.8, -2, -3.75).rotation.z = side * -0.3;
+          }
+          const axe = heldProp(rightHand, "weapon", 0, 0.04, 0, -0.08);
+          axe.position.set(0, -0.6 * P, 0);
+          voxel(axe, 1.25, 10.5, 1.25, style.accent, 0, 4.3, 0);
+          voxel(axe, 7.8, 4.6, 1.8, style.metal, -2.4, 9.1, -0.2);
+          voxel(axe, 4.5, 2.7, 2.1, style.dark, 2.2, 9.2, -0.2);
+          voxel(axe, 1, 5.5, 0.9, style.glow, -5.5, 9.1, -1.2).rotation.z = 0.18;
+          break;
+        }
+        case "runecaller": {
+          // Split ceremonial robe, rune crown, floating tome and paired foci.
+          voxel(torso, style.torsoWidth + 2, 7.8, 1.1, style.cloth, 0, 0.3, -3.1);
+          for (const side of [-1, 1] as const) {
+            const skirt = swayingDetail(
+              torso,
+              side * style.torsoWidth * 0.28,
+              -style.torsoHeight * 0.48,
+              0.2,
+              style.torsoWidth * 0.48,
+              6.3,
+              5.7,
+              side === -1 ? style.cloth : style.accent,
+              side,
+              side * 0.025,
+            );
+            voxel(skirt, 1.1, 4.8, 0.7, style.glow, 0, 3.3, -3.2);
+          }
+          voxel(head, style.headWidth + 1.1, 2.7, 6.9, style.dark, 0, 2.5, 0);
+          for (const [x, h] of [[-2.6, 3.1], [0, 4.4], [2.6, 3.1]] as const) {
+            voxel(head, 1.25, h, 1.25, style.metal, x, 4 + h * 0.5, 0);
+            glowVoxel(head, 0.65, 0.65, 1.35, style.glow, x, 4 + h, -0.2);
+          }
+          for (const [hand, side] of [[leftHand, -1], [rightHand, 1]] as const) {
+            const focus = heldProp(hand, "focus", side, -0.12, 0, side * 0.08);
+            focus.position.set(0, -2.6 * P, -1.2 * P);
+            voxel(focus, 4.2, 0.65, 4.2, style.metal);
+            voxel(focus, 0.65, 4.2, 4.2, style.metal);
+            const core = glowVoxel(focus, 1.8, 1.8, 1.8, style.glow, 0, 0, -0.2);
+            if (!raider.focus) raider.focus = core;
+          }
+          const tome = heldProp(torso, "focus", 2.4, -0.16, 0, 0);
+          tome.position.set(0, -0.5 * P, -5.2 * P);
+          voxel(tome, 5.8, 0.9, 4.4, style.dark);
+          voxel(tome, 2.55, 0.55, 3.7, style.cloth, -1.55, -0.65, 0);
+          voxel(tome, 2.55, 0.55, 3.7, style.cloth, 1.55, -0.65, 0);
+          glowVoxel(tome, 0.55, 0.65, 2.6, style.glow, 0, -1, -0.25);
+          break;
+        }
+        case "mirage": {
+          // Deep stepped hood, faceted mask, asymmetrical mantle and prism staff.
+          voxel(torso, style.torsoWidth + 2.5, 5.6, 1.05, style.accent, 0, 2.1, -3.1);
+          voxel(torso, 3.2, 10, 6.2, style.dark, -style.torsoWidth * 0.42, 0, 0.2);
+          for (const side of [-1, 1] as const) {
+            swayingDetail(torso, side * 4.3, -3.8, 1, 2.8, 6.2, 0.8, style.cloth, side * 1.7, side * 0.05);
+          }
+          voxel(head, style.headWidth + 2.2, 4.8, 7.2, style.dark, 0, 2.2, 0.4);
+          voxel(head, style.headWidth - 0.8, 4.7, 0.9, style.accent, 0, -0.2, -3.65);
+          glowVoxel(head, style.headWidth - 2.1, 0.7, 0.55, style.glow, 0, 0.85, -4.2);
+          for (const side of [-1, 1] as const) {
+            const prism = swayingDetail(head, side * 4.7, 1.8, 0, 1.1, 2.8, 1.1, style.glow, side * 2.3);
+            prism.rotation.y = side * 0.35;
+          }
+          const staff = heldProp(rightHand, "weapon", 0.5, -0.04, 0, 0.06);
+          staff.position.set(0, -1.2 * P, 0.2 * P);
+          voxel(staff, 1.1, 12.5, 1.1, style.metal, 0, 4.7, 0);
+          voxel(staff, 4.2, 1.1, 1.1, style.accent, 0, 10.5, 0);
+          glowVoxel(staff, 2.8, 3.6, 2.8, style.glow, 0, 12.4, 0);
+          voxel(staff, 1.1, 4.8, 1.1, style.dark, 0, 12.6, 0).rotation.z = Math.PI / 4;
+          raider.focus = glowVoxel(staff, 1.25, 1.25, 3.6, "#d8f5ff", 0, 12.4, 0);
+          const cards = heldProp(leftHand, "focus", 2.1, 0, 0, -0.15);
+          for (const [x, y, z] of [[-1.8, -1.5, -1], [0, -2.6, -2], [1.8, -1.4, -1]] as const) {
+            const card = voxel(cards, 1.8, 2.8, 0.45, style.glow, x, y, z);
+            card.rotation.z = x * 0.14;
+          }
+          break;
+        }
+        case "hedgewitch": {
+          // Layered herb robe, crooked broad hat, potion hand and root staff.
+          voxel(torso, style.torsoWidth + 2.1, 8.4, 1.1, style.cloth, 0, -0.2, -3.1);
+          for (const side of [-1, 1] as const) {
+            const skirt = swayingDetail(
+              torso,
+              side * style.torsoWidth * 0.27,
+              -style.torsoHeight * 0.5,
+              0.2,
+              style.torsoWidth * 0.54,
+              6.8,
+              6,
+              side === -1 ? style.dark : style.cloth,
+              side * 1.3,
+              side * 0.04,
+            );
+            voxel(skirt, 1, 3.8, 0.75, style.accent, 0, 3.1, -3.4);
+          }
+          voxel(head, 13.5, 1.5, 11.2, style.dark, 0, 3.55, 0);
+          voxel(head, 8.4, 4.3, 7.1, style.cloth, 0, 5.5, 0.25);
+          const hatTop = voxel(head, 5.7, 5.2, 5.2, style.dark, 1, 9.2, 0.35);
+          hatTop.rotation.z = -0.2;
+          voxel(head, 3.2, 3.4, 3.4, style.cloth, 2.1, 12.8, 0.5).rotation.z = -0.38;
+          for (const x of [-4.5, 0, 4.5]) {
+            swayingDetail(head, x, 3.8, 1.6, 0.65, 3.2 + Math.abs(x) * 0.12, 0.65, style.accent, x);
+          }
+          const staff = heldProp(rightHand, "weapon", 0.2, 0, 0, 0.08);
+          staff.position.set(0, -1.3 * P, 0.2 * P);
+          voxel(staff, 1.25, 12.8, 1.25, style.accent, 0, 4.9, 0);
+          voxel(staff, 5.2, 1.25, 1.25, style.dark, 1.7, 10.7, 0).rotation.z = -0.3;
+          voxel(staff, 1.2, 4.8, 1.2, style.accent, 4, 12.1, 0).rotation.z = -0.55;
+          glowVoxel(staff, 2.4, 2.4, 2.4, style.glow, 4.7, 14.3, 0);
+          const vial = heldProp(leftHand, "focus", 1.8, 0, 0, -0.1);
+          vial.position.set(0, -2.4 * P, -1 * P);
+          voxel(vial, 1.4, 1.6, 1.4, style.metal, 0, 1.7, 0);
+          const brew = glowVoxel(vial, 3.1, 3.4, 2.8, style.glow, 0, -0.7, 0);
+          voxel(vial, 3.7, 0.7, 3.4, style.dark, 0, -2.5, 0);
+          raider.focus = brew;
+          break;
+        }
+        case "effigy": {
+          // Humanoid straw construction with lashings, sack head and concentric
+          // target plates. It bends at the post and limb knots when struck.
+          raider.dummyPivot = torso;
+          voxel(torso, style.torsoWidth + 2.4, style.torsoHeight + 1.3, 6.3, style.skin);
+          for (const y of [-3.8, 0, 3.8]) {
+            voxel(torso, style.torsoWidth + 3, 0.8, 6.8, style.dark, 0, y, 0);
+          }
+          for (const [size, color, z] of [
+            [8.8, "#eee0b7", -3.4],
+            [6.2, style.accent, -3.85],
+            [3.7, "#eee0b7", -4.3],
+            [1.6, style.accent, -4.75],
+          ] as const) voxel(torso, size, size, 0.65, color, 0, 0.3, z);
+          voxel(head, style.headWidth + 1.4, 7.4, 6.8, style.skin);
+          voxel(head, style.headWidth + 2, 1, 7.2, style.dark, 0, -2.9, 0);
+          for (const side of [-1, 1] as const) {
+            voxel(head, 1.5, 0.65, 0.6, style.dark, side * 1.8, 0.9, -3.7).rotation.z = side * 0.22;
+          }
+          voxel(head, 3.8, 0.55, 0.6, style.dark, 0, -1.1, -3.72);
+          for (const x of [-2.7, -0.9, 0.9, 2.7]) {
+            swayingDetail(head, x, 3.4, 0, 0.7, 3.6 + Math.abs(x) * 0.2, 0.7, style.glow, x);
+          }
+          voxel(body, 3.4, 13.5, 3.4, style.dark, 0, 6.6, 2.7);
+          voxel(body, 10.5, 1.3, 8.5, style.metal, 0, 0.65, 2.7);
+          break;
+        }
+      }
+
+      const barPixels = feature === "hedgewitch" ? 46
+        : feature === "runecaller" || feature === "mirage" ? 35
+          : feature === "effigy" ? 33 : 32;
+      return { barHeight: barPixels * P + 0.3, anim };
+    }
+    if (flierStyle) {
+      const style = flierStyle;
+      const feature = style.feature;
+      const coreY = feature === "rune_allay" ? 13.5
+        : feature === "storm_ghast" ? 11
+          : feature === "reef_squid" ? 8 : 10.5;
+      const flier: FlierAnim = {
+        feature,
+        motion: style.motion,
+        core: new THREE.Group(),
+        coreRestY: coreY * P,
+        head: new THREE.Group(),
+        mouth: null,
+        headRestX: 0,
+        headRestZ: 0,
+        wings: [],
+        appendages: [],
+        fins: [],
+        details: [],
+      };
+      anim.flier = flier;
+
+      const voxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = box(w, h, d, color);
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const glowVoxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w * P, h * P, d * P),
+          new THREE.MeshBasicMaterial({ color }),
+        );
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const glassVoxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        opacity: number,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w * P, h * P, d * P),
+          new THREE.MeshLambertMaterial({ color, transparent: true, opacity, depthWrite: false }),
+        );
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const swayingDetail = (
+        parent: THREE.Object3D,
+        x: number,
+        y: number,
+        z: number,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        phase: number,
+        restZ = 0,
+      ): THREE.Group => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        root.rotation.z = restZ;
+        const mesh = voxel(root, w, h, d, color);
+        mesh.geometry.translate(0, h * 0.5 * P, 0);
+        parent.add(root);
+        flier.details.push({ obj: root, restX: 0, restZ, phase });
+        return root;
+      };
+      const buildWing = (
+        parent: THREE.Object3D,
+        side: -1 | 1,
+        pair: number,
+        y: number,
+        z: number,
+        lengths: [number, number, number],
+        heights: [number, number, number],
+        translucent: boolean,
+        restX: number,
+        restY: number,
+        restZ: number,
+      ): void => {
+        const root = new THREE.Group();
+        root.position.set(side * style.bodyWidth * 0.43 * P, y * P, z * P);
+        root.rotation.set(restX, restY, restZ);
+        if (translucent) {
+          glassVoxel(root, lengths[0], heights[0], 0.75, style.membrane, 0.62, side * lengths[0] * 0.5, 0, 0);
+        } else {
+          voxel(root, lengths[0], heights[0], 0.9, style.membrane, side * lengths[0] * 0.5, 0, 0);
+        }
+        voxel(root, lengths[0] + 0.4, 0.7, 0.8, style.dark, side * lengths[0] * 0.5, heights[0] * 0.42, 0);
+
+        const mid = new THREE.Group();
+        mid.position.x = side * lengths[0] * P;
+        const restMidX = pair === 0 ? -0.02 : 0.04;
+        const restMidY = side * (pair === 0 ? -0.08 : 0.06);
+        const restMidZ = side * (translucent ? -0.08 : 0.12);
+        mid.rotation.set(restMidX, restMidY, restMidZ);
+        if (translucent) {
+          glassVoxel(mid, lengths[1], heights[1], 0.65, style.membrane, 0.55, side * lengths[1] * 0.5, -0.15, 0);
+        } else {
+          voxel(mid, lengths[1], heights[1], 0.8, style.membrane, side * lengths[1] * 0.5, -0.15, 0);
+        }
+        voxel(mid, lengths[1] + 0.3, 0.6, 0.7, style.dark, side * lengths[1] * 0.5, heights[1] * 0.38, 0);
+
+        const tip = new THREE.Group();
+        tip.position.x = side * lengths[1] * P;
+        const restTipX = pair === 0 ? 0.03 : -0.04;
+        const restTipY = side * (pair === 0 ? -0.12 : 0.1);
+        const restTipZ = side * (translucent ? -0.1 : 0.16);
+        tip.rotation.set(restTipX, restTipY, restTipZ);
+        if (translucent) {
+          glassVoxel(tip, lengths[2], heights[2], 0.55, style.membrane, 0.48, side * lengths[2] * 0.5, -0.25, 0);
+        } else {
+          voxel(tip, lengths[2], heights[2], 0.7, style.membrane, side * lengths[2] * 0.5, -0.25, 0);
+        }
+        voxel(tip, lengths[2] + 0.2, 0.5, 0.65, style.dark, side * lengths[2] * 0.5, heights[2] * 0.34, 0);
+        mid.add(tip);
+        root.add(mid);
+        parent.add(root);
+        flier.wings.push({
+          side,
+          pair,
+          phase: pair * 0.75,
+          root,
+          mid,
+          tip,
+          restRootX: restX,
+          restRootY: restY,
+          restRootZ: restZ,
+          restMidX,
+          restMidY,
+          restMidZ,
+          restTipX,
+          restTipY,
+          restTipZ,
+        });
+      };
+      const buildAppendage = (
+        parent: THREE.Object3D,
+        index: number,
+        x: number,
+        y: number,
+        z: number,
+        lengths: [number, number, number],
+        width: number,
+        color: string,
+        restRootX: number,
+        restRootZ: number,
+      ): void => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        root.rotation.set(restRootX, 0, restRootZ);
+        const upper = voxel(root, width, lengths[0], width, color, 0, -lengths[0] * 0.5, 0);
+        upper.rotation.y = (index % 2 === 0 ? 1 : -1) * 0.04;
+        voxel(root, width + 0.65, 0.8, width + 0.65, style.accent, 0, -0.2, 0);
+
+        const mid = new THREE.Group();
+        mid.position.y = -lengths[0] * P;
+        const restMidX = Math.sin(index * 1.7) * 0.08;
+        const restMidZ = Math.cos(index * 1.3) * 0.07;
+        mid.rotation.set(restMidX, 0, restMidZ);
+        voxel(mid, width * 0.82, lengths[1], width * 0.82, style.membrane, 0, -lengths[1] * 0.5, 0);
+        voxel(mid, width + 0.35, 0.65, width + 0.35, style.dark, 0, -0.15, 0);
+
+        const tip = new THREE.Group();
+        tip.position.y = -lengths[1] * P;
+        const restTipX = Math.cos(index * 1.15) * 0.11;
+        const restTipZ = Math.sin(index * 1.45) * 0.1;
+        tip.rotation.set(restTipX, 0, restTipZ);
+        voxel(tip, width * 0.62, lengths[2], width * 0.62, color, 0, -lengths[2] * 0.5, 0);
+        voxel(tip, width * 0.9, 0.55, width * 0.9, style.dark, 0, -lengths[2], 0);
+        mid.add(tip);
+        root.add(mid);
+        parent.add(root);
+        flier.appendages.push({
+          index,
+          root,
+          mid,
+          tip,
+          restRootX,
+          restRootZ,
+          restMidX,
+          restMidZ,
+          restTipX,
+          restTipZ,
+        });
+      };
+      const buildFin = (
+        parent: THREE.Object3D,
+        side: -1 | 1,
+        x: number,
+        y: number,
+        z: number,
+        length: number,
+        height: number,
+        restX: number,
+        restY: number,
+        restZ: number,
+      ): void => {
+        const root = new THREE.Group();
+        root.position.set(side * x * P, y * P, z * P);
+        root.rotation.set(restX, restY, restZ);
+        voxel(root, length, height, 1, style.membrane, side * length * 0.5, 0, 0);
+        voxel(root, length + 0.4, 0.65, 1.2, style.dark, side * length * 0.5, height * 0.4, 0);
+        parent.add(root);
+        flier.fins.push({ side, root, restX, restY, restZ });
+      };
+
+      const core = flier.core;
+      core.position.y = flier.coreRestY;
+      body.add(core);
+      const head = flier.head;
+
+      switch (feature) {
+        case "cave_bat": {
+          // Layered ribbed body, broad three-section wings, talons and a fanged face.
+          voxel(core, style.bodyWidth, style.bodyHeight, style.bodyLength, style.body);
+          voxel(core, style.bodyWidth + 1.1, 2.2, style.bodyLength * 0.74, style.dark, 0, 1.6, 0.2);
+          voxel(core, style.bodyWidth * 0.68, 1.1, style.bodyLength + 1, style.accent, 0, -2.3, 0.3);
+          for (const z of [-2.5, 0, 2.5]) {
+            voxel(core, style.bodyWidth + 0.8, 0.65, 1, style.dark, 0, 0, z);
+          }
+          head.position.set(0, 0.5 * P, -5.1 * P);
+          voxel(head, 5.4, 4.8, 4.4, style.body);
+          voxel(head, 4.6, 1.2, 0.8, style.dark, 0, 1.4, -2.55);
+          for (const side of [-1, 1] as const) {
+            const ear = new THREE.Group();
+            ear.position.set(side * 1.9 * P, 2.1 * P, 0);
+            ear.rotation.z = side * -0.18;
+            voxel(ear, 1.8, 4.4, 1.5, style.dark, side * 0.45, 1.5, 0);
+            voxel(ear, 0.75, 2.8, 0.8, style.accent, side * 0.45, 1.5, -0.5);
+            head.add(ear);
+            glowVoxel(head, 0.8, 0.8, 0.5, style.glow, side * 1.45, 0.55, -2.45);
+            voxel(head, 0.55, 1.5, 0.55, "#e8dfc6", side * 0.9, -2, -2.5);
+          }
+          const jaw = new THREE.Group();
+          jaw.position.set(0, -1.2 * P, -2.1 * P);
+          voxel(jaw, 3.8, 1.3, 2.3, style.dark, 0, -0.45, -0.7);
+          head.add(jaw);
+          flier.mouth = jaw;
+          for (const side of [-1, 1] as const) {
+            buildWing(core, side, 0, 1, -0.2, [4.8, 4.1, 3.2], [4.2, 3.5, 2.7], false, 0, side * 0.08, side * 0.1);
+            buildAppendage(core, side === -1 ? 0 : 1, side * 1.7, -3, 2.4, [2, 1.5, 1.1], 0.9, style.dark, 0.18, side * 0.22);
+          }
+          break;
+        }
+        case "rune_allay": {
+          // Rune-sprite anatomy with a layered mantle, four glassy wings and
+          // twin articulated light ribbons instead of a tiny vanilla fairy box.
+          voxel(core, style.bodyWidth, 8.8, style.bodyLength, style.body);
+          voxel(core, style.bodyWidth + 1.4, 2.4, style.bodyLength + 1, style.dark, 0, 2.5, 0);
+          voxel(core, style.bodyWidth + 2, 1.2, style.bodyLength + 1.2, style.accent, 0, -3.8, 0);
+          voxel(core, 2.2, 5.6, 0.7, style.dark, 0, -0.4, -2.75);
+          glowVoxel(core, 1.35, 2.8, 0.85, style.glow, 0, -0.2, -3.2);
+          head.position.set(0, 7.2 * P, -0.5 * P);
+          voxel(head, 6.6, 6, 5.8, style.body);
+          voxel(head, 7.5, 1.4, 6.4, style.accent, 0, 2.5, 0);
+          voxel(head, 5.5, 1.3, 0.7, style.dark, 0, -1.8, -3.25);
+          for (const side of [-1, 1] as const) {
+            glowVoxel(head, 1, 1, 0.5, style.glow, side * 1.65, 0.5, -3.2);
+            voxel(head, 0.8, 2.7, 0.8, style.accent, side * 2.6, 3.7, 0);
+            for (const pair of [0, 1] as const) {
+              buildWing(
+                core,
+                side,
+                pair,
+                pair === 0 ? 2.2 : -0.8,
+                pair === 0 ? 1.1 : 1.8,
+                pair === 0 ? [4.6, 3.7, 2.8] : [4, 3.2, 2.4],
+                pair === 0 ? [2.8, 2.3, 1.8] : [2.5, 2, 1.5],
+                true,
+                pair === 0 ? -0.08 : 0.1,
+                side * (pair === 0 ? 0.25 : -0.22),
+                side * (pair === 0 ? 0.08 : -0.04),
+              );
+            }
+            buildAppendage(core, side === -1 ? 0 : 1, side * 1.55, -4.2, 0.7, [3.1, 2.5, 1.8], 0.8, style.body, 0.05, side * 0.05);
+          }
+          break;
+        }
+        case "honey_bee": {
+          // Segmented abdomen, plated thorax, four jointed wings, six dangling
+          // legs, antennae and a proper block stinger.
+          voxel(core, style.bodyWidth, style.bodyHeight, style.bodyLength, style.body, 0, 0, 1.2);
+          voxel(core, style.bodyWidth + 1.1, style.bodyHeight + 1.2, 4.4, style.dark, 0, 0.2, -2.5);
+          for (const [index, z] of [-2.7, 0, 2.8, 5.4].entries()) {
+            voxel(core, style.bodyWidth + 0.45, style.bodyHeight + 0.5, 1.3, index % 2 === 0 ? style.accent : style.dark, 0, 0, z);
+          }
+          voxel(core, 1.4, 1.4, 3.8, style.dark, 0, -0.2, style.bodyLength * 0.63);
+          voxel(core, 0.75, 0.75, 2.4, style.glow, 0, -0.2, style.bodyLength * 0.88);
+          head.position.set(0, 0.2 * P, -6.2 * P);
+          voxel(head, 6.7, 5.5, 5.4, style.dark);
+          voxel(head, 5.2, 1.2, 0.75, style.body, 0, -1.6, -3.05);
+          for (const side of [-1, 1] as const) {
+            glowVoxel(head, 1.45, 1.8, 0.6, style.glow, side * 1.8, 0.4, -3);
+            const antenna = swayingDetail(head, side * 1.8, 2.6, -1.2, 0.55, 3.7, 0.55, style.dark, side * 1.5, side * -0.16);
+            glowVoxel(antenna, 1.1, 1.1, 1.1, style.glow, 0, 3.9, 0);
+            for (const pair of [0, 1] as const) {
+              buildWing(
+                core,
+                side,
+                pair,
+                3,
+                pair === 0 ? -1.8 : 2.1,
+                pair === 0 ? [4.3, 3.2, 2.1] : [3.7, 2.8, 1.8],
+                pair === 0 ? [2.4, 2, 1.5] : [2.1, 1.7, 1.25],
+                true,
+                pair === 0 ? -0.12 : 0.08,
+                side * (pair === 0 ? 0.18 : -0.2),
+                side * 0.05,
+              );
+            }
+          }
+          let legIndex = 0;
+          for (const z of [-3, 0.2, 3.5]) {
+            for (const side of [-1, 1] as const) {
+              buildAppendage(core, legIndex++, side * 2.8, -2.4, z, [2.2, 1.7, 1.1], 0.75, style.dark, z * 0.035, side * 0.32);
+            }
+          }
+          break;
+        }
+        case "storm_ghast": {
+          // Layered storm-lantern body and mask plates replace the plain cube;
+          // nine independently jointed tendrils trail from its underside.
+          voxel(core, style.bodyWidth, 10.5, style.bodyLength, style.body, 0, 0.5, 0);
+          voxel(core, style.bodyWidth - 3, 4.2, style.bodyLength - 2.5, style.membrane, 0, 7, 0.4);
+          voxel(core, style.bodyWidth - 6, 2.4, style.bodyLength - 5, style.dark, 0, 10.1, 0.8);
+          voxel(core, style.bodyWidth + 1.2, 2.2, style.bodyLength - 3, style.accent, 0, 3.5, 0);
+          for (const side of [-1, 1] as const) {
+            voxel(core, 3.5, 8.7, style.bodyLength + 1, style.dark, side * style.bodyWidth * 0.48, 0.9, 0);
+            glowVoxel(core, 0.75, 6.5, style.bodyLength * 0.5, style.glow, side * style.bodyWidth * 0.5, 0.8, -2.5);
+          }
+          head.position.set(0, 1.2 * P, (-style.bodyLength * 0.5 - 0.3) * P);
+          voxel(head, 12.5, 8.8, 1.5, style.dark);
+          voxel(head, 9.5, 6.7, 1, style.body, 0, 0.2, -1.1);
+          for (const side of [-1, 1] as const) {
+            glowVoxel(head, 2.1, 1.6, 0.7, style.glow, side * 3.1, 1.3, -1.9);
+            voxel(head, 3.4, 0.7, 0.8, style.accent, side * 3.1, 2.35, -1.85);
+          }
+          const mouth = new THREE.Group();
+          mouth.position.set(0, -2.3 * P, -1.3 * P);
+          voxel(mouth, 4.8, 2.4, 1.1, style.glow, 0, -0.8, -0.6);
+          voxel(mouth, 6.2, 0.75, 1.3, style.dark, 0, 0.3, -0.5);
+          voxel(mouth, 6.2, 0.75, 1.3, style.dark, 0, -2, -0.5);
+          head.add(mouth);
+          flier.mouth = mouth;
+          const grid: Array<[number, number]> = [
+            [-5.6, -5], [0, -5], [5.6, -5],
+            [-5.6, 0], [0, 0], [5.6, 0],
+            [-5.6, 5], [0, 5], [5.6, 5],
+          ];
+          grid.forEach(([x, z], index) => {
+            const long = 4.2 + (index % 3) * 0.8 + (index % 2) * 0.5;
+            buildAppendage(core, index, x, -4.6, z, [long, long * 0.72, long * 0.52], 1.45, style.body, Math.sin(index) * 0.06, Math.cos(index) * 0.08);
+          });
+          break;
+        }
+        case "reef_squid": {
+          // Tapered mantle, side fins, eye collar and eight three-link arms make
+          // a directional swimmer rather than a vertical vanilla mantle box.
+          voxel(core, 10.8, 11.8, 9.5, style.body, 0, 2.2, 1.5);
+          voxel(core, 8.6, 5.2, 8, style.membrane, 0, 9.5, 2.1);
+          voxel(core, 5.8, 2.5, 6, style.accent, 0, 13, 2.4);
+          voxel(core, style.bodyWidth, 5.3, style.bodyLength, style.dark, 0, -4, -0.2);
+          voxel(core, style.bodyWidth - 1.4, 2.2, style.bodyLength + 0.9, style.membrane, 0, -1.6, 0);
+          head.position.set(0, -3.4 * P, (-style.bodyLength * 0.5 - 0.25) * P);
+          voxel(head, 9.6, 4.8, 2.2, style.body);
+          for (const side of [-1, 1] as const) {
+            glowVoxel(head, 2.1, 1.8, 0.75, style.glow, side * 3, 0.8, -1.5);
+            voxel(head, 3.2, 0.6, 0.8, style.dark, side * 3, 1.9, -1.35);
+            buildFin(core, side, 5.1, 6.5, 3.6, 5.8, 4.3, -0.04, side * 0.18, side * 0.08);
+          }
+          const beak = new THREE.Group();
+          beak.position.set(0, -2.3 * P, -0.8 * P);
+          voxel(beak, 2.5, 1.8, 2.8, style.dark, 0, -0.7, -0.9);
+          voxel(beak, 1.2, 0.9, 1.5, style.glow, 0, -1.8, -2.1);
+          head.add(beak);
+          flier.mouth = beak;
+          for (let index = 0; index < 8; index++) {
+            const angle = (index / 8) * Math.PI * 2;
+            const x = Math.cos(angle) * 4.7;
+            const z = Math.sin(angle) * 4.3;
+            buildAppendage(
+              core,
+              index,
+              x,
+              -6.1,
+              z,
+              [4.2 + (index % 2) * 0.8, 3.4 + (index % 3) * 0.35, 2.6],
+              1.15,
+              index % 2 === 0 ? style.body : style.accent,
+              Math.sin(angle) * 0.18,
+              Math.cos(angle) * 0.18,
+            );
+          }
+          break;
+        }
+      }
+
+      flier.headRestX = head.rotation.x;
+      flier.headRestZ = head.position.z;
+      anim.head = head;
+      anim.headRestZ = head.position.z;
+      core.add(head);
+      const barPixels = feature === "storm_ghast" ? 24
+        : feature === "reef_squid" ? 25
+          : feature === "rune_allay" ? 27 : 20;
+      return { barHeight: barPixels * P + (feature === "storm_ghast" ? 0.55 : 0.32), anim };
+    }
+    if (signatureStyle) {
+      const style = signatureStyle;
+      const feature = style.feature;
+      const signature: SignatureAnim = {
+        feature,
+        motion: style.motion,
+        core: new THREE.Group(),
+        head: new THREE.Group(),
+        jaw: null,
+        headRestX: 0,
+        headRestY: 0,
+        headRestZ: 0,
+        legs: [],
+        wings: [],
+        tail: [],
+        details: [],
+      };
+      anim.signature = signature;
+
+      const voxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = box(w, h, d, color);
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const glowVoxel = (
+        parent: THREE.Object3D,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        x = 0,
+        y = 0,
+        z = 0,
+      ): THREE.Mesh => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w * P, h * P, d * P),
+          new THREE.MeshBasicMaterial({ color }),
+        );
+        mesh.position.set(x * P, y * P, z * P);
+        parent.add(mesh);
+        return mesh;
+      };
+      const swayingDetail = (
+        parent: THREE.Object3D,
+        x: number,
+        y: number,
+        z: number,
+        w: number,
+        h: number,
+        d: number,
+        color: string,
+        phase: number,
+        restZ = 0,
+      ): THREE.Group => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        root.rotation.z = restZ;
+        const mesh = voxel(root, w, h, d, color);
+        mesh.geometry.translate(0, h * 0.5 * P, 0);
+        parent.add(root);
+        signature.details.push({ obj: root, restX: 0, restZ, phase });
+        return root;
+      };
+      const buildLeg = (
+        side: -1 | 1,
+        front: boolean,
+        x: number,
+        y: number,
+        z: number,
+        upperLength: number,
+        lowerLength: number,
+        width: number,
+        upperColor: string,
+      ): void => {
+        const hip = new THREE.Group();
+        hip.position.set(side * x * P, y * P, z * P);
+        const upper = voxel(hip, width, upperLength, width, upperColor);
+        upper.geometry.translate(0, -upperLength * 0.5 * P, 0);
+        voxel(hip, width + 0.8, 1.2, width + 0.75, style.plate, 0, -0.45, 0);
+
+        const knee = new THREE.Group();
+        knee.position.y = -upperLength * P;
+        const lower = voxel(knee, width * 0.86, lowerLength, width * 0.88, style.dark);
+        lower.geometry.translate(0, -lowerLength * 0.5 * P, 0);
+        voxel(knee, width + 0.6, 1.25, width + 0.7, style.accent, 0, -0.15, -0.15);
+
+        const foot = new THREE.Group();
+        foot.position.y = -lowerLength * P;
+        voxel(foot, width + 0.8, 1.2, width + (feature === "roosthen" ? 2.2 : 1.8), style.dark, 0, -0.55, -0.75);
+        if (feature === "roosthen") {
+          for (const toe of [-1, 0, 1]) {
+            voxel(foot, 0.45, 0.45, 2.1, style.glow, toe * 0.75, -1, -1.8);
+          }
+        } else {
+          voxel(foot, width + 0.25, 0.55, width + 1.2, style.accent, 0, -1.15, -1.15);
+        }
+        knee.add(foot);
+        hip.add(knee);
+        body.add(hip);
+        const restHipX = front ? 0.04 : -0.05;
+        const restHipZ = side * 0.015;
+        const restKneeX = front ? 0.09 : -0.16;
+        const restFootX = front ? -0.04 : 0.1;
+        hip.rotation.x = restHipX;
+        hip.rotation.z = restHipZ;
+        knee.rotation.x = restKneeX;
+        foot.rotation.x = restFootX;
+        signature.legs.push({
+          side,
+          front,
+          phase: front ? (side === -1 ? 0 : Math.PI) : (side === -1 ? Math.PI : 0),
+          hip,
+          knee,
+          foot,
+          restHipX,
+          restHipZ,
+          restKneeX,
+          restFootX,
+        });
+      };
+      const buildWing = (
+        parent: THREE.Object3D,
+        side: -1 | 1,
+        x: number,
+        y: number,
+        z: number,
+        length: number,
+        height: number,
+      ): void => {
+        const root = new THREE.Group();
+        root.position.set(side * x * P, y * P, z * P);
+        const restRootX = -0.08;
+        const restRootZ = side * 0.18;
+        root.rotation.set(restRootX, 0, restRootZ);
+        voxel(root, 1.4, height, length, style.plate, side * 0.4, -height * 0.2, 0);
+        voxel(root, 0.7, height + 0.8, length + 0.5, style.dark, side * 0.7, 0, 0);
+        const tip = new THREE.Group();
+        tip.position.set(side * 0.8 * P, -height * 0.75 * P, length * 0.35 * P);
+        const restTipX = 0.12;
+        const restTipZ = side * 0.1;
+        tip.rotation.set(restTipX, 0, restTipZ);
+        voxel(tip, 1.1, height * 0.72, length * 0.72, style.body, side * 0.3, -height * 0.3, 0);
+        root.add(tip);
+        parent.add(root);
+        signature.wings.push({ side, root, tip, restRootX, restRootZ, restTipX, restTipZ });
+      };
+      const buildTail = (
+        parent: THREE.Object3D,
+        startY: number,
+        startZ: number,
+        lengths: number[],
+        widths: number[],
+        restXs: number[],
+        colors: string[],
+      ): void => {
+        let tailParent = parent;
+        for (let i = 0; i < lengths.length; i++) {
+          const tail = new THREE.Group();
+          if (i === 0) tail.position.set(0, startY * P, startZ * P);
+          else tail.position.z = lengths[i - 1] * P;
+          const segment = voxel(tail, widths[i], widths[i], lengths[i], colors[i] ?? style.body);
+          segment.geometry.translate(0, 0, lengths[i] * 0.5 * P);
+          const restX = restXs[i] ?? 0;
+          tail.rotation.x = restX;
+          tailParent.add(tail);
+          signature.tail.push({ obj: tail, restX, restY: 0, restZ: 0, phase: i * 0.75 });
+          tailParent = tail;
+        }
+      };
+
+      const core = signature.core;
+      const head = signature.head;
+      body.add(core);
+
+      switch (feature) {
+        case "roosthen": {
+          core.position.set(0, 8.4 * P, 0.5 * P);
+          voxel(core, style.bodyWidth, style.bodyHeight, style.bodyLength, style.body);
+          voxel(core, style.bodyWidth + 1, 4.6, style.bodyLength * 0.72, style.plate, 0, -0.8, -0.5);
+          voxel(core, 4.5, 3.5, 1.1, style.accent, 0, -2, -4.1);
+          for (const side of [-1, 1] as const) {
+            buildLeg(side, true, 1.55, 5.2, 1.2, 2.4, 1.9, style.limbWidth, style.glow);
+            buildWing(core, side, style.bodyWidth * 0.5, 1.4, 0, 6.2, 5.3);
+          }
+          head.position.set(0, 5.4 * P, -4.3 * P);
+          voxel(head, 5.7, 5.6, 5, style.plate);
+          voxel(head, 5.2, 1.2, 0.75, style.dark, 0, -1.4, -2.85);
+          for (const side of [-1, 1] as const) {
+            glowVoxel(head, 0.75, 0.75, 0.5, style.dark, side * 1.45, 0.7, -2.8);
+          }
+          const jaw = new THREE.Group();
+          jaw.position.set(0, -0.6 * P, -2.5 * P);
+          voxel(jaw, 4.2, 1.4, 3.1, style.glow, 0, -0.5, -1.1);
+          head.add(jaw);
+          signature.jaw = jaw;
+          for (const [x, h] of [[-1.6, 2.8], [0, 4], [1.6, 3.1]] as const) {
+            swayingDetail(head, x, 2.8, 0, 1.1, h, 1, style.accent, x);
+          }
+          for (const side of [-1, 1] as const) {
+            const feather = swayingDetail(core, side * 1.8, 2.2, 3.7, 1.5, 5.5, 1.2, side === -1 ? style.dark : style.accent, side);
+            feather.rotation.x = -0.5;
+          }
+          break;
+        }
+        case "moss_stalker": {
+          core.position.set(0, 13.4 * P, 0);
+          voxel(core, style.bodyWidth, style.bodyHeight, style.bodyLength, style.body);
+          voxel(core, style.bodyWidth + 1.4, 2.4, style.bodyLength + 1, style.plate, 0, 4.4, 0);
+          voxel(core, style.bodyWidth - 1.3, 8.3, 0.9, style.dark, 0, 0, -4.05);
+          glowVoxel(core, style.bodyWidth - 3, 0.65, 1, style.glow, 0, 1.8, -4.6);
+          for (const [x, y, z] of [[-3.7, 2.8, -2], [3.8, -2.2, 1.8], [-2.8, -3.8, 2.2]] as const) {
+            voxel(core, 2.1, 2.8, 1.2, style.accent, x, y, z);
+          }
+          for (const front of [true, false]) {
+            for (const side of [-1, 1] as const) {
+              buildLeg(side, front, 2.5, 7.5, front ? -2.6 : 3, 3.5, 3, style.limbWidth, style.body);
+            }
+          }
+          head.position.set(0, 10.5 * P, -0.45 * P);
+          voxel(head, 9.2, 8.8, 8.8, style.plate);
+          voxel(head, 8.1, 2, 1, style.dark, 0, 2.3, -4.9);
+          for (const side of [-1, 1] as const) {
+            glowVoxel(head, 1.5, 1.5, 0.65, style.glow, side * 2.3, 1.7, -4.9);
+          }
+          const jaw = new THREE.Group();
+          jaw.position.set(0, -1.1 * P, -4.25 * P);
+          voxel(jaw, 5.4, 3.9, 1, style.dark, 0, -1.3, -0.8);
+          for (const [x, y] of [[-1.8, -0.3], [0, -1.7], [1.8, -0.3]] as const) {
+            glowVoxel(jaw, 1.1, 1.1, 0.6, style.glow, x, y, -1.4);
+          }
+          head.add(jaw);
+          signature.jaw = jaw;
+          for (const x of [-3.1, -1, 1.2, 3.2]) {
+            swayingDetail(head, x, 4.2, 1.2, 0.65, 4.2 + Math.abs(x) * 0.2, 0.7, style.accent, x);
+          }
+          break;
+        }
+        case "ironback": {
+          core.position.set(0, 7.6 * P, 1 * P);
+          voxel(core, style.bodyWidth, style.bodyHeight, style.bodyLength, style.body);
+          for (const z of [-5.5, -3, -0.5, 2, 4.5, 6]) {
+            voxel(core, style.bodyWidth + 1.6, style.bodyHeight + 1.2, 1.7, style.plate, 0, 1, z);
+            voxel(core, style.bodyWidth + 2.2, 0.7, 1.9, style.accent, 0, 5.2, z);
+          }
+          for (const front of [true, false]) {
+            for (const side of [-1, 1] as const) {
+              buildLeg(side, front, 3.7, 5.4, 1 + (front ? -4.2 : 4.2), 2.35, 2, style.limbWidth, style.body);
+            }
+          }
+          head.position.set(0, -0.3 * P, -8.1 * P);
+          voxel(head, 7.8, 5.7, 6.4, style.body);
+          voxel(head, 8.5, 2, 5.8, style.plate, 0, 2.4, 0.4);
+          voxel(head, 5.8, 2.6, 3.5, style.accent, 0, -1.1, -4.1);
+          for (const side of [-1, 1] as const) {
+            glowVoxel(head, 0.8, 0.8, 0.5, style.glow, side * 2.2, 0.5, -3.45);
+            voxel(head, 1.5, 2.6, 1.2, style.dark, side * 3.4, 2.4, 0);
+          }
+          const jaw = new THREE.Group();
+          jaw.position.set(0, -1.6 * P, -3.1 * P);
+          voxel(jaw, 4.8, 1.6, 3.4, style.dark, 0, -0.5, -1.1);
+          head.add(jaw);
+          signature.jaw = jaw;
+          buildTail(core, 0.4, 7, [3.2, 2.7, 2.2], [2.4, 1.8, 1.2], [0.15, 0.2, 0.24], [style.plate, style.body, style.dark]);
+          break;
+        }
+        case "siege_beast": {
+          core.position.set(0, 12 * P, 0.5 * P);
+          voxel(core, style.bodyWidth, style.bodyHeight, style.bodyLength, style.body);
+          voxel(core, style.bodyWidth + 3, style.bodyHeight * 0.78, 7.2, style.dark, 0, 1, -6.2);
+          voxel(core, style.bodyWidth + 2, 3.4, style.bodyLength - 2, style.plate, 0, 5.5, 0.5);
+          for (const z of [-6.5, -2.2, 2.2, 6.5]) {
+            voxel(core, style.bodyWidth + 1.4, 1.2, 2.2, style.accent, 0, 3.6, z);
+          }
+          for (const front of [true, false]) {
+            for (const side of [-1, 1] as const) {
+              buildLeg(side, front, 5.2, 10.3, 0.5 + (front ? -6.2 : 6.2), 5.1, 4, style.limbWidth, front ? style.dark : style.body);
+            }
+          }
+          head.position.set(0, 0.6 * P, -11.2 * P);
+          voxel(head, 13.5, 9.4, 8.6, style.dark);
+          voxel(head, 14.8, 3.1, 8.1, style.plate, 0, 3.7, 0.4);
+          voxel(head, 10.5, 3.8, 5.2, style.body, 0, -1.2, -6);
+          for (const side of [-1, 1] as const) {
+            glowVoxel(head, 1.4, 1.2, 0.65, style.glow, side * 3.5, 1.2, -4.8);
+            const horn = new THREE.Group();
+            horn.position.set(side * 6.2 * P, 3.8 * P, -1.2 * P);
+            horn.rotation.z = side * -0.2;
+            voxel(horn, 4.2, 2.1, 2.1, style.accent, side * 1.7, 0, 0);
+            voxel(horn, 2.8, 1.2, 1.25, "#c9b895", side * 4.5, 0.9, -0.2).rotation.z = side * -0.24;
+            head.add(horn);
+          }
+          const jaw = new THREE.Group();
+          jaw.position.set(0, -2.2 * P, -5.2 * P);
+          voxel(jaw, 10.2, 2.8, 5.7, style.accent, 0, -1, -2.2);
+          voxel(jaw, 8.8, 0.8, 4.9, style.dark, 0, -2.6, -2.3);
+          head.add(jaw);
+          signature.jaw = jaw;
+          buildTail(core, 0.6, 9.5, [3.3, 2.5], [2.1, 1.4], [0.18, 0.25], [style.body, style.dark]);
+          break;
+        }
+        case "root_sniffer": {
+          core.position.set(0, 10.8 * P, 1 * P);
+          voxel(core, style.bodyWidth, style.bodyHeight, style.bodyLength, style.body);
+          voxel(core, style.bodyWidth + 1.8, 3.2, style.bodyLength - 1.5, style.plate, 0, 4.8, 0.4);
+          voxel(core, style.bodyWidth + 2.2, 4.8, 6.8, style.dark, 0, 0.8, -7);
+          for (const z of [-7, -3.5, 0, 3.5, 7]) {
+            voxel(core, style.bodyWidth + 1.1, 1, 2.2, style.accent, 0, 3.5, z);
+          }
+          for (const [x, z, h] of [[-5, -5.8, 3.2], [-2, -2, 4.5], [2.2, 1.5, 3.8], [5, 5, 4.2], [-4, 7.2, 2.8]] as const) {
+            const shoot = swayingDetail(core, x, 5.4, z, 0.75, h, 0.75, style.glow, x + z);
+            voxel(shoot, 2.3, 1.1, 2.3, style.plate, 0, h + 0.4, 0);
+          }
+          for (const front of [true, false]) {
+            for (const side of [-1, 1] as const) {
+              buildLeg(side, front, 5, 8.9, 1 + (front ? -6.8 : 6.8), 4.35, 3.25, style.limbWidth, style.body);
+            }
+          }
+          head.position.set(0, -0.9 * P, -12.1 * P);
+          voxel(head, 12.8, 7.4, 8.5, style.dark);
+          voxel(head, 13.8, 2.7, 7.8, style.plate, 0, 3.1, 0.5);
+          voxel(head, 11.4, 4.2, 8.2, style.accent, 0, -1.2, -7.1);
+          voxel(head, 9.7, 2.3, 1.1, style.dark, 0, -1.4, -11.5);
+          for (const side of [-1, 1] as const) {
+            glowVoxel(head, 1.3, 1.1, 0.65, style.glow, side * 3.5, 1.1, -4.6);
+            voxel(head, 2.5, 3.3, 1.5, style.plate, side * 5.8, 2.3, -0.3);
+            voxel(head, 1, 0.9, 0.55, style.dark, side * 2.7, -1.2, -12.15);
+          }
+          const jaw = new THREE.Group();
+          jaw.position.set(0, -2.6 * P, -6.8 * P);
+          voxel(jaw, 9.5, 2.2, 7.5, style.dark, 0, -0.8, -3.4);
+          head.add(jaw);
+          signature.jaw = jaw;
+          buildTail(core, 0.7, 10, [4.2, 3.4, 2.7], [2.7, 2, 1.35], [0.16, 0.22, 0.28], [style.body, style.accent, style.dark]);
+          break;
+        }
+      }
+
+      signature.headRestX = head.rotation.x;
+      signature.headRestY = head.position.y;
+      signature.headRestZ = head.position.z;
+      anim.head = head;
+      anim.headRestZ = head.position.z;
+      core.add(head);
+      const barPixels = feature === "siege_beast" ? 31
+        : feature === "root_sniffer" ? 29
+          : feature === "moss_stalker" ? 29
+            : feature === "ironback" ? 22 : 21;
+      return { barHeight: barPixels * P + 0.34, anim };
     }
     if (kind === "dragon") {
       // Baked Blockbench model with its own keyframe animations.
@@ -5756,71 +9083,244 @@ export class GameRenderer {
       }
       case "spider":
       case "gnasher": {
-        // Vanilla ModelSpider boxes: 8x8x8 head, 6x6x6 thorax, 10x8x12
-        // abdomen, eight 16x2x2 legs fanned from the thorax. Old Gnasher is
-        // the same rig scaled up by its def, ore-crusted, with ember eyes.
         const boss = kind === "gnasher";
-        const bodyColor = boss ? "#3a2f26" : tint ?? "#3d3630";
-        const legColor = boss ? "#2e2620" : tint ?? "#332d28";
+        const style = arachnidStyleFor(defId, boss);
+        const [abdomenW, abdomenH, abdomenD] = style.abdomen;
+        const arachnid: ArachnidAnim = {
+          legs: [],
+          abdomen: new THREE.Group(),
+          mandibles: [],
+          pedipalps: [],
+        };
+        anim.arachnid = arachnid;
+
+        const voxel = (
+          parent: THREE.Object3D,
+          w: number,
+          h: number,
+          d: number,
+          color: string,
+          x = 0,
+          y = 0,
+          z = 0,
+        ): THREE.Mesh => {
+          const mesh = box(w, h, d, color);
+          mesh.position.set(x * P, y * P, z * P);
+          parent.add(mesh);
+          return mesh;
+        };
+        const glowVoxel = (
+          parent: THREE.Object3D,
+          w: number,
+          h: number,
+          d: number,
+          color: string,
+          x = 0,
+          y = 0,
+          z = 0,
+        ): THREE.Mesh => {
+          const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(w * P, h * P, d * P),
+            new THREE.MeshBasicMaterial({ color }),
+          );
+          mesh.position.set(x * P, y * P, z * P);
+          parent.add(mesh);
+          return mesh;
+        };
+
+        // Three overlapping masses give the silhouette the chunky, assembled
+        // voxel depth of the concept sheet instead of a single vanilla box.
+        const thorax = new THREE.Group();
+        thorax.position.set(0, 9 * P, 0);
+        thorax.add(skinned(rigSkin, 6, 6, 6, style.body, 0, 0));
+        voxel(thorax, 6.8, 1.5, 6.4, style.shell, 0, 3.15, 0);
+        voxel(thorax, 7.2, 3.5, 2.2, style.shell, 0, 0.4, 1.9);
+        voxel(thorax, 1.2, 4.4, 5.5, style.accent, -3.25, -0.2, 0);
+        voxel(thorax, 1.2, 4.4, 5.5, style.accent, 3.25, -0.2, 0);
+
+        const abdomen = arachnid.abdomen;
+        abdomen.position.set(0, 9.2 * P, 9 * P);
+        const abdomenCore = skinned(
+          rigSkin,
+          abdomenW,
+          abdomenH,
+          abdomenD,
+          style.body,
+          0,
+          12,
+          [10, 8, 12],
+        );
+        abdomen.add(abdomenCore);
+        voxel(abdomen, abdomenW - 1, 1.5, abdomenD - 2, style.shell, 0, abdomenH / 2 + 0.35, 0);
+        voxel(abdomen, abdomenW - 1.6, abdomenH - 1.4, 1.25, style.shell, 0, 0, abdomenD / 2 + 0.2);
+        for (const z of [-abdomenD * 0.23, abdomenD * 0.18]) {
+          voxel(abdomen, abdomenW + 0.5, 1.1, 1.5, style.accent, 0, abdomenH / 2 + 0.6, z);
+        }
+        for (const side of [-1, 1] as const) {
+          voxel(abdomen, 1, abdomenH - 2, 2.8, style.shell, side * (abdomenW / 2 + 0.2), 0, 1.2);
+        }
+        abdomen.userData.baseY = abdomen.position.y;
+        anim.segments.push(abdomen);
+
+        // Broad armored head, brows, cheek blocks, and six always-visible
+        // emissive eyes. Texture-pack skins still cover the underlying skull.
         const head = new THREE.Group();
-        const skull = skinned(rigSkin, 8, 8, 8, bodyColor, 32, 4);
+        const skull = skinned(rigSkin, 8, 8, 8, style.body, 32, 4);
         skull.position.z = -4 * P;
         head.add(skull);
-        if (!rigSkin) {
-          // Two rows of glinting eyes across the face.
-          for (const [x, y, w] of [[-2.6, 1.5, 1.4], [2.6, 1.5, 1.4], [-1.1, -0.5, 1], [1.1, -0.5, 1]] as const) {
-            const eye = new THREE.Mesh(
-              new THREE.BoxGeometry(w * P, w * P, 0.5 * P),
-              new THREE.MeshBasicMaterial({ color: boss ? "#ff5a2a" : "#c0392b" }),
-            );
-            eye.position.set(x * P, y * P, -8.2 * P);
-            head.add(eye);
-          }
-          for (const side of [-1, 1]) {
-            const fang = box(1, 2, 1, legColor);
-            fang.position.set(side * 2 * P, -4.5 * P, -7 * P);
-            head.add(fang);
-          }
+        voxel(head, 7.4, 1.4, 2, style.shell, 0, 3.4, -5.5);
+        voxel(head, 2.2, 3.8, 1.3, style.accent, -3.25, -0.5, -7.55);
+        voxel(head, 2.2, 3.8, 1.3, style.accent, 3.25, -0.5, -7.55);
+        for (const [x, y, w] of [
+          [-2.55, 1.45, 1.4], [2.55, 1.45, 1.4],
+          [-1.15, 0.2, 1.05], [1.15, 0.2, 1.05],
+          [-2.05, -1.05, 0.75], [2.05, -1.05, 0.75],
+        ] as const) {
+          glowVoxel(head, w, w, 0.55, style.eye, x, y, -8.25);
         }
         head.position.set(0, 9 * P, -3 * P); // vanilla head pivot
         anim.head = head;
         anim.headRestZ = -3 * P;
-        const thorax = skinned(rigSkin, 6, 6, 6, bodyColor, 0, 0);
-        thorax.position.set(0, 9 * P, 0);
-        const abdomen = skinned(rigSkin, 10, 8, 12, bodyColor, 0, 12);
-        abdomen.position.set(0, 9 * P, 9 * P);
-        abdomen.userData.baseY = abdomen.position.y;
-        anim.segments.push(abdomen); // abdomen bobs with the undulation anim
-        if (boss) {
-          // Ore crust and spikes along the abdomen: she sleeps under the lode.
-          const ore = new THREE.MeshLambertMaterial({
-            map: this.materials.texture("resource.rock.tin"),
-          });
-          for (const [x, y, z, sz] of [[-2, 4, -2, 4], [2.5, 4, 2, 3], [0, 4.5, 0, 3.5]] as const) {
-            const nub = new THREE.Mesh(new THREE.BoxGeometry(sz * P, sz * 0.7 * P, sz * P), ore);
-            nub.position.set(x * P, y * P, z * P); // relative to abdomen center
-            abdomen.add(nub);
-          }
-          for (const z of [-4, 0, 4]) {
-            const spike = box(1.5, 3.5, 1.5, "#2e2620");
-            spike.position.set(0, 5 * P, z * P);
-            abdomen.add(spike);
-          }
-        }
-        // Eight legs, pivoting at the thorax, fanned and tilted to the ground.
+
+        // Paired jaw hinges and two-joint pedipalps make the lunge read in the
+        // face, not only as translation of the whole creature.
         for (const side of [-1, 1] as const) {
-          for (let i = 0; i < 4; i++) {
-            const leg = skinned(rigSkin, 16, 2, 2, legColor, 18, 0);
-            leg.geometry.translate(side * 8 * P, 0, 0);
-            leg.position.set(side * 2 * P, 9 * P, (2 - i * 2) * P);
-            leg.rotation.y = side * (i - 1.5) * -0.45;
-            leg.rotation.z = side * -0.5; // slope down so the tips touch ground
-            anim.legs.push(leg);
-            body.add(leg);
-          }
+          const jaw = new THREE.Group();
+          jaw.position.set(side * 2.05 * P, -2.5 * P, -7.6 * P);
+          jaw.rotation.y = side * 0.08;
+          voxel(jaw, 1.65, 3.1, 1.8, style.shell, 0, -1.1, -0.55);
+          voxel(jaw, 0.9, 2.3, 0.9, style.accent, side * 0.35, -3, -1.2);
+          head.add(jaw);
+          arachnid.mandibles.push({ obj: jaw, side, restY: jaw.rotation.y });
+
+          const palp = new THREE.Group();
+          palp.position.set(side * 3.1 * P, -1.8 * P, -6.7 * P);
+          palp.rotation.set(-0.15, side * 0.2, side * -0.42);
+          const upper = skinned(rigSkin, 3.8, 1.5, 1.5, style.leg, 18, 0, [16, 2, 2]);
+          upper.geometry.translate(side * 1.9 * P, 0, 0);
+          palp.add(upper);
+          const palpTip = new THREE.Group();
+          palpTip.position.x = side * 3.6 * P;
+          palpTip.rotation.z = side * 0.55;
+          const tip = voxel(palpTip, 2.8, 1.4, 1.4, style.accent);
+          tip.geometry.translate(side * 1.25 * P, 0, 0);
+          palp.add(palpTip);
+          head.add(palp);
+          arachnid.pedipalps.push({ obj: palp, side, restX: palp.rotation.x, restY: palp.rotation.y });
         }
+
+        // Eight real three-joint legs. Each row has its own yaw, and each
+        // segment carries a cap so the bends stay legible at game scale.
+        for (const spec of ARACHNID_LEGS) {
+          const upperLen = boss ? 6 : 5.4;
+          const middleLen = boss ? 6.4 : 5.8;
+          const lowerLen = boss ? 5.7 : 5.2;
+          const hip = new THREE.Group();
+          hip.position.set(spec.side * 2.8 * P, 8.1 * P, spec.attachZ * P);
+          hip.rotation.set(0, spec.yaw, spec.side * 0.22);
+          voxel(hip, 2.5, 2.7, 2.5, style.shell);
+          const upper = skinned(rigSkin, upperLen, 2.1, 2.1, style.leg, 18, 0, [16, 2, 2]);
+          upper.geometry.translate(spec.side * upperLen * 0.5 * P, 0, 0);
+          hip.add(upper);
+
+          const knee = new THREE.Group();
+          knee.position.x = spec.side * upperLen * P;
+          knee.rotation.z = spec.side * -0.8;
+          voxel(knee, 2.45, 2.55, 2.45, style.accent);
+          const middle = skinned(rigSkin, middleLen, 1.8, 1.8, style.leg, 18, 0, [16, 2, 2]);
+          middle.geometry.translate(spec.side * middleLen * 0.5 * P, 0, 0);
+          knee.add(middle);
+
+          const ankle = new THREE.Group();
+          ankle.position.x = spec.side * middleLen * P;
+          ankle.rotation.z = spec.side * -0.13;
+          voxel(ankle, 1.9, 2, 1.9, style.shell);
+          const lower = skinned(rigSkin, lowerLen, 1.45, 1.45, style.leg, 18, 0, [16, 2, 2]);
+          lower.geometry.translate(spec.side * lowerLen * 0.5 * P, 0, 0);
+          ankle.add(lower);
+          voxel(ankle, 2.1, 1.05, 2.5, style.shell, spec.side * (lowerLen + 0.4), -0.15, 0);
+          voxel(ankle, 1.2, 0.8, 1, style.accent, spec.side * (lowerLen + 1.75), -0.25, -0.6);
+          voxel(ankle, 1.2, 0.8, 1, style.accent, spec.side * (lowerLen + 1.75), -0.25, 0.6);
+
+          knee.add(ankle);
+          hip.add(knee);
+          body.add(hip);
+          arachnid.legs.push({
+            side: spec.side,
+            slot: spec.slot,
+            phase: spec.phase,
+            hip: { obj: hip, restX: 0, restY: spec.yaw, restZ: spec.side * 0.22 },
+            knee: { obj: knee, restX: 0, restY: 0, restZ: spec.side * -0.8 },
+            ankle: { obj: ankle, restX: 0, restY: 0, restZ: spec.side * -0.13 },
+          });
+        }
+
+        // Every live arachnid gets authored geometry, rather than tinting the
+        // same mesh. Features deliberately exaggerate their bestiary read.
+        switch (style.feature) {
+          case "bristles":
+            for (const [x, z, h] of [[-3, -3.2, 2.2], [2.8, -2.2, 1.8], [-3.2, 1.2, 1.7], [2.7, 2.8, 2.1], [0, 3.8, 1.6]] as const) {
+              const bristle = voxel(abdomen, 0.65, h, 0.65, style.accent, x, abdomenH / 2 + h / 2, z);
+              bristle.rotation.z = x < 0 ? -0.18 : 0.18;
+            }
+            break;
+          case "venom":
+            for (const side of [-1, 1] as const) {
+              voxel(abdomen, 3.2, 3, 4.1, style.accent, side * 2.35, -abdomenH / 2 + 0.4, 2.4);
+              glowVoxel(abdomen, 1.7, 0.5, 2.5, "#67d9bb", side * 2.35, -abdomenH / 2 - 1.15, 1.8);
+            }
+            break;
+          case "ore": {
+            const ore = new THREE.MeshLambertMaterial({
+              map: this.materials.texture("resource.rock.tin"),
+            });
+            for (const [x, y, z, sz] of [[-2.8, 4.9, -2.8, 3.7], [2.8, 5, 2, 3], [0.2, 5.5, 0, 3.4]] as const) {
+              const nub = new THREE.Mesh(new THREE.BoxGeometry(sz * P, sz * 0.7 * P, sz * P), ore);
+              nub.position.set(x * P, y * P, z * P);
+              abdomen.add(nub);
+            }
+            for (const z of [-4.5, 0, 4]) voxel(abdomen, 1.7, 4.2, 1.7, style.shell, 0, abdomenH / 2 + 2.1, z);
+            break;
+          }
+          case "gloom":
+            for (const [x, z, h] of [[-2.8, -2.5, 3.8], [2.5, 1.5, 3], [0, 4, 2.4]] as const) {
+              const crystal = voxel(abdomen, 1.8, h, 1.8, style.accent, x, abdomenH / 2 + h / 2, z);
+              crystal.rotation.y = Math.PI / 4;
+              glowVoxel(abdomen, 0.55, h * 0.75, 0.6, "#c06cff", x, abdomenH / 2 + h / 2, z - 0.95);
+            }
+            break;
+          case "dust":
+            for (const z of [-4, 0, 4]) voxel(abdomen, abdomenW + 1.1, 1.25, 2.2, style.accent, 0, abdomenH / 2 + 0.9, z);
+            for (const side of [-1, 1] as const) {
+              voxel(abdomen, 1.4, 2.5, 5.5, "#d0b77c", side * (abdomenW / 2 + 0.6), 0.4, 1.5);
+            }
+            break;
+          case "vine":
+            voxel(abdomen, 1.1, 0.75, abdomenD + 1, "#86a957", -2.4, abdomenH / 2 + 1.25, 0);
+            voxel(abdomen, 1, abdomenH + 0.5, 0.8, "#557a3e", 3.1, 0, 0.8);
+            for (const [x, y, z] of [[-3.4, 4.9, -3], [2.4, 5, 2.5], [-1.7, 4.8, 4.2]] as const) {
+              voxel(abdomen, 2.2, 0.7, 1.5, style.accent, x, y, z);
+            }
+            break;
+          case "thorn":
+            for (const [x, z, h] of [[-2.8, -3.5, 3.5], [2.8, -1.2, 4.2], [-2.3, 2, 4], [2.1, 4, 3.3]] as const) {
+              voxel(abdomen, 1.8, h * 0.58, 1.8, style.accent, x, abdomenH / 2 + h * 0.29, z);
+              voxel(abdomen, 0.8, h * 0.42, 0.8, "#b08c56", x, abdomenH / 2 + h * 0.79, z);
+            }
+            break;
+          case "ember":
+            for (const [x, z, w] of [[-2.8, -3, 3], [2.6, 0, 2.6], [-1.4, 3.5, 3.4]] as const) {
+              voxel(abdomen, w + 1, 1.1, 2.3, "#171616", x, abdomenH / 2 + 1, z);
+              glowVoxel(abdomen, w, 0.42, 0.65, "#ff6428", x, abdomenH / 2 + 1.58, z - 0.35);
+            }
+            for (const side of [-1, 1] as const) {
+              glowVoxel(thorax, 0.45, 2.5, 0.5, "#ff6428", side * 3.9, 0, -0.7);
+            }
+            break;
+        }
+
         body.add(head, thorax, abdomen);
-        return { barHeight: 13 * P + 0.25, anim };
+        return { barHeight: (boss ? 17 : 15) * P + 0.25, anim };
       }
     }
   }
@@ -5895,9 +9395,512 @@ export class GameRenderer {
       }
       if (moving) anim.walkPhase += dt * 11;
       const swing = Math.sin(anim.walkPhase) * 0.55;
-      anim.legs.forEach((leg, i) => {
-        leg.rotation.x = moving ? (i % 2 === 0 ? swing : -swing) : leg.rotation.x * 0.8;
-      });
+      const attackPulse = anim.lungeT > 0
+        ? Math.sin((1 - Math.max(0, anim.lungeT) / 0.35) * Math.PI)
+        : 0;
+      if (anim.arachnid) {
+        for (const leg of anim.arachnid.legs) {
+          const gait = anim.walkPhase + leg.phase;
+          const stride = moving
+            ? Math.sin(gait)
+            : Math.sin(this.elapsed * 1.6 + leg.slot * 0.8 + leg.side) * 0.035;
+          const lift = moving ? Math.max(0, Math.cos(gait)) : 0;
+          const frontStrike = leg.slot === 0 ? attackPulse : leg.slot === 1 ? attackPulse * 0.35 : 0;
+          leg.hip.obj.rotation.x = leg.hip.restX + Math.sin(gait) * (moving ? 0.045 : 0.008);
+          leg.hip.obj.rotation.y = leg.hip.restY + leg.side * stride * 0.16 + leg.side * frontStrike * 0.18;
+          leg.hip.obj.rotation.z = leg.hip.restZ + leg.side * lift * 0.17 - leg.side * frontStrike * 0.12;
+          leg.knee.obj.rotation.x = leg.knee.restX;
+          leg.knee.obj.rotation.y = leg.knee.restY - leg.side * stride * 0.04;
+          leg.knee.obj.rotation.z = leg.knee.restZ + leg.side * lift * 0.2 + leg.side * frontStrike * 0.16;
+          leg.ankle.obj.rotation.x = leg.ankle.restX;
+          leg.ankle.obj.rotation.y = leg.ankle.restY;
+          leg.ankle.obj.rotation.z = leg.ankle.restZ - leg.side * lift * 0.1 - leg.side * frontStrike * 0.1;
+        }
+        for (const jaw of anim.arachnid.mandibles) {
+          const idleGnash = Math.sin(this.elapsed * 2.3 + jaw.side) * 0.025;
+          jaw.obj.rotation.y = jaw.restY + jaw.side * (attackPulse * 0.42 + idleGnash);
+        }
+        for (const palp of anim.arachnid.pedipalps) {
+          palp.obj.rotation.x = palp.restX - attackPulse * 0.62
+            + Math.sin(this.elapsed * 2 + palp.side) * 0.025;
+          palp.obj.rotation.y = palp.restY + palp.side * attackPulse * 0.2;
+        }
+        anim.arachnid.abdomen.rotation.x = Math.sin(this.elapsed * 2.1) * 0.035 + attackPulse * 0.06;
+        anim.arachnid.abdomen.rotation.z = Math.sin(this.elapsed * 1.35) * 0.018;
+      } else if (anim.undead) {
+        const idle = Math.sin(this.elapsed * 1.55);
+        for (const leg of anim.undead.legs) {
+          const step = moving
+            ? Math.sin(anim.walkPhase + leg.phase)
+            : Math.sin(this.elapsed * 1.25 + leg.phase) * 0.025;
+          const kneeLift = moving ? Math.max(0, -step) : 0;
+          leg.upper.rotation.x = leg.restUpperX + step * (moving ? 0.55 : 0.12);
+          leg.upper.rotation.z = leg.restUpperZ + leg.side * Math.abs(step) * (moving ? 0.035 : 0.008);
+          leg.lower.rotation.x = leg.restLowerX + kneeLift * 0.48;
+          leg.lower.rotation.z = -leg.side * kneeLift * 0.025;
+        }
+        for (const arm of anim.undead.arms) {
+          const counterStep = moving ? Math.sin(anim.walkPhase + arm.phase) : idle * 0.08;
+          const unevenStrike = attackPulse * (arm.side === -1 ? 1 : 0.88);
+          arm.upper.rotation.x = arm.restUpperX - counterStep * 0.24 + unevenStrike * 1.05;
+          arm.upper.rotation.z = arm.restUpperZ + arm.side * (idle * 0.018 - unevenStrike * 0.08);
+          arm.lower.rotation.x = arm.restLowerX + Math.max(0, counterStep) * 0.13 + unevenStrike * 0.62;
+        }
+        anim.undead.torso.rotation.y = moving ? Math.sin(anim.walkPhase) * 0.045 : idle * 0.018;
+        anim.undead.torso.rotation.z = Math.sin(this.elapsed * 1.1) * 0.018;
+        anim.undead.head.rotation.x = anim.undead.headRestX
+          + Math.sin(this.elapsed * 1.7) * 0.025 - attackPulse * 0.11;
+        anim.undead.head.rotation.z = anim.undead.headRestZ
+          + Math.sin(this.elapsed * 1.25) * 0.025 + attackPulse * 0.045;
+        for (const hanger of anim.undead.hangers) {
+          const flutter = Math.sin(this.elapsed * (moving ? 6.2 : 1.8) + hanger.phase);
+          hanger.obj.rotation.x = hanger.restX + flutter * (moving ? 0.13 : 0.035) - attackPulse * 0.08;
+          hanger.obj.rotation.z = hanger.restZ + Math.sin(this.elapsed * 1.5 + hanger.phase) * 0.035;
+        }
+      } else if (anim.construct) {
+        const idle = Math.sin(this.elapsed * 1.35);
+        for (const leg of anim.construct.legs) {
+          const step = moving
+            ? Math.sin(anim.walkPhase + leg.phase)
+            : Math.sin(this.elapsed * 1.05 + leg.phase) * 0.015;
+          const compression = moving ? Math.max(0, -step) : 0;
+          leg.upper.rotation.x = leg.restUpperX + step * (moving ? 0.38 : 0.08);
+          leg.upper.rotation.z = leg.restUpperZ + leg.side * compression * 0.025;
+          leg.lower.rotation.x = leg.restLowerX + compression * 0.32;
+          leg.lower.rotation.z = -leg.side * compression * 0.018;
+        }
+        for (const arm of anim.construct.arms) {
+          const counterStep = moving ? Math.sin(anim.walkPhase + arm.phase) : idle * 0.035;
+          const slam = attackPulse * (arm.side === -1 ? 1 : 0.92);
+          arm.upper.rotation.x = arm.restUpperX - counterStep * 0.2 + slam * 0.92;
+          arm.upper.rotation.z = arm.restUpperZ - arm.side * slam * 0.075;
+          arm.lower.rotation.x = arm.restLowerX + Math.max(0, counterStep) * 0.08 + slam * 0.56;
+        }
+        anim.construct.torso.rotation.y = moving ? Math.sin(anim.walkPhase) * 0.035 : idle * 0.012;
+        anim.construct.torso.rotation.z = Math.sin(this.elapsed * 0.9) * 0.012;
+        anim.construct.head.rotation.x = anim.construct.headRestX
+          + Math.sin(this.elapsed * 1.15) * 0.018 - attackPulse * 0.08;
+        anim.construct.head.rotation.z = anim.construct.headRestZ
+          + Math.sin(this.elapsed * 0.8) * 0.015 + attackPulse * 0.035;
+        for (const panel of anim.construct.panels) {
+          panel.obj.rotation.y = panel.restY + panel.sign * attackPulse * 0.62;
+        }
+        const corePulse = 1 + Math.sin(this.elapsed * 3.2) * 0.035 + attackPulse * 0.16;
+        anim.construct.core.scale.setScalar(corePulse);
+        for (const gear of anim.construct.gears) {
+          gear.obj.rotation.z += dt * gear.speed * ((moving ? 1.7 : 0.65) + attackPulse * 2.2);
+        }
+        for (const detail of anim.construct.details) {
+          detail.obj.rotation.x = detail.restX
+            + Math.sin(this.elapsed * (moving ? 4.5 : 1.4) + detail.phase) * (moving ? 0.1 : 0.03);
+          detail.obj.rotation.z = detail.restZ
+            + Math.sin(this.elapsed * 1.1 + detail.phase) * 0.035;
+        }
+      } else if (anim.ooze) {
+        const bounce = moving ? Math.abs(Math.sin(anim.walkPhase * 0.65)) : 0;
+        for (const segment of anim.ooze.segments) {
+          const ripple = Math.sin(this.elapsed * 2.1 + segment.phase);
+          const squash = bounce * 0.13 * segment.squash + ripple * 0.025 * segment.squash;
+          segment.obj.position.y = segment.baseY
+            + (bounce * 0.28 + ripple * 0.055 + attackPulse * 0.08) * PX;
+          segment.obj.scale.set(
+            1 + squash + attackPulse * 0.055,
+            1 - squash * 1.25 - attackPulse * 0.08,
+            1 + squash * 0.72 + attackPulse * 0.17,
+          );
+          segment.obj.rotation.z = ripple * 0.012 * segment.squash;
+        }
+        const corePulse = 1 + Math.sin(this.elapsed * 3.4) * 0.045 + attackPulse * 0.14;
+        anim.ooze.core.scale.set(corePulse, corePulse * (1 - attackPulse * 0.08), corePulse);
+        anim.ooze.core.rotation.y += dt * (moving ? 0.85 : 0.28);
+        anim.ooze.mouth.scale.y = 1 + attackPulse * 2.1 + Math.max(0, Math.sin(this.elapsed * 1.7)) * 0.08;
+        anim.ooze.mouth.scale.x = 1 - attackPulse * 0.1;
+        for (let i = 0; i < anim.ooze.eyes.length; i++) {
+          const eyePulse = 1 + Math.sin(this.elapsed * 3.2 + i) * 0.07 + attackPulse * 0.18;
+          anim.ooze.eyes[i].scale.setScalar(eyePulse);
+        }
+        for (const detail of anim.ooze.details) {
+          detail.obj.rotation.x = detail.restX
+            + Math.sin(this.elapsed * (moving ? 4.2 : 1.25) + detail.phase) * (moving ? 0.12 : 0.035);
+          detail.obj.rotation.z = detail.restZ
+            + Math.sin(this.elapsed * 1.15 + detail.phase) * 0.045;
+        }
+      } else if (anim.canid) {
+        const running = moving && enemy.engaged;
+        const strideAmp = running ? 0.66 : moving ? 0.48 : 0.025;
+        for (const leg of anim.canid.legs) {
+          const step = moving
+            ? Math.sin(anim.walkPhase + leg.phase)
+            : Math.sin(this.elapsed * 1.3 + leg.phase) * 0.04;
+          const lift = moving ? Math.max(0, -step) : 0;
+          const foreStrike = leg.front ? attackPulse : 0;
+          leg.upper.rotation.x = leg.restUpperX + step * strideAmp + foreStrike * 0.42;
+          leg.upper.rotation.z = leg.restUpperZ + leg.side * lift * (running ? 0.045 : 0.025);
+          leg.knee.rotation.x = leg.restKneeX + lift * (running ? 0.58 : 0.42) + foreStrike * 0.24;
+          leg.ankle.rotation.x = leg.restAnkleX - lift * 0.28 - foreStrike * 0.18;
+        }
+        const breathing = Math.sin(this.elapsed * 1.9);
+        anim.canid.trunk.rotation.x = moving ? Math.sin(anim.walkPhase * 2) * 0.022 : breathing * 0.012;
+        anim.canid.trunk.rotation.z = moving ? Math.sin(anim.walkPhase) * 0.018 : breathing * 0.008;
+        const neckBaseX = anim.canid.neck.userData.baseX as number;
+        anim.canid.neck.rotation.x = neckBaseX + (running ? 0.08 : 0)
+          + breathing * 0.018 - attackPulse * 0.1;
+        anim.canid.head.rotation.x = anim.canid.headRestX
+          + (running ? 0.045 : 0) + breathing * 0.018 - attackPulse * 0.13;
+        anim.canid.head.rotation.z = anim.canid.headRestZ
+          + Math.sin(this.elapsed * 1.15) * 0.018 + attackPulse * 0.035;
+        anim.canid.jaw.rotation.x = attackPulse * 0.48
+          + Math.max(0, Math.sin(this.elapsed * 1.6)) * (moving ? 0.045 : 0.02);
+        for (const tail of anim.canid.tail) {
+          const wagSpeed = running ? 8 : moving ? 5 : 2.3;
+          const wagAmp = attackPulse > 0 ? 0.05 : running ? 0.18 : moving ? 0.28 : 0.36;
+          tail.obj.rotation.x = tail.restX + Math.sin(this.elapsed * 1.7 + tail.phase) * 0.045
+            + (running ? -0.08 : 0);
+          tail.obj.rotation.y = tail.restY + Math.sin(this.elapsed * wagSpeed + tail.phase) * wagAmp;
+          tail.obj.rotation.z = tail.restZ + Math.sin(this.elapsed * 1.4 + tail.phase) * 0.025;
+        }
+        for (const detail of anim.canid.details) {
+          detail.obj.rotation.x = detail.restX
+            + Math.sin(this.elapsed * (running ? 6 : 2) + detail.phase) * (running ? 0.08 : 0.035);
+          detail.obj.rotation.z = detail.restZ
+            + Math.sin(this.elapsed * 1.35 + detail.phase) * 0.035;
+        }
+      } else if (anim.ungulate) {
+        const charging = moving && enemy.engaged;
+        const strideAmp = charging ? 0.58 : moving ? 0.42 : 0.018;
+        for (const leg of anim.ungulate.legs) {
+          const step = moving
+            ? Math.sin(anim.walkPhase + leg.phase)
+            : Math.sin(this.elapsed * 1.05 + leg.phase) * 0.025;
+          const lift = moving ? Math.max(0, -step) : 0;
+          const foreStrike = leg.front ? attackPulse : 0;
+          leg.upper.rotation.x = leg.restUpperX + step * strideAmp + foreStrike * 0.28;
+          leg.upper.rotation.z = leg.restUpperZ
+            + leg.side * lift * (charging ? 0.038 : 0.022);
+          leg.knee.rotation.x = leg.restKneeX + lift * (charging ? 0.5 : 0.36)
+            + foreStrike * 0.18;
+          leg.ankle.rotation.x = leg.restAnkleX - lift * 0.24 - foreStrike * 0.13;
+        }
+
+        const breathing = Math.sin(this.elapsed * 1.45);
+        const graze = !moving && !enemy.engaged
+          ? Math.max(0, Math.sin(this.elapsed * 0.52))
+          : 0;
+        anim.ungulate.trunk.rotation.x = moving
+          ? Math.sin(anim.walkPhase * 2) * (charging ? 0.026 : 0.018)
+          : breathing * 0.01;
+        anim.ungulate.trunk.rotation.z = moving
+          ? Math.sin(anim.walkPhase) * 0.014
+          : breathing * 0.006;
+        anim.ungulate.neck.rotation.x = anim.ungulate.neckRestX
+          + graze * 0.46 + (charging ? 0.06 : 0)
+          - attackPulse * 0.13;
+        anim.ungulate.head.position.y = anim.ungulate.headRestY - graze * 2.7 * PX;
+        anim.ungulate.head.rotation.x = anim.ungulate.headRestX
+          + graze * 0.34 + (charging ? 0.04 : 0)
+          - attackPulse * 0.18;
+        anim.ungulate.head.rotation.z = Math.sin(this.elapsed * 1.05) * 0.014
+          + attackPulse * 0.028;
+        anim.ungulate.jaw.rotation.x = attackPulse * 0.34
+          + Math.max(0, Math.sin(this.elapsed * (graze > 0 ? 3.8 : 1.5)))
+          * (graze > 0 ? 0.12 : 0.018);
+
+        for (const tail of anim.ungulate.tail) {
+          const swishSpeed = charging ? 6.5 : moving ? 4.2 : 1.65;
+          const swishAmp = attackPulse > 0 ? 0.08 : charging ? 0.12 : moving ? 0.2 : 0.28;
+          tail.obj.rotation.x = tail.restX
+            + Math.sin(this.elapsed * 1.25 + tail.phase) * 0.035
+            - (charging ? 0.04 : 0);
+          tail.obj.rotation.y = tail.restY
+            + Math.sin(this.elapsed * swishSpeed + tail.phase) * swishAmp;
+          tail.obj.rotation.z = tail.restZ
+            + Math.sin(this.elapsed * 1.1 + tail.phase) * 0.02;
+        }
+        for (const detail of anim.ungulate.details) {
+          detail.obj.rotation.x = detail.restX
+            + Math.sin(this.elapsed * (charging ? 5.4 : moving ? 3.6 : 1.3) + detail.phase)
+            * (charging ? 0.085 : moving ? 0.055 : 0.025);
+          detail.obj.rotation.z = detail.restZ
+            + Math.sin(this.elapsed * 1.15 + detail.phase) * 0.025;
+        }
+      } else if (anim.raider) {
+        const role = anim.raider.role;
+        const brisk = moving && enemy.engaged;
+        for (const leg of anim.raider.legs) {
+          const step = moving
+            ? Math.sin(anim.walkPhase + leg.phase)
+            : Math.sin(this.elapsed * 1.15 + leg.phase) * 0.018;
+          const lift = moving ? Math.max(0, -step) : 0;
+          leg.hip.rotation.x = leg.restHipX + step * (brisk ? 0.55 : moving ? 0.42 : 0.06);
+          leg.hip.rotation.z = leg.restHipZ + leg.side * lift * (brisk ? 0.035 : 0.02);
+          leg.knee.rotation.x = leg.restKneeX + lift * (brisk ? 0.52 : 0.38);
+          leg.foot.rotation.x = leg.restFootX - lift * 0.24;
+        }
+
+        const idle = Math.sin(this.elapsed * 1.35);
+        const dummyWobble = role === "dummy" && view.shakeT > 0
+          ? Math.sin(view.shakeT * 42) * view.shakeT * 0.8
+          : 0;
+        for (const arm of anim.raider.arms) {
+          const counter = moving ? Math.sin(anim.walkPhase + arm.phase) : idle * 0.035;
+          let attackShoulder = 0;
+          let attackElbow = 0;
+          let attackSpread = 0;
+          if (role === "melee") {
+            const primary = arm.side === 1 ? 1 : 0.45;
+            attackShoulder = attackPulse * 1.35 * primary;
+            attackElbow = attackPulse * 0.62 * primary;
+            attackSpread = -arm.side * attackPulse * 0.12;
+          } else if (role === "ranged") {
+            const aim = enemy.engaged ? 0.28 : 0;
+            attackShoulder = aim + attackPulse * (arm.side === 1 ? 0.9 : 0.72);
+            attackElbow = aim * 0.85 + attackPulse * (arm.side === 1 ? 0.48 : 0.7);
+            attackSpread = -arm.side * (aim * 0.2 + attackPulse * 0.08);
+          } else if (role === "caster") {
+            attackShoulder = attackPulse * 1.05;
+            attackElbow = attackPulse * 0.72;
+            attackSpread = -arm.side * attackPulse * 0.48;
+          } else if (role === "trickster") {
+            attackShoulder = attackPulse * (arm.side === -1 ? 1.2 : 0.82);
+            attackElbow = attackPulse * (arm.side === -1 ? 0.75 : 0.38);
+            attackSpread = arm.side * attackPulse * (arm.side === -1 ? 0.34 : -0.16);
+          } else if (role === "alchemist") {
+            attackShoulder = attackPulse * (arm.side === -1 ? 1.24 : 0.46);
+            attackElbow = attackPulse * (arm.side === -1 ? 0.86 : 0.2);
+            attackSpread = -arm.side * attackPulse * (arm.side === -1 ? 0.25 : 0.08);
+          }
+          arm.shoulder.rotation.x = arm.restShoulderX
+            - counter * (role === "dummy" ? 0 : 0.22) + attackShoulder;
+          arm.shoulder.rotation.z = arm.restShoulderZ + attackSpread
+            + (role === "dummy" ? arm.side * dummyWobble * 0.16 : 0);
+          arm.elbow.rotation.x = arm.restElbowX
+            + Math.max(0, counter) * 0.16 + attackElbow;
+          arm.elbow.rotation.z = arm.restElbowZ
+            + (role === "dummy" ? -arm.side * dummyWobble * 0.08 : 0);
+          arm.hand.rotation.y = role === "caster" || role === "trickster"
+            ? arm.side * (idle * 0.025 + attackPulse * 0.18)
+            : 0;
+        }
+
+        anim.raider.torso.rotation.y = role === "dummy"
+          ? dummyWobble * 0.16
+          : moving ? Math.sin(anim.walkPhase) * 0.045 : idle * 0.012;
+        anim.raider.torso.rotation.z = role === "dummy"
+          ? dummyWobble * 0.22
+          : Math.sin(this.elapsed * 1.05) * 0.012 + attackPulse * (role === "melee" ? -0.045 : 0.018);
+        anim.raider.torso.rotation.x = role === "dummy"
+          ? -Math.abs(dummyWobble) * 0.08
+          : moving ? Math.sin(anim.walkPhase * 2) * 0.012 : 0;
+        anim.raider.head.rotation.x = anim.raider.headRestX
+          + Math.sin(this.elapsed * 1.55) * (role === "dummy" ? 0.012 : 0.022)
+          - attackPulse * (role === "ranged" ? 0.04 : 0.09)
+          + dummyWobble * 0.18;
+        anim.raider.head.rotation.z = anim.raider.headRestZ
+          + Math.sin(this.elapsed * 1.1) * 0.015
+          - dummyWobble * 0.25;
+
+        for (const prop of anim.raider.props) {
+          const focusMotion = prop.kind === "focus"
+            ? Math.sin(this.elapsed * 2.2 + prop.phase) * 0.07
+            : 0;
+          const weaponStrike = prop.kind === "weapon"
+            ? attackPulse * (role === "melee" ? -0.42 : role === "ranged" ? 0.08 : 0.12)
+            : 0;
+          prop.obj.rotation.x = prop.restX + weaponStrike
+            + (prop.kind === "focus" ? attackPulse * 0.14 : 0);
+          prop.obj.rotation.y = prop.restY + focusMotion
+            + (prop.kind === "focus" ? attackPulse * (role === "trickster" ? 0.45 : 0.22) : 0);
+          prop.obj.rotation.z = prop.restZ
+            + Math.sin(this.elapsed * 1.4 + prop.phase) * (prop.kind === "cloth" ? 0.04 : 0.012)
+            + (role === "ranged" && prop.kind === "weapon" ? attackPulse * -0.06 : 0);
+        }
+        if (anim.raider.focus) {
+          const focusPulse = 1 + Math.sin(this.elapsed * 3.6) * 0.07 + attackPulse * 0.24;
+          anim.raider.focus.scale.setScalar(focusPulse);
+          anim.raider.focus.rotation.y += dt * (role === "trickster" ? 2.8 : 1.5);
+        }
+        for (const detail of anim.raider.details) {
+          detail.obj.rotation.x = detail.restX
+            + Math.sin(this.elapsed * (moving ? 4 : 1.45) + detail.phase) * (moving ? 0.08 : 0.035)
+            - attackPulse * 0.045;
+          detail.obj.rotation.z = detail.restZ
+            + Math.sin(this.elapsed * 1.2 + detail.phase) * 0.035
+            + dummyWobble * 0.1;
+        }
+      } else if (anim.flier) {
+        const flier = anim.flier;
+        const feature = flier.feature;
+        const flightSpeed = feature === "honey_bee" ? 20
+          : feature === "cave_bat" ? 12.5
+            : feature === "rune_allay" ? 7.5 : 2.1;
+        const flapAmp = feature === "cave_bat" ? 0.68
+          : feature === "rune_allay" ? 0.43
+            : feature === "honey_bee" ? 0.3 : 0;
+        const hover = Math.sin(this.elapsed * (flier.motion === "swim" ? 2.2 : 2.8));
+        const bobAmp = feature === "storm_ghast" ? 0.75
+          : feature === "reef_squid" ? 0.42 : 0.62;
+        flier.core.position.y = flier.coreRestY
+          + (hover * bobAmp + attackPulse * 0.45) * PX;
+        flier.core.rotation.x = flier.motion === "swim"
+          ? Math.sin(this.elapsed * 1.5) * 0.055 - (moving ? 0.08 : 0)
+          : moving ? Math.sin(anim.walkPhase * 0.55) * 0.035 : hover * 0.012;
+        flier.core.rotation.z = feature === "storm_ghast"
+          ? Math.sin(this.elapsed * 0.65) * 0.022
+          : Math.sin(this.elapsed * 1.1) * (flier.motion === "swim" ? 0.04 : 0.018);
+        flier.core.rotation.y = flier.motion === "swim"
+          ? Math.sin(this.elapsed * 0.9) * 0.035
+          : Math.sin(this.elapsed * 0.55) * 0.012;
+
+        for (const wing of flier.wings) {
+          const flap = Math.sin(this.elapsed * flightSpeed + wing.phase);
+          const pairScale = wing.pair === 0 ? 1 : 0.78;
+          const attackTuck = attackPulse * (feature === "honey_bee" ? 0.2 : 0.32);
+          wing.root.rotation.x = wing.restRootX
+            + Math.cos(this.elapsed * flightSpeed + wing.phase) * flapAmp * 0.12;
+          wing.root.rotation.y = wing.restRootY
+            + wing.side * attackTuck * 0.22;
+          wing.root.rotation.z = wing.restRootZ
+            + wing.side * flap * flapAmp * pairScale
+            - wing.side * attackTuck;
+          wing.mid.rotation.x = wing.restMidX
+            - Math.cos(this.elapsed * flightSpeed + wing.phase) * flapAmp * 0.08;
+          wing.mid.rotation.y = wing.restMidY
+            + wing.side * flap * flapAmp * 0.08;
+          wing.mid.rotation.z = wing.restMidZ
+            - wing.side * flap * flapAmp * 0.42 * pairScale
+            + wing.side * attackTuck * 0.24;
+          wing.tip.rotation.x = wing.restTipX
+            + Math.sin(this.elapsed * flightSpeed + wing.phase + 0.6) * flapAmp * 0.06;
+          wing.tip.rotation.y = wing.restTipY;
+          wing.tip.rotation.z = wing.restTipZ
+            - wing.side * flap * flapAmp * 0.28 * pairScale;
+        }
+
+        for (const appendage of flier.appendages) {
+          const swimSpeed = flier.motion === "swim" ? (moving ? 5.4 : 2.8)
+            : feature === "honey_bee" ? 7.5
+              : feature === "storm_ghast" ? 1.35 : 2.2;
+          const wave = Math.sin(this.elapsed * swimSpeed + appendage.index * 0.78);
+          const secondary = Math.cos(this.elapsed * swimSpeed * 0.72 + appendage.index * 0.9);
+          const waveAmp = feature === "reef_squid" ? (moving ? 0.27 : 0.16)
+            : feature === "storm_ghast" ? 0.11
+              : feature === "honey_bee" ? 0.1 : 0.08;
+          const attackFlare = attackPulse * (feature === "storm_ghast" ? 0.24 : 0.14);
+          appendage.root.rotation.x = appendage.restRootX + wave * waveAmp + attackFlare;
+          appendage.root.rotation.z = appendage.restRootZ
+            + secondary * waveAmp * 0.75
+            + Math.sign(appendage.restRootZ || (appendage.index % 2 === 0 ? 1 : -1)) * attackFlare * 0.4;
+          appendage.mid.rotation.x = appendage.restMidX - wave * waveAmp * 0.8;
+          appendage.mid.rotation.z = appendage.restMidZ + secondary * waveAmp * 0.85;
+          appendage.tip.rotation.x = appendage.restTipX
+            + Math.sin(this.elapsed * swimSpeed + appendage.index * 0.78 + 1.2) * waveAmp;
+          appendage.tip.rotation.z = appendage.restTipZ - secondary * waveAmp * 0.65;
+        }
+
+        for (const fin of flier.fins) {
+          const finStroke = Math.sin(this.elapsed * (moving ? 5.2 : 2.4) + fin.side * 0.7);
+          fin.root.rotation.x = fin.restX + finStroke * 0.12;
+          fin.root.rotation.y = fin.restY + fin.side * finStroke * (moving ? 0.24 : 0.13);
+          fin.root.rotation.z = fin.restZ + fin.side * finStroke * 0.16
+            + fin.side * attackPulse * 0.12;
+        }
+
+        flier.head.rotation.x = flier.headRestX
+          + Math.sin(this.elapsed * 1.35) * 0.025
+          - attackPulse * (feature === "storm_ghast" ? 0.12 : 0.08);
+        flier.head.rotation.z = Math.sin(this.elapsed * 0.95) * 0.018
+          + attackPulse * 0.025;
+        if (flier.mouth) {
+          flier.mouth.rotation.x = attackPulse * (feature === "cave_bat" ? 0.42 : 0.3)
+            + Math.max(0, Math.sin(this.elapsed * 1.7)) * 0.025;
+          flier.mouth.scale.y = 1 + attackPulse * (feature === "storm_ghast" ? 1.15 : 0.35);
+          flier.mouth.scale.x = 1 - attackPulse * 0.08;
+        }
+        for (const detail of flier.details) {
+          detail.obj.rotation.x = detail.restX
+            + Math.sin(this.elapsed * (moving ? 5 : 1.8) + detail.phase) * (moving ? 0.11 : 0.055)
+            - attackPulse * 0.06;
+          detail.obj.rotation.z = detail.restZ
+            + Math.sin(this.elapsed * 1.4 + detail.phase) * 0.06;
+        }
+      } else if (anim.signature) {
+        const signature = anim.signature;
+        const feature = signature.feature;
+        const strideAmp = feature === "roosthen" ? (moving ? 0.62 : 0.03)
+          : feature === "ironback" ? (moving ? 0.42 : 0.02)
+            : feature === "siege_beast" ? (moving ? 0.4 : 0.015)
+              : moving ? 0.48 : 0.02;
+        for (const leg of signature.legs) {
+          const step = moving
+            ? Math.sin(anim.walkPhase + leg.phase)
+            : Math.sin(this.elapsed * 1.1 + leg.phase) * 0.02;
+          const lift = moving ? Math.max(0, -step) : 0;
+          const foreStrike = leg.front ? attackPulse : 0;
+          leg.hip.rotation.x = leg.restHipX + step * strideAmp
+            + foreStrike * (feature === "siege_beast" ? 0.32 : 0.18);
+          leg.hip.rotation.z = leg.restHipZ + leg.side * lift * 0.025;
+          leg.knee.rotation.x = leg.restKneeX + lift * (feature === "roosthen" ? 0.58 : 0.4)
+            + foreStrike * 0.16;
+          leg.foot.rotation.x = leg.restFootX - lift * 0.25 - foreStrike * 0.1;
+        }
+
+        const breathing = Math.sin(this.elapsed * 1.45);
+        const sniff = feature === "root_sniffer" && !moving && !enemy.engaged
+          ? Math.max(0, Math.sin(this.elapsed * 0.72))
+          : 0;
+        signature.core.rotation.x = moving
+          ? Math.sin(anim.walkPhase * 2) * (feature === "siege_beast" ? 0.018 : 0.025)
+          : breathing * 0.009;
+        signature.core.rotation.z = moving
+          ? Math.sin(anim.walkPhase) * (feature === "ironback" ? 0.025 : 0.014)
+          : breathing * 0.006;
+        signature.core.rotation.y = feature === "moss_stalker"
+          ? Math.sin(this.elapsed * 0.8) * 0.018
+          : 0;
+        const swell = feature === "moss_stalker" ? 1 + attackPulse * 0.075 : 1;
+        signature.core.scale.set(swell, feature === "moss_stalker" ? 1 - attackPulse * 0.035 : 1, swell);
+
+        signature.head.position.y = signature.headRestY - sniff * 2.8 * PX;
+        signature.head.rotation.x = signature.headRestX
+          + sniff * 0.38
+          + Math.sin(this.elapsed * 1.2) * 0.018
+          - attackPulse * (feature === "siege_beast" ? 0.2 : 0.11);
+        signature.head.rotation.z = Math.sin(this.elapsed * 0.9) * 0.012
+          + attackPulse * 0.025;
+        if (signature.jaw) {
+          signature.jaw.rotation.x = attackPulse * (feature === "siege_beast" ? 0.42 : 0.3)
+            + sniff * Math.max(0, Math.sin(this.elapsed * 4.2)) * 0.08;
+          signature.jaw.scale.y = 1 + attackPulse * (feature === "moss_stalker" ? 0.5 : 0.15);
+        }
+
+        for (const wing of signature.wings) {
+          const wingSpeed = moving ? 9.5 : 2.8;
+          const flap = Math.abs(Math.sin(this.elapsed * wingSpeed));
+          wing.root.rotation.x = wing.restRootX + flap * (moving ? 0.48 : 0.12)
+            + attackPulse * 0.35;
+          wing.root.rotation.z = wing.restRootZ + wing.side * flap * (moving ? 0.22 : 0.08);
+          wing.tip.rotation.x = wing.restTipX - flap * (moving ? 0.28 : 0.08);
+          wing.tip.rotation.z = wing.restTipZ - wing.side * flap * 0.1;
+        }
+        for (const tail of signature.tail) {
+          const wag = Math.sin(this.elapsed * (moving ? 4.5 : 1.7) + tail.phase);
+          tail.obj.rotation.x = tail.restX + wag * (moving ? 0.07 : 0.035);
+          tail.obj.rotation.y = tail.restY + wag * (moving ? 0.16 : 0.22)
+            - attackPulse * 0.08;
+          tail.obj.rotation.z = tail.restZ + Math.sin(this.elapsed * 1.2 + tail.phase) * 0.025;
+        }
+        for (const detail of signature.details) {
+          detail.obj.rotation.x = detail.restX
+            + Math.sin(this.elapsed * (moving ? 4.2 : 1.5) + detail.phase) * (moving ? 0.09 : 0.035)
+            - attackPulse * 0.045;
+          detail.obj.rotation.z = detail.restZ
+            + Math.sin(this.elapsed * 1.2 + detail.phase) * 0.04;
+        }
+      } else {
+        anim.legs.forEach((leg, i) => {
+          leg.rotation.x = moving ? (i % 2 === 0 ? swing : -swing) : leg.rotation.x * 0.8;
+        });
+      }
       if (anim.wings) {
         if (anim.groundBird) {
           // Wings tucked, fluttering up from the body — a gentle idle ripple,

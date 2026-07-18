@@ -6,8 +6,9 @@
   "description": "Stoneleaf Vale \u2014 a top-down voxel skilling RPG in TypeScript + three.js (no framework).",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/build-standalone.mjs",
-    "standalone": "node scripts/build-standalone.mjs",
+    "build": "npm run art:bake && node scripts/build-standalone.mjs",
+    "standalone": "npm run art:bake && node scripts/build-standalone.mjs",
+    "art:bake": "node scripts/bake-original-art.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

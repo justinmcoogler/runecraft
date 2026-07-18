@@ -1,7 +1,7 @@
 // MaterialResolver: gameplay/world code references logical material IDs only;
 // this module turns those IDs into textures/atlas regions. Resolution order:
-// user-imported pack (on-device) > DEFAULT_TEXTURES (the project's own baked
-// pack art) > procedural 16x16 tiles (the original fallback).
+// user-imported pack (on-device) > ORIGINAL_TEXTURES (RuneCraft-authored art)
+// > DEFAULT_TEXTURES (inherited pack art) > procedural fallback tiles.
 
 import * as THREE from "three";
 import { DYE_COLORS } from "../content/blocks";
