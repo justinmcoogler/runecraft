@@ -117,7 +117,7 @@ describe("the starter province", () => {
       region.objects.some(
         (o) => pred(o) && Math.abs(o.cell.x - SPAWN.x) <= r && Math.abs(o.cell.z - SPAWN.z) <= r,
       );
-    expect(near((o) => o.defId === "object.storage_chest.basic", 70)).toBe(true); // bank
+    expect(near((o) => o.defId === "object.chest.bank" || o.defId === "object.storage_chest.basic", 70)).toBe(true); // bank
     expect(near((o) => o.defId === "object.furnace.basic", 70)).toBe(true);
     expect(near((o) => o.defId === "object.campfire.basic", 70)).toBe(true); // cooking
     expect(near((o) => o.defId === "object.workbench.basic", 70)).toBe(true);

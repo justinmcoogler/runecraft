@@ -131,6 +131,14 @@ const HELD_SPRITES: Record<string, string> = {
   "tool.sword.runed": "sprite.item.sword",
   "tool.axe.runed": "sprite.item.axe",
   "tool.pickaxe.runed": "sprite.item.pickaxe",
+  "tool.sword.diamond": "sprite.item.sword",
+  "tool.sword.netherite": "sprite.item.sword",
+  "tool.sword.magma": "sprite.item.sword",
+  "tool.axe.diamond": "sprite.item.axe",
+  "tool.axe.netherite": "sprite.item.axe",
+  "tool.pickaxe.diamond": "sprite.item.pickaxe",
+  "tool.pickaxe.netherite": "sprite.item.pickaxe",
+  "tool.hoe.basic": "sprite.item.hoe",
 };
 
 let blobTexture: THREE.CanvasTexture | null = null;
@@ -2325,6 +2333,34 @@ export class GameRenderer {
       const baseY = this.sim.world.heightAt(obj.cell);
       const group = new THREE.Group();
       switch (obj.defId) {
+        case "object.ladder.down": {
+          // A ladder into the floor: dark pit mouth with a stone rim and the
+          // top of a wooden ladder poking out — descent, not another doorway.
+          const pit = new THREE.Mesh(
+            new THREE.BoxGeometry(0.8, 0.05, 0.8),
+            new THREE.MeshBasicMaterial({ color: "#07080c" }),
+          );
+          pit.position.y = 0.03;
+          group.add(pit);
+          const rim = this.lambert("terrain.stone");
+          for (const [rx, rz, rw, rd] of [[0, -0.45, 1, 0.14], [0, 0.45, 1, 0.14], [-0.45, 0, 0.14, 0.76], [0.45, 0, 0.14, 0.76]] as const) {
+            const edge = new THREE.Mesh(new THREE.BoxGeometry(rw, 0.12, rd), rim);
+            edge.position.set(rx, 0.06, rz);
+            group.add(edge);
+          }
+          const wood = this.lambert("resource.tree.log.side");
+          for (const s of [-0.22, 0.22]) {
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.55, 0.07), wood);
+            rail.position.set(s, 0.24, -0.1);
+            group.add(rail);
+          }
+          for (let r = 0; r < 2; r++) {
+            const rung = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.06), wood);
+            rung.position.set(0, 0.16 + r * 0.22, -0.1);
+            group.add(rung);
+          }
+          break;
+        }
         case "object.chest.bank": {
           // The bank vault: an iron-dark strongbox with gold banding and a
           // fat gold latch, visibly not a loot chest.
@@ -5921,11 +5957,15 @@ export class GameRenderer {
 
   /** Show the equipped tool in the player's hand — or the torch, which the
    *  player carries in-hand (gripped like any tool) while "hold torch" is on. */
+  /** Sprite of the tool the current skill action wields, if any. */
+  private actionToolSprite: string | null = null;
+
   private syncHeldItem(): void {
     const itemId = this.sim.equippedTool;
     const spriteId = this.holdTorch
       ? "sprite.item.torch"
-      : itemId ? HELD_SPRITES[itemId] : undefined;
+      : this.actionToolSprite
+        ?? (itemId ? HELD_SPRITES[itemId] : undefined);
     this.playerView.setHeldItem(spriteId ? this.materials.texture(spriteId) : null);
     this.syncArmor();
   }
@@ -6347,6 +6387,22 @@ export class GameRenderer {
       moving: this.sim.movement.isMoving() && !boating, // sitting, not walking
       action: this.sim.actions.currentActionAnim() ?? this.oneShotAnim?.kind ?? null,
     });
+    // Tool-in-hand: while a skill action plays, the matching tool appears in
+    // the swing hand (axe to chop, pick to mine, rod to fish, hammer to
+    // smith, hoe to dig) and the equipped weapon returns when it ends.
+    {
+      const act = this.sim.actions.currentActionAnim() ?? this.oneShotAnim?.kind ?? null;
+      const sprite = act === "chop" ? "sprite.item.axe"
+        : act === "mine" ? "sprite.item.pickaxe"
+        : act === "fish" || act === "cast" ? "sprite.item.rod"
+        : act === "hammer" ? "sprite.item.hammer"
+        : act === "dig" ? "sprite.item.hoe"
+        : null;
+      if (sprite !== this.actionToolSprite) {
+        this.actionToolSprite = sprite;
+        this.syncHeldItem();
+      }
+    }
     this.updatePlayerBoat(boating ? this.sim.bestBoat()!.itemId : null, pos, this.playerView.group.position.y);
 
     // Portal membranes breathe so an active gate visibly shimmers.

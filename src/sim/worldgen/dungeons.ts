@@ -198,7 +198,17 @@ export function makeDungeon(spec: DungeonSpec): () => RegionSpec {
         instanceId: `${spec.id}.prize`,
         defId: "object.storage_chest.basic",
         cell: { x: bossRoom.cx, z: bossRoom.z0 + 1 },
-        initialItems: [...spec.lootItems, { itemId: "item.coin", qty: 40 + floorN * 20 }],
+        initialItems: [
+          ...spec.lootItems,
+          { itemId: "item.coin", qty: 40 + floorN * 30 },
+          // The prize scales with depth: better gems and metal the deeper the floor.
+          ...(floorN >= 6 ? [{ itemId: "item.gem.diamond", qty: 1 }]
+            : floorN >= 4 ? [{ itemId: "item.gem.ruby", qty: 1 }]
+            : floorN >= 2 ? [{ itemId: "item.gem.sapphire", qty: 1 }] : []),
+          ...(floorN >= 5 ? [{ itemId: "item.bar.mithril", qty: 2 }]
+            : floorN >= 3 ? [{ itemId: "item.bar.steel", qty: 2 }]
+            : [{ itemId: "item.bar.iron", qty: 2 }]),
+        ],
       });
     }
     // Endless descent: a stairway down in the boss chamber to the next, deeper
@@ -207,7 +217,7 @@ export function makeDungeon(spec: DungeonSpec): () => RegionSpec {
     if (spec.descendTo) {
       objects.push({
         instanceId: `${spec.id}.descend`,
-        defId: "object.portal.cave",
+        defId: "object.ladder.down",
         cell: { x: bossRoom.cx, z: bossRoom.z1 - 1 },
         portal: { targetRegionId: spec.descendTo, targetCell: DUNGEON_SPAWN },
       });

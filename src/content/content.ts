@@ -5478,6 +5478,12 @@ export const OBJECTS: Record<string, WorldObjectDef> = {
     interaction: { mode: "adjacent_4", rangeCells: 1 },
     blocksNav: true,
   },
+  "object.ladder.down": {
+    id: "object.ladder.down",
+    name: "Ladder Down",
+    interaction: { mode: "adjacent_4", rangeCells: 1 },
+    blocksNav: true,
+  },
   "object.portal.graduate": {
     id: "object.portal.graduate",
     name: "Gateway to the Wild",

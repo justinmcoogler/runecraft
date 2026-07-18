@@ -269,6 +269,12 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
           nodes.push({ instanceId: `tut.station.${short}.b`, defId: t.station, cell: alt });
         } else if (t.station === "object.shortcut.log") {
           objects.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell, portal: { targetRegionId: "region.tutorial", targetCell: { x: stop.x, z: stop.z } } });
+        } else if (t.station === "object.portal.cave") {
+          // The delver's practice cave: a real region behind the entrance, so
+          // clicking it actually descends (it used to be a portal-less prop).
+          TUTORIAL_CAVE_RETURN.x = stop.x;
+          TUTORIAL_CAVE_RETURN.z = stop.z;
+          objects.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell, portal: { targetRegionId: "region.tutorial_cave", targetCell: { x: 7, z: 10 } } });
         } else {
           objects.push({ instanceId: `tut.station.${short}`, defId: t.station, cell: scell });
         }
@@ -340,6 +346,63 @@ export function tutorialRegion(_seed: number, _spawn: Cell): RegionSpec {
     enemies,
     spawn: { x: camp.x, z: camp.z },
     theme: { sky: "#8fc7e8", sun: 1.0, ambient: 0.64 },
+  };
+}
+
+/** Where the practice cave's ladder returns to (the delver's trail stop).
+ *  Set whenever the island builds; the island layout is deterministic, so any
+ *  build yields the same cell. Starts on the island spawn as a safe fallback
+ *  for a save loaded inside the cave before the island has built. */
+export const TUTORIAL_CAVE_RETURN = { x: 128, z: 128 };
+
+/** The delver's practice cave: one torch-lit stone chamber under the island —
+ *  a couple of giant rats, a loot chest, and the ladder back up. Small on
+ *  purpose: it teaches "descend, clear, loot, climb out" in two minutes. */
+export function tutorialCaveRegion(): RegionSpec {
+  const W = 20;
+  const D = 20;
+  const heights = new Array<number>(W * D).fill(6); // solid rock…
+  const blocks = new Array<BlockType>(W * D).fill("stone");
+  const at = (x: number, z: number): number => z * W + x;
+  for (let z = 3; z < D - 3; z++) {
+    for (let x = 3; x < W - 3; x++) heights[at(x, z)] = 0; // …with a carved chamber
+  }
+  const objects: ObjectPlacement[] = [
+    {
+      instanceId: "tutcave.exit",
+      defId: "object.portal.exit",
+      cell: { x: 7, z: 8 },
+      portal: { targetRegionId: "region.tutorial", targetCell: { x: TUTORIAL_CAVE_RETURN.x, z: TUTORIAL_CAVE_RETURN.z } },
+    },
+    {
+      instanceId: "tutcave.chest",
+      defId: "object.storage_chest.basic",
+      cell: { x: 15, z: 15 },
+      initialItems: [
+        { itemId: "item.coin", qty: 25 },
+        { itemId: "item.gem.sapphire", qty: 1 },
+        { itemId: "item.bone.old", qty: 2 },
+      ],
+    },
+    { instanceId: "tutcave.lamp.a", defId: "object.lamp.post", cell: { x: 5, z: 12 } },
+    { instanceId: "tutcave.lamp.b", defId: "object.lamp.post", cell: { x: 14, z: 6 } },
+  ];
+  const enemies: EnemyPlacement[] = [
+    { instanceId: "tutcave.rat.a", defId: "enemy.giant_rat", cell: { x: 11, z: 13 } },
+    { instanceId: "tutcave.rat.b", defId: "enemy.giant_rat", cell: { x: 13, z: 9 } },
+  ];
+  return {
+    id: "region.tutorial_cave",
+    width: W,
+    depth: D,
+    heights,
+    blocks,
+    nodes: [],
+    objects,
+    npcs: [],
+    enemies,
+    spawn: { x: 7, z: 10 },
+    theme: { sky: "#14161c", sun: 0.25, ambient: 0.45 },
   };
 }
 

@@ -501,6 +501,14 @@ const CUSTOM_DRAW: Record<string, (ctx: CanvasRenderingContext2D) => void> = {
     ctx.fillRect(5, 4, 1, 3);
     ctx.fillRect(6, 2, 1, 2);
   },
+  "sprite.item.hoe": (ctx) => {
+    drawToolHandle(ctx);
+    ctx.fillStyle = "#8a8d90"; // bent blade off the shaft head
+    ctx.fillRect(8, 2, 5, 2);
+    ctx.fillRect(11, 4, 2, 3);
+    ctx.fillStyle = "#b9bcbf"; // edge highlight
+    ctx.fillRect(8, 2, 5, 1);
+  },
   "sprite.item.pickaxe": (ctx) => {
     drawToolHandle(ctx);
     ctx.fillStyle = "#8a8d90"; // head arc

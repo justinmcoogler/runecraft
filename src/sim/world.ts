@@ -14,6 +14,7 @@ import { buildOverworld } from "./worldgen/overworld";
 import { WORLD } from "./worldgen/regions";
 import { BUILD_SITES, DUNGEON_DOORS, MADE_DUNGEONS } from "./worldgen/settlements";
 import { buildDynamicDungeon } from "./worldgen/dungeons";
+import { tutorialCaveRegion } from "./worldgen/tutorial-island";
 
 export type { Cell };
 
@@ -781,6 +782,7 @@ const makeTownInn = makeRoom({
 
 export const REGION_BUILDERS: Record<string, () => RegionSpec> = {
   "region.vale_clearing": () => buildOverworld().region,
+  "region.tutorial_cave": tutorialCaveRegion,
   "region.copper_hollow": makeCopperHollow,
   "region.castle_barracks": makeCastleBarracks,
   "region.castle_storehouse": makeCastleStorehouse,

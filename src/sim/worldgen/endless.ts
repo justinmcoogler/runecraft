@@ -2706,6 +2706,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.11) enemies.push({ instanceId: id(), defId: "enemy.cow", cell });
           else if (r < 0.117) nodes.push({ instanceId: id(), defId: "resource.trail.rabbit", cell });
           else if (r < 0.1185) objects.push({ instanceId: id(), defId: "object.rock.outcrop", cell }); // horizon-breaking kopjes
+          else if (r < 0.121) enemies.push({ instanceId: id(), defId: "enemy.armadillo", cell });
           break;
         case 7: // jungle
           if (r < 0.4) nodes.push({ instanceId: id(), defId: "resource.tree.jungle", cell });
@@ -2713,6 +2714,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.49) nodes.push({ instanceId: id(), defId: "resource.herb.ember", cell });
           else if (r < 0.51) nodes.push({ instanceId: id(), defId: "resource.bush.berry", cell });
           else if (r < 0.517) enemies.push({ instanceId: id(), defId: "enemy.spider", cell });
+          else if (r < 0.5185) enemies.push({ instanceId: id(), defId: "enemy.sniffer", cell });
           else if (r < 0.54) objects.push({ instanceId: id(), defId: "object.plant.tropic", cell });
           else if (r < 0.56) objects.push({ instanceId: id(), defId: "object.flora.wild", cell });
           else if (r < 0.60) nodes.push({ instanceId: id(), defId: "resource.tree.palm", cell }); // palms
@@ -2744,12 +2746,14 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.385) enemies.push({ instanceId: id(), defId: "enemy.sheep", cell });
           else if (r < 0.4) nodes.push({ instanceId: id(), defId: "resource.herb.sage", cell });
           else if (r < 0.408) enemies.push({ instanceId: id(), defId: "enemy.chicken", cell });
+          else if (r < 0.4088) enemies.push({ instanceId: id(), defId: "enemy.allay", cell }); // rare drifting spirit
           else if (r < 0.44) objects.push({ instanceId: id(), defId: "object.flowers.showy", cell });
           break;
         case 11: // mushroom isle
           if (r < 0.3) nodes.push({ instanceId: id(), defId: "resource.herb.duskcap", cell });
           else if (r < 0.33) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
           else if (r < 0.4) objects.push({ instanceId: id(), defId: "object.mushroom.giant", cell });
+          else if (r < 0.406) enemies.push({ instanceId: id(), defId: "enemy.mooshroom", cell }); // isle-only grazers
           break;
         case 12: // moorland
           if (r < 0.008) objects.push({ instanceId: id(), defId: "object.rock.outcrop", cell });
@@ -2776,6 +2780,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.08) nodes.push({ instanceId: id(), defId: "resource.digsite.old", cell });
           else if (r < 0.09) enemies.push({ instanceId: id(), defId: "enemy.cave_spider", cell });
           else if (r < 0.0925) enemies.push({ instanceId: id(), defId: "enemy.rattlesnake", cell });
+          else if (r < 0.0945) enemies.push({ instanceId: id(), defId: "enemy.armadillo", cell });
           else if (r < 0.095) nodes.push({ instanceId: id(), defId: strongboxByDist(cell.x, cell.z, seed), cell });
           else if (r < 0.11) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
           else if (r < 0.113) enemies.push({ instanceId: id(), defId: "enemy.dragon.fire", cell });
