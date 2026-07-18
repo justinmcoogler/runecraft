@@ -1,0 +1,36 @@
+import { chromium } from "@playwright/test";
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const page = await browser.newPage({ viewport: { width: 1100, height: 780 } });
+const errors = [];
+page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
+await page.addInitScript(() => { try { localStorage.clear(); } catch (e) {} });
+await page.goto("file:///tmp/claude-0/-home-user-cdbgiq/2936074f-77f7-55ed-91b4-fe98d55a55c5/scratchpad/theirs.html");
+await page.waitForSelector(".start-title", { timeout: 20000 });
+await page.click(".start-big");
+await page.waitForSelector(".start-input");
+await page.fill(".start-input", "dragonprobe");
+await page.getByText("Play the Tutorial").click();
+await page.waitForFunction(() => window.__stoneleaf !== undefined, { timeout: 30000 });
+await page.waitForTimeout(1500);
+const out = await page.evaluate(() => {
+  const { sim, renderer } = window.__stoneleaf;
+  const p = sim.movement.currentCell();
+  sim.enemies.addPlacement({ instanceId: "probe.dragon", defId: "enemy.dragon.fire", cell: { x: p.x + 4, z: p.z - 3 } }, { next: () => 0.5, intBetween: (a) => a });
+  sim.trackingMuted = true;
+  window.__keepAlive = setInterval(() => { sim.hp = 20; }, 100);
+  renderer.rig.setZoomHalfHeight(6);
+  return { ok: true };
+});
+await page.waitForTimeout(1500);
+const info = await page.evaluate(() => {
+  const { renderer } = window.__stoneleaf;
+  const view = renderer.enemyViews.get("probe.dragon");
+  if (!view) return { view: false };
+  let meshes = 0;
+  const sizes = [];
+  view.group.traverse((o) => { if (o.isMesh) { meshes++; } });
+  return { view: true, meshes, visible: view.group.visible };
+});
+await page.screenshot({ path: "/workspace/runecraft/dragon-theirs.png" });
+console.log(JSON.stringify({ ...out, ...info, errors: errors.slice(0, 3) }));
+await browser.close();

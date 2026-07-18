@@ -32,6 +32,7 @@ import { ungulateStyleFor } from "./ungulate-model";
 import { raiderStyleFor, type RaiderRole } from "./raider-model";
 import { flierStyleFor, type FlierFeature, type FlierMotion } from "./flier-model";
 import { signatureStyleFor, type SignatureFeature, type SignatureMotion } from "./signature-model";
+import { bossStyleFor, type BossFeature } from "./boss-model";
 import { itemIconUrl } from "../ui/icons";
 
 // Lower ambient relative to sun so faces facing away from the sun read as
@@ -321,6 +322,16 @@ interface SignatureAnim {
   details: Array<{ obj: THREE.Group; restX: number; restZ: number; phase: number }>;
 }
 
+interface BossAnim {
+  feature: BossFeature;
+  core: THREE.Group;
+  heads: Array<{ root: THREE.Group; jaw: THREE.Group; restX: number; restY: number; phase: number }>;
+  legs: Array<{ root: THREE.Group; knee: THREE.Group; side: -1 | 1; phase: number; restX: number; restZ: number }>;
+  wings: Array<{ root: THREE.Group; tip: THREE.Group; side: -1 | 1; pair: number; restZ: number }>;
+  tail: Array<{ obj: THREE.Group; restY: number; phase: number }>;
+  details: Array<{ obj: THREE.Group; restX: number; restZ: number; phase: number }>;
+}
+
 /** Animatable parts of an enemy rig (all children of `body` for lunging). */
 interface EnemyAnim {
   body: THREE.Group;
@@ -359,6 +370,8 @@ interface EnemyAnim {
   flier?: FlierAnim;
   /** Remaining signature fauna use exact-ID articulated native silhouettes. */
   signature?: SignatureAnim;
+  /** Original RuneCraft dragons and Deep Warden use boss-scale articulated rigs. */
+  boss?: BossAnim;
   /** Rabbits and frogs travel in hop arcs: the body lifts on the walk phase
    *  instead of legs striding. */
   hopper?: boolean;
@@ -4804,8 +4817,6 @@ export class GameRenderer {
     drowned: "mob.drowned", stray: "mob.stray", armadillo: "mob.armadillo",
     bat: "mob.bat", allay: "mob.allay", sniffer: "mob.sniffer",
     bee: "mob.bee", mooshroom: "mob.mooshroom",
-    // Warden rides the licensed CC BY-SA rig.
-    warden: "mob.warden",
   };
 
   private buildEnemyBody(
@@ -4817,8 +4828,30 @@ export class GameRenderer {
     // Livestock rigs are built in exact Minecraft model pixels (16 px = 1
     // block, the same PX unit as the player), converted here to world units.
     const P = PX;
-    const box = (w: number, h: number, d: number, color: string) =>
-      new THREE.Mesh(new THREE.BoxGeometry(w * P, h * P, d * P), new THREE.MeshLambertMaterial({ color }));
+    const surfaceId = (() => {
+      const id = defId ?? "";
+      if (kind === "dragon") return "mob.surface.scale";
+      if (kind === "warden" || id.includes("construct") || id.includes("golem") || id.includes("sentinel") || id.includes("overseer")) return "mob.surface.stone";
+      if (id.includes("spider") || id.includes("crawler") || id.includes("spinner") || id.includes("scuttler") || id.includes("thornback")) return "mob.surface.chitin";
+      if (id.includes("slime") || id.includes("silt_king")) return "mob.surface.ooze";
+      if (kind === "skeleton" || id.includes("wight") || id.includes("barrow")) return "mob.surface.bone";
+      if (["ghast", "allay", "evoker", "illusioner", "witch"].includes(kind)) return "mob.surface.spectral";
+      if (["pillager", "vindicator", "dummy", "creeper", "ravager"].includes(kind)) return "mob.surface.metal";
+      if (["wolf", "gnasher", "cow", "pig", "sheep", "chicken", "armadillo", "sniffer", "mooshroom"].includes(kind)) return "mob.surface.fur";
+      if (["bat", "bee", "squid"].includes(kind)) return kind === "bee" ? "mob.surface.chitin" : kind === "squid" ? "mob.surface.scale" : "mob.surface.fur";
+      return "mob.surface.bone";
+    })();
+    const surfaceMaterials = new Map<string, THREE.MeshLambertMaterial>();
+    const box = (w: number, h: number, d: number, color: string) => {
+      const key = `${surfaceId}:${color}`;
+      let material = surfaceMaterials.get(key);
+      if (!material) {
+        const softened = new THREE.Color(color).lerp(new THREE.Color("#ffffff"), 0.24);
+        material = new THREE.MeshLambertMaterial({ map: this.materials.texture(surfaceId), color: softened });
+        surfaceMaterials.set(key, material);
+      }
+      return new THREE.Mesh(new THREE.BoxGeometry(w * P, h * P, d * P), material);
+    };
     // Entity-skin resolution: when the active texture set carries this
     // mob's texture, boxes UV-map onto it and painted detail boxes (eyes,
     // patches) drop out; otherwise the rig keeps its original painted art.
@@ -4877,12 +4910,13 @@ export class GameRenderer {
     const raiderStyle = raiderStyleFor(defId);
     const flierStyle = flierStyleFor(defId);
     const signatureStyle = signatureStyleFor(defId);
+    const bossStyle = bossStyleFor(defId);
     // BetaSharp vanilla mob models: exact box-UV geometry skinned with the
     // Faithful entity textures baked in. Static for now (the source files carry
     // no keyframe animation), but a clear upgrade over the approximate rigs.
     const mobModelId = undeadStyle || constructStyle || oozeStyle || canidStyle || ungulateStyle
       || raiderStyle || flierStyle
-      || signatureStyle
+      || signatureStyle || bossStyle
       ? undefined
       : GameRenderer.MOB_VIEW_MODEL[kind];
     if (mobModelId) {
@@ -7953,21 +7987,196 @@ export class GameRenderer {
             : feature === "ironback" ? 22 : 21;
       return { barHeight: barPixels * P + 0.34, anim };
     }
-    if (kind === "dragon") {
-      // Baked Blockbench model with its own keyframe animations.
-      const built = buildBBModel(ENEMIES[defId ?? ""]?.viewMaterial ?? "fire_dragon");
-      if (built) {
-        if (tint) for (const m of built.materials) m.color.set(tint);
-        body.add(built.group);
-        anim.bb = built.animator;
-        anim.bb.play("idle");
-        return { barHeight: built.height + 0.5, anim };
+    if (bossStyle) {
+      const style = bossStyle;
+      const boss: BossAnim = { feature: style.feature, core: new THREE.Group(), heads: [], legs: [], wings: [], tail: [], details: [] };
+      anim.boss = boss;
+      body.add(boss.core);
+      const voxel = (parent: THREE.Object3D, w: number, h: number, d: number, color: string, x = 0, y = 0, z = 0) => {
+        const cube = box(w, h, d, color);
+        cube.position.set(x * P, y * P, z * P);
+        parent.add(cube);
+        return cube;
+      };
+      const glow = (parent: THREE.Object3D, w: number, h: number, d: number, color: string, x = 0, y = 0, z = 0) => {
+        const cube = new THREE.Mesh(new THREE.BoxGeometry(w * P, h * P, d * P), new THREE.MeshBasicMaterial({ color }));
+        cube.position.set(x * P, y * P, z * P);
+        parent.add(cube);
+        return cube;
+      };
+      const jointedLeg = (side: -1 | 1, front: boolean, x: number, y: number, z: number, thick: number, height: number) => {
+        const root = new THREE.Group();
+        root.position.set(x * P, y * P, z * P);
+        const upper = voxel(root, thick, height * 0.52, thick + 1, style.body, 0, -height * 0.26, 0);
+        upper.rotation.z = side * 0.05;
+        voxel(root, thick + 1.2, 2.2, thick + 2.2, style.plate, 0, -1, 0);
+        const knee = new THREE.Group();
+        knee.position.y = -height * 0.5 * P;
+        voxel(knee, thick * 0.82, height * 0.48, thick * 0.82, style.dark, 0, -height * 0.24, front ? -0.7 : 0.7);
+        voxel(knee, thick * 1.25, 2.4, thick * 2, style.plate, 0, -height * 0.5, -1.2);
+        root.add(knee);
+        boss.legs.push({ root, knee, side, phase: (front ? 0 : Math.PI) + (side > 0 ? Math.PI : 0), restX: 0, restZ: root.rotation.z });
+        boss.core.add(root);
+      };
+
+      if (style.feature === "deep_warden") {
+        boss.core.position.y = 23 * P;
+        voxel(boss.core, 23, 22, 14, style.body);
+        voxel(boss.core, 27, 8, 16, style.plate, 0, 3, 0);
+        voxel(boss.core, 17, 14, 15.5, style.dark, 0, 0, -0.4);
+        // Rib cage and pulsing soul aperture.
+        for (const side of [-1, 1] as const) {
+          for (let rib = 0; rib < 4; rib++) {
+            const ribRoot = new THREE.Group();
+            ribRoot.position.set(side * (4.5 + rib * 0.7) * P, (5 - rib * 2.3) * P, -8.2 * P);
+            ribRoot.rotation.z = side * (0.12 + rib * 0.04);
+            voxel(ribRoot, 1.5, 7.5 - rib * 0.7, 1.3, style.accent);
+            boss.core.add(ribRoot);
+            boss.details.push({ obj: ribRoot, restX: 0, restZ: ribRoot.rotation.z, phase: rib + (side > 0 ? 0.5 : 0) });
+          }
+          const arm = new THREE.Group();
+          arm.position.set(side * 14 * P, 7 * P, 0);
+          arm.rotation.z = side * -0.08;
+          voxel(arm, 7, 19, 8, style.body, 0, -8, 0);
+          voxel(arm, 8.5, 7, 9, style.dark, 0, -19, -0.5);
+          for (let claw = -1; claw <= 1; claw++) voxel(arm, 1.7, 6, 1.7, style.plate, claw * 2.4, -24, -2);
+          boss.core.add(arm);
+          boss.details.push({ obj: arm, restX: 0, restZ: arm.rotation.z, phase: side });
+          jointedLeg(side, side < 0, side * 7, -10, 0, 7, style.legHeight);
+        }
+        const head = new THREE.Group();
+        head.position.set(0, 15 * P, -2 * P);
+        voxel(head, 15, 12, 13, style.dark, 0, 0, -4);
+        voxel(head, 17, 4, 14, style.plate, 0, 4, -3.5);
+        for (const side of [-1, 1] as const) {
+          glow(head, 2.2, 1.3, 0.8, style.glow, side * 3.6, 1, -10.8);
+          for (let n = 0; n < 3; n++) {
+            const horn = new THREE.Group();
+            horn.position.set(side * (7.5 + n * 2.2) * P, (3 - n * 2.1) * P, -1 * P);
+            horn.rotation.z = side * (0.35 + n * 0.08);
+            voxel(horn, 1.5, 8 - n, 1.5, n === 2 ? style.glow : style.accent);
+            head.add(horn);
+            boss.details.push({ obj: horn, restX: 0, restZ: horn.rotation.z, phase: n + side });
+          }
+        }
+        const jaw = new THREE.Group();
+        jaw.position.set(0, -4 * P, -8 * P);
+        voxel(jaw, 11, 3, 7, style.body, 0, -1, -1.5);
+        head.add(jaw);
+        boss.core.add(head);
+        boss.heads.push({ root: head, jaw, restX: 0, restY: 0, phase: 0 });
+        glow(boss.core, 6, 8, 1.3, style.glow, 0, 1, -8.2);
+        return { barHeight: 3.75, anim };
       }
-      // Model missing: a stand-in bulk so the boss still exists.
-      const bulk = box(30, 24, 40, "#7a3030");
-      bulk.position.y = 20 * P;
-      body.add(bulk);
-      return { barHeight: 3, anim };
+
+      // Dragon bodies: every exact ID below changes head count, wing count,
+      // proportions and surface ornament, while sharing only joint mechanics.
+      const bodyY = style.legHeight + style.bodyHeight * 0.45;
+      boss.core.position.y = bodyY * P;
+      voxel(boss.core, style.bodyWidth, style.bodyHeight, style.bodyLength, style.body);
+      voxel(boss.core, style.bodyWidth + 2.5, style.bodyHeight * 0.42, style.bodyLength * 0.72, style.plate, 0, style.bodyHeight * 0.43, 1);
+      voxel(boss.core, style.bodyWidth * 0.72, style.bodyHeight * 0.45, style.bodyLength + 3, style.dark, 0, -style.bodyHeight * 0.32, 0);
+      // Layered scale plates and silhouette-breaking spines.
+      const plateCount = style.feature === "ice_drake" ? 9 : style.feature === "hydra" ? 5 : 7;
+      for (let i = 0; i < plateCount; i++) {
+        const z = -style.bodyLength * 0.38 + i * (style.bodyLength * 0.76 / Math.max(1, plateCount - 1));
+        voxel(boss.core, style.bodyWidth + 3 - (i % 2), 1.4, 3.2, i % 2 ? style.accent : style.plate, 0, style.bodyHeight * 0.56, z);
+        const spine = new THREE.Group();
+        spine.position.set(0, style.bodyHeight * 0.62 * P, z * P);
+        spine.rotation.x = -0.18;
+        voxel(spine, style.feature === "ice_drake" ? 2.2 : 2.8, 4 + (i % 3) * 1.8, 1.8, style.accent, 0, 2, 0);
+        boss.core.add(spine);
+        boss.details.push({ obj: spine, restX: spine.rotation.x, restZ: 0, phase: i * 0.7 });
+      }
+      for (const side of [-1, 1] as const) {
+        jointedLeg(side, true, side * style.bodyWidth * 0.38, -style.bodyHeight * 0.2, -style.bodyLength * 0.3, 5.2, style.legHeight);
+        jointedLeg(side, false, side * style.bodyWidth * 0.38, -style.bodyHeight * 0.2, style.bodyLength * 0.29, 5.8, style.legHeight);
+      }
+
+      const neckSpread = style.feature === "hydra" ? 7.5 : 8.5;
+      for (let n = 0; n < style.necks; n++) {
+        const lateral = (n - (style.necks - 1) / 2) * neckSpread;
+        const neck = new THREE.Group();
+        neck.position.set(lateral * P, style.bodyHeight * 0.18 * P, -style.bodyLength * 0.48 * P);
+        neck.rotation.x = style.feature === "hydra" ? -0.28 : -0.18;
+        neck.rotation.y = lateral * -0.018;
+        const neckLength = style.feature === "hydra" ? 25 + (n === 1 ? 4 : 0) : style.feature === "ice_drake" ? 30 : 22;
+        const neckSegments = style.feature === "ice_drake" ? 5 : 4;
+        for (let s = 0; s < neckSegments; s++) {
+          const taper = 1 - s * 0.11;
+          voxel(neck, 7.5 * taper, 7 * taper, neckLength / neckSegments + 1, s % 2 ? style.dark : style.body,
+            lateral * 0.07 * s, s * 2.2, -(s + 0.5) * neckLength / neckSegments);
+          voxel(neck, 8.3 * taper, 1.2, 2, style.plate, lateral * 0.07 * s, s * 2.2 + 3.3 * taper, -(s + 0.5) * neckLength / neckSegments);
+        }
+        const head = new THREE.Group();
+        head.position.set(lateral * 0.07 * neckSegments * P, neckSegments * 2.2 * P, -neckLength * P);
+        const headW = style.feature === "hydra" ? 10 : style.feature === "storm_twin" ? 11.5 : 13;
+        voxel(head, headW, 9, 14, style.dark, 0, 0, -5);
+        voxel(head, headW + 2, 3, 12, style.plate, 0, 3.6, -4);
+        voxel(head, headW * 0.75, 4, 10, style.body, 0, -1.6, -12);
+        for (const side of [-1, 1] as const) {
+          glow(head, 1.5, 1.25, 0.75, style.glow, side * headW * 0.27, 1.1, -12.1);
+          const horn = new THREE.Group();
+          horn.position.set(side * headW * 0.35 * P, 4 * P, -2 * P);
+          horn.rotation.z = side * -0.28;
+          voxel(horn, 1.7, style.feature === "ice_drake" ? 9 : 6.5, 1.7, style.accent, 0, 3, 0);
+          head.add(horn);
+        }
+        const jaw = new THREE.Group();
+        jaw.position.set(0, -3.2 * P, -7.5 * P);
+        voxel(jaw, headW * 0.8, 3.2, 10, style.body, 0, -0.8, -3.5);
+        for (const side of [-1, 1] as const) for (let fang = 0; fang < 2; fang++) {
+          voxel(jaw, 0.9, 2.1, 0.9, "#e8ddba", side * (2.2 + fang * 1.4), -2, -6.8 + fang * 2.4);
+        }
+        head.add(jaw);
+        neck.add(head);
+        boss.core.add(neck);
+        boss.heads.push({ root: neck, jaw, restX: neck.rotation.x, restY: neck.rotation.y, phase: n * 1.7 });
+      }
+
+      for (const side of [-1, 1] as const) for (let pair = 0; pair < style.wingPairs; pair++) {
+        const root = new THREE.Group();
+        root.position.set(side * style.bodyWidth * 0.4 * P, style.bodyHeight * (0.2 - pair * 0.12) * P, (-2 + pair * 8) * P);
+        root.rotation.z = side * (style.feature === "fire_wyvern" ? -0.23 : -0.12);
+        root.rotation.y = side * 0.08;
+        const span = (style.feature === "fire_wyvern" ? 35 : style.feature === "storm_twin" ? 30 : 20) - pair * 5;
+        voxel(root, span, 2.7, 4, style.dark, side * span * 0.5, 0, 0);
+        const tip = new THREE.Group();
+        tip.position.set(side * span * P, 0, 0);
+        tip.rotation.z = side * -0.2;
+        voxel(tip, span * 0.75, 2.1, 3, style.plate, side * span * 0.37, 0, 0);
+        // Stepped solid membranes preserve the chunky reference silhouette.
+        for (let rib = 0; rib < 4; rib++) {
+          voxel(root, Math.max(4, span - rib * span * 0.2), 0.8, 5.5,
+            rib % 2 ? style.body : style.accent, side * (span - rib * span * 0.2) * 0.5, -2.2 - rib * 2.5, 2 + rib * 3.2);
+        }
+        root.add(tip);
+        boss.core.add(root);
+        boss.wings.push({ root, tip, side, pair, restZ: root.rotation.z });
+      }
+
+      let tailParent = boss.core;
+      let z = style.bodyLength * 0.47;
+      for (let i = 0; i < style.tailSegments; i++) {
+        const segment = new THREE.Group();
+        segment.position.set(0, (i === 0 ? -1 : 0) * P, z * P);
+        const length = Math.max(5, 10 - i * 0.7);
+        const thick = Math.max(2.2, 7 - i * 0.65);
+        voxel(segment, thick, thick, length, i % 3 === 0 ? style.plate : style.body, 0, 0, length * 0.5);
+        tailParent.add(segment);
+        boss.tail.push({ obj: segment, restY: 0, phase: i * 0.55 });
+        tailParent = segment;
+        z = length;
+      }
+      if (style.feature === "fire_wyvern") {
+        voxel(tailParent, 7, 9, 7, style.glow, 0, 2, 8);
+        voxel(tailParent, 3, 13, 3, style.accent, 0, 5, 8);
+      } else if (style.feature === "ice_drake") {
+        for (const side of [-1, 0, 1]) voxel(tailParent, 3, 10 - Math.abs(side) * 2, 3, style.glow, side * 2.5, 3, 7);
+      } else if (style.feature === "storm_twin") {
+        glow(tailParent, 5, 5, 9, style.glow, 0, 0, 8);
+      }
+      return { barHeight: (bodyY + style.bodyHeight * 0.9 + (style.feature === "hydra" ? 22 : 16)) * P + 0.7, anim };
     }
     const quadLegs = (w: number, legH: number, xOff: number, color: string, s: RigSkin | null = null) => {
       // Vanilla quadruped legs: front pair at z -5, back pair at z +7,
@@ -9822,6 +10031,45 @@ export class GameRenderer {
             - attackPulse * 0.06;
           detail.obj.rotation.z = detail.restZ
             + Math.sin(this.elapsed * 1.4 + detail.phase) * 0.06;
+        }
+      } else if (anim.boss) {
+        const boss = anim.boss;
+        const breathing = Math.sin(this.elapsed * 1.15);
+        const charging = moving && enemy.engaged;
+        boss.core.rotation.x = moving ? Math.sin(anim.walkPhase * 2) * 0.018 : breathing * 0.009;
+        boss.core.rotation.z = moving ? Math.sin(anim.walkPhase) * 0.014 : breathing * 0.006;
+        for (const leg of boss.legs) {
+          const step = moving ? Math.sin(anim.walkPhase * 0.72 + leg.phase) : Math.sin(this.elapsed + leg.phase) * 0.025;
+          const lift = moving ? Math.max(0, -step) : 0;
+          leg.root.rotation.x = leg.restX + step * (charging ? 0.48 : moving ? 0.34 : 0.04) + attackPulse * 0.08;
+          leg.root.rotation.z = leg.restZ + leg.side * lift * 0.035;
+          leg.knee.rotation.x = lift * 0.45 - attackPulse * 0.08;
+        }
+        for (const [index, head] of boss.heads.entries()) {
+          head.root.rotation.x = head.restX + Math.sin(this.elapsed * 1.05 + head.phase) * 0.035 - attackPulse * (0.16 + index * 0.02);
+          head.root.rotation.y = head.restY + Math.sin(this.elapsed * 0.72 + head.phase) * 0.08 + attackPulse * ((index - (boss.heads.length - 1) / 2) * 0.06);
+          head.jaw.rotation.x = attackPulse * 0.52 + Math.max(0, Math.sin(this.elapsed * 1.3 + head.phase)) * 0.035;
+        }
+        for (const wing of boss.wings) {
+          const speed = moving ? 7.5 : 2.35;
+          const amplitude = boss.feature === "fire_wyvern" ? 0.42 : boss.feature === "storm_twin" ? 0.36 : 0.25;
+          const flap = Math.sin(this.elapsed * speed + wing.pair * 0.8);
+          wing.root.rotation.z = wing.restZ + wing.side * flap * amplitude - wing.side * attackPulse * 0.18;
+          wing.tip.rotation.z = wing.side * (-0.2 - flap * amplitude * 0.55 + attackPulse * 0.12);
+          wing.root.rotation.x = Math.cos(this.elapsed * speed + wing.pair) * 0.055;
+        }
+        for (const tail of boss.tail) {
+          const wave = Math.sin(this.elapsed * (moving ? 3.4 : 1.35) + tail.phase);
+          tail.obj.rotation.y = tail.restY + wave * (moving ? 0.13 : 0.2) - attackPulse * 0.045;
+          tail.obj.rotation.x = Math.cos(this.elapsed * 1.1 + tail.phase) * 0.025;
+        }
+        for (const detail of boss.details) {
+          detail.obj.rotation.x = detail.restX + Math.sin(this.elapsed * 1.45 + detail.phase) * 0.025 - attackPulse * 0.025;
+          detail.obj.rotation.z = detail.restZ + Math.sin(this.elapsed * 1.15 + detail.phase) * 0.028;
+        }
+        if (boss.feature === "deep_warden") {
+          const pulse = 1 + Math.sin(this.elapsed * 2.8) * 0.018 + attackPulse * 0.055;
+          boss.core.scale.set(pulse, 1 - (pulse - 1) * 0.45, pulse);
         }
       } else if (anim.signature) {
         const signature = anim.signature;
