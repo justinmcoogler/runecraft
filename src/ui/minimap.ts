@@ -8,6 +8,7 @@
 import { terrainAt } from "../sim/worldgen/endless";
 import type { GameSimulation } from "../sim/simulation";
 import { activeQuestTarget } from "./quest-helper";
+import { uiIconHtml } from "./icons";
 
 // A compact terrain palette keyed by surface block (fallback mid-grey).
 const BLOCK_COLORS: Record<string, string> = {
@@ -73,7 +74,7 @@ export class MiniMap {
     zoomOut.addEventListener("click", (e) => { e.stopPropagation(); this.setZoom(this.zoom * 1.45); });
     this.markerBtn = document.createElement("button");
     this.markerBtn.className = "mm-tool";
-    this.markerBtn.textContent = "📍";
+    this.markerBtn.innerHTML = uiIconHtml("pin", 14);
     this.markerBtn.title = "Marker mode: click the map to drop or remove a marker";
     this.markerBtn.addEventListener("click", (e) => { e.stopPropagation(); this.setMarkerMode(!this.markerMode); });
     const close = document.createElement("button");

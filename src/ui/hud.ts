@@ -518,7 +518,7 @@ export class Hud {
     const btn = this.root.querySelector('[data-cmd="run"]') as HTMLElement | null;
     if (btn) {
       btn.classList.toggle("btn-active", running);
-      btn.textContent = running ? "🏃" : "🚶";
+      btn.innerHTML = uiIconHtml(running ? "runner" : "walker");
       btn.title = running ? "Running — tap to walk (R)" : "Walking — tap to run (R)";
     }
     if (announce) this.toast(running ? "Running" : "Walking", "info");
@@ -1465,7 +1465,7 @@ export class Hud {
         const enchBtn = document.createElement("button");
         enchBtn.className = "btn small";
         enchBtn.setAttribute("data-testid", "item-enchant");
-        enchBtn.textContent = enchFull ? `✨ Enchants full (${MAX_ENCHANTS})` : "✨ Enchant…";
+        enchBtn.innerHTML = `${uiIconHtml("spark", 12)} ${enchFull ? `Enchants full (${MAX_ENCHANTS})` : "Enchant…"}`;
         enchBtn.disabled = enchFull;
         enchBtn.addEventListener("click", () => { this.itemPopMode = "ench"; this.refreshInventory(); });
         const gemBtn = document.createElement("button");
@@ -1517,7 +1517,7 @@ export class Hud {
         row.className = "mod-pick";
         row.setAttribute("data-testid", `ench-${ench.id}`);
         row.disabled = !canLevel || !canPay;
-        row.innerHTML = `<span class="mod-pick-name">✨ ${ench.name}</span>
+        row.innerHTML = `<span class="mod-pick-name">${uiIconHtml("spark", 11)} ${ench.name}</span>
           <span class="mod-pick-fx">${ench.blurb}</span>
           <span class="mod-pick-cost">${canLevel ? costHtml : `Enchanting ${ench.requiredLevel}`}</span>`;
         row.addEventListener("click", () =>

@@ -789,6 +789,30 @@ const UI_DRAWS: Record<string, Draw> = {
     ctx.fillStyle = "#8f2f28";
     ctx.fillRect(6, 6, 8, 2);
   },
+  walker: (ctx) => {
+    ctx.fillStyle = "#aab4c0";
+    ctx.fillRect(7, 2, 3, 3);   // head
+    ctx.fillRect(6, 5, 4, 5);   // upright torso
+    ctx.fillRect(5, 6, 1, 3);   // arms at sides
+    ctx.fillRect(10, 6, 1, 3);
+    ctx.fillRect(6, 10, 1, 4);  // easy stride
+    ctx.fillRect(9, 10, 1, 4);
+  },
+  pin: (ctx) => {
+    ctx.fillStyle = "#c0443a";
+    ctx.fillRect(5, 2, 6, 6);
+    ctx.fillRect(6, 8, 4, 2);
+    ctx.fillRect(7, 10, 2, 3);  // point
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(7, 4, 2, 2);   // pinhole
+  },
+  spark: (ctx) => {
+    ctx.fillStyle = "#c9a9ff";
+    ctx.fillRect(7, 1, 2, 14);
+    ctx.fillRect(1, 7, 14, 2);
+    ctx.fillStyle = "#efe4ff";
+    ctx.fillRect(6, 6, 4, 4);
+  },
   runner: (ctx) => {
     ctx.fillStyle = "#e8eaec";
     ctx.fillRect(8, 2, 3, 3);   // head
