@@ -223,20 +223,20 @@ export class Hud {
             <span class="hp-text">20/20</span>
           </div>
           <div class="stamina-chip" data-testid="stamina-chip">
-            <span class="sp-icon">⚡</span>
+            <span class="sp-icon">${uiIconHtml("bolt", 14)}</span>
             <div class="sp-bar"><div class="sp-fill"></div></div>
           </div>
           <div class="combat-style-chip hidden" data-cmd="cycleStyle" data-testid="attack-style"
                title="Attack style — tap to choose which combat skill your blows train">
-            <span class="cs-icon">⚔</span><span class="cs-text"></span><span class="cs-trains"></span>
+            <span class="cs-icon">${uiIconHtml("swords", 14)}</span><span class="cs-text"></span><span class="cs-trains"></span>
           </div>
         </div>
         <div class="bar-buttons">
-          <button class="btn" data-cmd="run" title="Toggle run/walk (R)" data-testid="run-toggle">🏃</button>
+          <button class="btn" data-cmd="run" title="Toggle run/walk (R)" data-testid="run-toggle">${uiIconHtml("runner")}</button>
           <button class="btn" data-cmd="camera" title="Camera controls" data-testid="camera-btn">${uiIconHtml("center")}</button>
-          <button class="btn" data-cmd="settings" title="Settings" data-testid="settings-toggle">⚙</button>
-          <button class="btn" data-cmd="travel" title="Fast travel (T)" data-testid="travel-toggle">🧭</button>
-          <button class="btn" data-cmd="factions" title="Factions (G)" data-testid="factions-toggle">🚩</button>
+          <button class="btn" data-cmd="settings" title="Settings" data-testid="settings-toggle">${uiIconHtml("gear")}</button>
+          <button class="btn" data-cmd="travel" title="Fast travel (T)" data-testid="travel-toggle">${uiIconHtml("compass")}</button>
+          <button class="btn" data-cmd="factions" title="Factions (G)" data-testid="factions-toggle">${uiIconHtml("banner")}</button>
           <button class="btn" data-cmd="questlog" title="Quest log (J)" data-testid="questlog-toggle">${uiIconHtml("quest")}</button>
           <button class="btn" data-cmd="skills" title="Skills (K)" data-testid="skills-toggle">${uiIconHtml("skills")}</button>
           <button class="btn" data-cmd="inv" title="Inventory (I)" data-testid="inv-toggle">${uiIconHtml("inv")}</button>
@@ -606,7 +606,7 @@ export class Hud {
           this.toast(`Travelled to ${ev.name}.`, "info", uiIconHtml("quest", 18));
           break;
         case "treasureHuntBegan":
-          this.toast(`🗺️ ${ev.hint}`, "info", uiIconHtml("quest", 20));
+          this.toast(ev.hint, "info", uiIconHtml("quest", 20));
           break;
         case "treasureFound":
           this.toast(
@@ -1187,10 +1187,10 @@ export class Hud {
     const hh = String(Math.floor(mins / 60)).padStart(2, "0");
     const mm = String(mins % 60).padStart(2, "0");
     const w = this.sim.weather();
-    const icon =
-      w === "storm" ? "⛈" : w === "rain" ? "🌧" : w === "overcast" ? "☁" : this.sim.daylight() > 0 ? "☀" : "🌙";
-    const text = `${icon} ${hh}:${mm} · Day ${this.sim.dayCount()} · ${this.sim.seasonInfo().label}`;
-    if (el.textContent !== text) el.textContent = text;
+    const iconKey =
+      w === "storm" ? "storm" : w === "rain" ? "rain" : w === "overcast" ? "cloud" : this.sim.daylight() > 0 ? "sun" : "moon";
+    const html = `${uiIconHtml(iconKey, 13)} ${hh}:${mm} · Day ${this.sim.dayCount()} · ${this.sim.seasonInfo().label}`;
+    if (el.innerHTML !== html) el.innerHTML = html;
   }
 
   /** The chip shows the most recently trained skill. */

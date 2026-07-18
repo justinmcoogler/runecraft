@@ -766,6 +766,90 @@ const SKILL_DRAWS: Record<string, Draw> = {
 // ---------- UI button / widget icons ----------
 
 const UI_DRAWS: Record<string, Draw> = {
+  gear: (ctx) => {
+    ctx.fillStyle = "#9aa3ad";
+    for (const [x, y] of [[7, 1], [7, 13], [1, 7], [13, 7], [3, 3], [11, 3], [3, 11], [11, 11]]) ctx.fillRect(x, y, 2, 2);
+    ctx.fillRect(4, 4, 8, 8);
+    ctx.fillStyle = "#10151b";
+    ctx.fillRect(6, 6, 4, 4);
+  },
+  compass: (ctx) => {
+    ctx.fillStyle = "#d8cfc0";
+    ctx.fillRect(4, 2, 8, 12); ctx.fillRect(2, 4, 12, 8);
+    ctx.fillStyle = "#c0443a"; // north needle
+    ctx.fillRect(7, 3, 2, 5);
+    ctx.fillStyle = "#5b6672"; // south needle
+    ctx.fillRect(7, 8, 2, 5);
+  },
+  banner: (ctx) => {
+    ctx.fillStyle = "#8a6844";
+    ctx.fillRect(4, 1, 2, 14);
+    ctx.fillStyle = "#c0443a";
+    ctx.fillRect(6, 2, 8, 6);
+    ctx.fillStyle = "#8f2f28";
+    ctx.fillRect(6, 6, 8, 2);
+  },
+  runner: (ctx) => {
+    ctx.fillStyle = "#e8eaec";
+    ctx.fillRect(8, 2, 3, 3);   // head
+    ctx.fillRect(6, 5, 5, 4);   // torso leaning
+    ctx.fillRect(4, 6, 2, 2);   // trailing arm
+    ctx.fillRect(11, 5, 2, 2);  // leading arm
+    ctx.fillRect(4, 11, 3, 2);  // trailing leg
+    ctx.fillRect(10, 9, 2, 4);  // leading leg
+    ctx.fillStyle = "#ffd54a";  // dash lines
+    ctx.fillRect(1, 4, 2, 1); ctx.fillRect(1, 8, 2, 1);
+  },
+  bug: (ctx) => {
+    ctx.fillStyle = "#7cd65a";
+    ctx.fillRect(5, 4, 6, 9);
+    ctx.fillRect(6, 2, 4, 3);
+    ctx.fillStyle = "#3f7a2e";
+    ctx.fillRect(7, 4, 2, 9);   // wing split
+    ctx.fillStyle = "#10151b";
+    for (const y of [5, 8, 11]) { ctx.fillRect(3, y, 2, 1); ctx.fillRect(11, y, 2, 1); } // legs
+  },
+  swords: (ctx) => {
+    ctx.fillStyle = "#c6c9cc";
+    for (let i = 0; i < 8; i++) { ctx.fillRect(2 + i, 2 + i, 2, 2); ctx.fillRect(12 - i, 2 + i, 2, 2); } // crossed blades
+    ctx.fillStyle = "#8a6844";
+    ctx.fillRect(2, 12, 3, 2); ctx.fillRect(11, 12, 3, 2); // hilts
+  },
+  bolt: (ctx) => {
+    ctx.fillStyle = "#ffd54a";
+    ctx.fillRect(8, 1, 4, 6);
+    ctx.fillRect(5, 6, 6, 4);
+    ctx.fillRect(4, 9, 4, 6);
+  },
+  sun: (ctx) => {
+    ctx.fillStyle = "#ffd54a";
+    ctx.fillRect(5, 5, 6, 6);
+    for (const [x, y, w, h] of [[7, 1, 2, 2], [7, 13, 2, 2], [1, 7, 2, 2], [13, 7, 2, 2]]) ctx.fillRect(x, y, w, h);
+  },
+  moon: (ctx) => {
+    ctx.fillStyle = "#cfd6e4";
+    ctx.fillRect(5, 2, 6, 12); ctx.fillRect(3, 4, 4, 8);
+    ctx.fillStyle = "#10151b";
+    ctx.fillRect(8, 4, 5, 8);   // crescent bite
+  },
+  cloud: (ctx) => {
+    ctx.fillStyle = "#aab4c0";
+    ctx.fillRect(3, 7, 11, 5);
+    ctx.fillRect(5, 4, 5, 4);
+    ctx.fillRect(9, 5, 4, 3);
+  },
+  rain: (ctx) => {
+    ctx.fillStyle = "#aab4c0";
+    ctx.fillRect(3, 3, 11, 5);
+    ctx.fillStyle = "#6fa8e8";
+    for (const x of [4, 8, 12]) ctx.fillRect(x, 10, 1, 4);
+  },
+  storm: (ctx) => {
+    ctx.fillStyle = "#7d8896";
+    ctx.fillRect(3, 2, 11, 5);
+    ctx.fillStyle = "#ffd54a";
+    ctx.fillRect(8, 7, 3, 4); ctx.fillRect(6, 10, 3, 4);
+  },
   rotl: (ctx) => rotateArrow(ctx, true),
   rotr: (ctx) => rotateArrow(ctx, false),
   center: (ctx) => {
@@ -1164,6 +1248,17 @@ const ITEM_ICON_MATERIALS: Record<string, string> = {
   "item.rite.skeleton": "icon.original.rite-skeleton",
   "item.rite.stray": "icon.original.rite-stray",
   "item.rite.wight": "icon.original.rite-wight",
+  // Post-audit trophies + gear: routed onto the closest existing masters
+  // until dedicated icons are generated (tracked in IMAGEGEN_ASSET_MANIFEST).
+  "item.pelt.fox": "icon.original.hide-kebbit",
+  "item.pelt.werewolf": "icon.original.hide-sabre",
+  "item.fur.yeti": "icon.original.hide-polar",
+  "item.shell.crab": "icon.original.fish-crab",
+  "item.core.magma": "icon.original.construct-core",
+  "item.totem.goblin": "icon.original.sunburst-idol",
+  "tool.sword.magma": "icon.original.runed-sword",
+  "armor.boots.yetifur": "icon.boots.leather",
+  "armor.cloak.nocturne": "icon.chest.leather",
 };
 
 let packIconProvider: ((materialId: string) => string | null) | null = null;

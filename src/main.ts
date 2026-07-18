@@ -426,7 +426,7 @@ async function boot(): Promise<void> {
     const close = () => { box.remove(); stairsPopup = null; };
     for (const opt of options) {
       const btn = document.createElement("button");
-      btn.textContent = opt.dir === "up" ? "⬆️ Go up" : "⬇️ Go down";
+      btn.textContent = opt.dir === "up" ? "↑ Go up" : "↓ Go down";
       btn.addEventListener("click", () => { close(); enterRegion(opt.targetRegionId, opt.targetCell); });
       row.append(btn);
     }
