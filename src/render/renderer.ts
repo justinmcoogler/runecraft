@@ -2731,22 +2731,28 @@ export class GameRenderer {
           break;
         }
         case "object.chest.bank": {
-          // The bank vault: an iron-dark strongbox with gold banding and a
-          // fat gold latch, visibly not a loot chest.
-          const ironMat = new THREE.MeshLambertMaterial({ color: "#3d434b" });
-          const goldMat = new THREE.MeshLambertMaterial({ color: "#d8a827" });
-          const chest = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.72), ironMat);
-          chest.position.y = 0.4;
-          const lid = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.16, 0.76), ironMat);
-          lid.position.y = 0.86;
-          for (const bx of [-0.26, 0.26]) {
-            const band = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.98, 0.76), goldMat);
-            band.position.set(bx, 0.46, 0);
+          // The bank vault: the familiar chest silhouette (same baked model as
+          // loot chests) wrapped in bright gold bands with a gold latch, so it
+          // reads as "chest, but special" instead of a black strongbox slab.
+          const goldMat = new THREE.MeshLambertMaterial({ color: "#e8bc3a" });
+          const built = buildBBModel("mob.chest");
+          if (built) group.add(built.group);
+          else {
+            const side = this.lambert("object.chest.side");
+            const chest = new THREE.Mesh(new THREE.BoxGeometry(0.875, 0.875, 0.875), [
+              side, side, this.lambert("object.chest.top"), side, side, this.lambert("object.chest.front"),
+            ]);
+            chest.position.y = 0.4375;
+            group.add(chest);
+          }
+          for (const bx of [-0.24, 0.24]) {
+            const band = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.92, 0.9), goldMat);
+            band.position.set(bx, 0.44, 0);
             group.add(band);
           }
-          const latch = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.08), goldMat);
-          latch.position.set(0, 0.72, -0.39);
-          group.add(chest, lid, latch, makeBlobShadow(0.65));
+          const latch = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.07), goldMat);
+          latch.position.set(0, 0.55, -0.46);
+          group.add(latch, makeBlobShadow(0.65));
           break;
         }
         case "object.campfire.basic": {
