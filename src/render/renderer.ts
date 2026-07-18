@@ -4885,29 +4885,91 @@ export class GameRenderer {
   private mobSurfaceTexture(id: string): THREE.CanvasTexture {
     const cached = this.mobSurfaceCache.get(id);
     if (cached) return cached;
-    const base = this.materials.texture(id);
-    const src = base.image as HTMLCanvasElement;
+    // Painted 16px surface tiles, replacing the ImageGen noise tiles: those
+    // multiplied uniform speckle over every face, so fur, chitin and bone all
+    // read as the same granite. These are coarse Minecraft-scale texels,
+    // low-contrast so the rig's palette carries the colour, with a deliberate
+    // per-material motif drawn in shade steps.
+    const S = 16;
     const canvas = document.createElement("canvas");
-    canvas.width = src.width;
-    canvas.height = src.height;
+    canvas.width = S;
+    canvas.height = S;
     const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(src, 0, 0);
-    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const d = image.data;
-    let sum = 0;
-    for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
-    const avg = sum / (d.length / 4) / 255;
-    const gain = Math.min(6, 0.82 / Math.max(avg, 0.04));
-    // Compress toward the target mean as well: the raw tiles carry harsh
-    // speckle that would otherwise drown the palette in grey noise.
-    const target = 0.82 * 255;
-    const grain = 0.4;
-    for (let i = 0; i < d.length; i += 4) {
-      d[i] = Math.min(255, target + (d[i] * gain - target) * grain);
-      d[i + 1] = Math.min(255, target + (d[i + 1] * gain - target) * grain);
-      d[i + 2] = Math.min(255, target + (d[i + 2] * gain - target) * grain);
+    // Seeded LCG so tiles are stable frame-to-frame and across sessions.
+    let seed = 7;
+    for (let i = 0; i < id.length; i++) seed = (seed * 31 + id.charCodeAt(i)) >>> 0;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+    const kind = id.replace("mob.surface.", "");
+    const shade = (v: number) => {
+      const c = Math.round(Math.min(255, Math.max(0, v * 255)));
+      return `rgb(${c},${c},${c})`;
+    };
+    const px = (x: number, z: number, v: number) => {
+      ctx.fillStyle = shade(v);
+      ctx.fillRect(((x % S) + S) % S, ((z % S) + S) % S, 1, 1);
+    };
+    // Base: gentle top-lit vertical gradient with quantised jitter.
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const grad = 0.98 - (y / S) * 0.1;
+        const jitter = (Math.floor(rnd() * 3) - 1) * 0.03;
+        px(x, y, grad + jitter);
+      }
     }
-    ctx.putImageData(image, 0, 0);
+    if (kind === "fur") {
+      // Short vertical strokes, like combed pelt.
+      for (let n = 0; n < 26; n++) {
+        const x = Math.floor(rnd() * S), y = Math.floor(rnd() * S);
+        const v = 0.78 + rnd() * 0.08;
+        px(x, y, v); px(x, y + 1, v + 0.04);
+      }
+    } else if (kind === "scale") {
+      // Offset brick rows of scales, each with a darker keel pixel.
+      for (let y = 0; y < S; y += 3) {
+        for (let x = ((y / 3) % 2) * 2; x < S; x += 4) {
+          px(x, y, 0.8); px(x + 1, y, 0.86);
+          px(x, y + 1, 0.9); px(x + 1, y + 1, 0.96);
+        }
+      }
+    } else if (kind === "chitin") {
+      // Glossy plates: broad bands with a bright specular row.
+      for (let y = 0; y < S; y++) {
+        const band = y % 5;
+        const v = band === 0 ? 0.74 : band === 2 ? 1.0 : 0.88;
+        for (let x = 0; x < S; x++) px(x, y, v + (Math.floor(rnd() * 2)) * 0.02);
+      }
+    } else if (kind === "bone") {
+      // Pale with faint meandering cracks.
+      for (let n = 0; n < 3; n++) {
+        let x = Math.floor(rnd() * S), y = 0;
+        while (y < S) { px(x, y, 0.74); y += 1 + Math.floor(rnd() * 2); x += Math.floor(rnd() * 3) - 1; }
+      }
+    } else if (kind === "stone") {
+      // Blotches and a few chipped highlights.
+      for (let n = 0; n < 9; n++) {
+        const x = Math.floor(rnd() * S), y = Math.floor(rnd() * S);
+        const v = rnd() < 0.5 ? 0.78 : 1.0;
+        px(x, y, v); px(x + 1, y, v); px(x, y + 1, v - 0.03);
+      }
+    } else if (kind === "ooze") {
+      // Soft round blobs, lighter at their centres.
+      for (let n = 0; n < 5; n++) {
+        const x = Math.floor(rnd() * S), y = Math.floor(rnd() * S);
+        px(x, y, 1.02); px(x + 1, y, 0.94); px(x - 1, y, 0.94); px(x, y + 1, 0.94); px(x, y - 1, 0.94);
+      }
+    } else if (kind === "spectral") {
+      // Faint diagonal wisps.
+      for (let d0 = 0; d0 < S * 2; d0 += 5) {
+        for (let k = 0; k < S; k++) px(d0 - k, k, 0.92 + ((d0 / 5) % 2) * 0.08);
+      }
+    } else if (kind === "metal") {
+      // Horizontal plate bands with rivets.
+      for (let y = 0; y < S; y++) {
+        const v = y % 6 === 0 ? 0.72 : y % 6 === 1 ? 1.0 : 0.9;
+        for (let x = 0; x < S; x++) px(x, y, v);
+      }
+      for (let x = 2; x < S; x += 5) { px(x, 1, 0.7); px(x, 7, 0.7); px(x, 13, 0.7); }
+    }
     const tex = new THREE.CanvasTexture(canvas);
     tex.magFilter = THREE.NearestFilter;
     tex.minFilter = THREE.NearestFilter;
