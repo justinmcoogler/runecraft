@@ -1670,6 +1670,11 @@ export const ITEMS: Record<string, ItemDef> = {
   "item.shrimp.cooked": { id: "item.shrimp.cooked", name: "Buttered Shrimp", icon: "🍤", stackable: true, maxStack: 20, healAmount: 4 },
   "item.pelt.fox": { id: "item.pelt.fox", name: "Fox Pelt", icon: "🦊", stackable: true, maxStack: 20 },
   "item.shell.crab": { id: "item.shell.crab", name: "Crab Shell", icon: "🐚", stackable: true, maxStack: 30 },
+  "item.fur.yeti": { id: "item.fur.yeti", name: "Yeti Fur", icon: "❄️", stackable: true, maxStack: 20 },
+  // (rattlesnakes drop the existing item.venom.sac Herblore ingredient)
+  "item.pelt.werewolf": { id: "item.pelt.werewolf", name: "Werewolf Pelt", icon: "🐺", stackable: true, maxStack: 20 },
+  "item.core.magma": { id: "item.core.magma", name: "Magma Core", icon: "🔥", stackable: true, maxStack: 20 },
+  "item.totem.goblin": { id: "item.totem.goblin", name: "Goblin War Totem", icon: "🗿", stackable: true, maxStack: 10 },
   "item.fish.crab": { id: "item.fish.crab", name: "Rock Crab", icon: "🦀", stackable: true, maxStack: 20 },
   "item.crab.cooked": { id: "item.crab.cooked", name: "Boiled Crab", icon: "🦀", stackable: true, maxStack: 20, healAmount: 10 },
   "item.fish.lobster": { id: "item.fish.lobster", name: "Reef Lobster", icon: "🦞", stackable: true, maxStack: 20 },
@@ -6218,6 +6223,11 @@ export type EnemyViewKind =
   | "rat"
   | "wisp"
   | "mimic"
+  // Wave-2 originals: painted pixel skins on chunky rigs (painted-skins.ts).
+  | "goblin"
+  | "yeti"
+  | "rattlesnake"
+  | "werewolf"
   // BetaSharp/oafs/CornCraft vanilla mob models (rendered via buildBBModel).
   | "pillager"
   | "vindicator"
@@ -6260,6 +6270,9 @@ export interface EnemyDef {
   stationary?: boolean;
   /** Wildlife that bolts when the player comes near (never retaliates). */
   skittish?: boolean;
+  /** Only hunts at night: by day it goes dormant (no aggro, no wander) and
+   *  the renderer hides it, so the beast "appears" as the sun sets. */
+  nightOnly?: boolean;
 }
 
 export const ENEMIES: Record<string, EnemyDef> = {
@@ -6362,6 +6375,65 @@ export const ENEMIES: Record<string, EnemyDef> = {
     aggroRadiusCells: 2, leashRadiusCells: 6, wanderRadiusCells: 0, respawnS: 300, xpOnDefeat: 420,
     loot: [{ itemId: "item.coin", min: 40, max: 120, chance: 1 }, { itemId: "item.gem.sapphire", min: 1, max: 1, chance: 0.35 }, { itemId: "item.gem.ruby", min: 1, max: 1, chance: 0.15 }],
     view: "mimic",
+  },
+  // ── Wave-2 originals: goblin warbands, wilds hunters, night terrors ──
+  "enemy.goblin": {
+    id: "enemy.goblin", name: "Goblin Grunt", level: 9, maxHealth: 32,
+    attack: { cadenceS: 2.2, accuracy: 0.65, dmgMin: 2, dmgMax: 4 },
+    aggroRadiusCells: 4, leashRadiusCells: 10, wanderRadiusCells: 4, respawnS: 90, xpOnDefeat: 85,
+    loot: [{ itemId: "item.coin", min: 3, max: 12, chance: 1 }, { itemId: "item.bone.old", min: 1, max: 1, chance: 0.4 }],
+    view: "goblin",
+  },
+  "enemy.goblin_shaman": {
+    id: "enemy.goblin_shaman", name: "Goblin Shaman", level: 14, maxHealth: 40,
+    attack: { cadenceS: 2.6, accuracy: 0.7, dmgMin: 3, dmgMax: 6 },
+    aggroRadiusCells: 4, leashRadiusCells: 10, wanderRadiusCells: 3, respawnS: 110, xpOnDefeat: 150,
+    loot: [{ itemId: "item.coin", min: 6, max: 18, chance: 1 }, { itemId: "item.essence.rune", min: 1, max: 2, chance: 0.5 }],
+    view: "goblin",
+  },
+  "enemy.goblin_chief": {
+    id: "enemy.goblin_chief", name: "Goblin Chief", level: 22, maxHealth: 85,
+    attack: { cadenceS: 2.0, accuracy: 0.75, dmgMin: 5, dmgMax: 8 },
+    aggroRadiusCells: 5, leashRadiusCells: 11, wanderRadiusCells: 3, respawnS: 180, xpOnDefeat: 260,
+    scale: 1.2,
+    loot: [{ itemId: "item.coin", min: 20, max: 55, chance: 1 }, { itemId: "item.totem.goblin", min: 1, max: 1, chance: 0.4 }, { itemId: "item.gem.sapphire", min: 1, max: 1, chance: 0.12 }],
+    view: "goblin",
+  },
+  "enemy.rattlesnake": {
+    id: "enemy.rattlesnake", name: "Rattlesnake", level: 12, maxHealth: 26,
+    attack: { cadenceS: 1.6, accuracy: 0.75, dmgMin: 3, dmgMax: 7 },
+    aggroRadiusCells: 2, leashRadiusCells: 6, wanderRadiusCells: 3, respawnS: 80, xpOnDefeat: 110,
+    loot: [{ itemId: "item.venom.sac", min: 1, max: 1, chance: 0.8 }, { itemId: "item.bone.old", min: 1, max: 1, chance: 0.3 }],
+    view: "rattlesnake",
+  },
+  "enemy.werewolf": {
+    id: "enemy.werewolf", name: "Werewolf", level: 28, maxHealth: 110,
+    attack: { cadenceS: 1.8, accuracy: 0.78, dmgMin: 6, dmgMax: 10 },
+    aggroRadiusCells: 6, leashRadiusCells: 12, wanderRadiusCells: 5, respawnS: 160, xpOnDefeat: 380,
+    nightOnly: true,
+    loot: [{ itemId: "item.pelt.werewolf", min: 1, max: 1, chance: 0.75 }, { itemId: "item.bone.big", min: 1, max: 1, chance: 0.5 }, { itemId: "item.coin", min: 10, max: 25, chance: 0.6 }],
+    view: "werewolf",
+  },
+  "enemy.yeti": {
+    id: "enemy.yeti", name: "Yeti", level: 34, maxHealth: 160,
+    attack: { cadenceS: 2.4, accuracy: 0.78, dmgMin: 8, dmgMax: 13 },
+    aggroRadiusCells: 4, leashRadiusCells: 10, wanderRadiusCells: 4, respawnS: 220, xpOnDefeat: 520,
+    loot: [{ itemId: "item.fur.yeti", min: 1, max: 2, chance: 0.9 }, { itemId: "item.gem.sapphire", min: 1, max: 1, chance: 0.15 }],
+    view: "yeti",
+  },
+  "enemy.magma_hound": {
+    id: "enemy.magma_hound", name: "Magma Hound", level: 38, maxHealth: 150,
+    attack: { cadenceS: 1.7, accuracy: 0.8, dmgMin: 8, dmgMax: 14 },
+    aggroRadiusCells: 5, leashRadiusCells: 11, wanderRadiusCells: 5, respawnS: 200, xpOnDefeat: 560,
+    loot: [{ itemId: "item.core.magma", min: 1, max: 1, chance: 0.8 }, { itemId: "item.coin", min: 15, max: 40, chance: 0.7 }],
+    view: "wolf", // vanilla wolf rig; the magma paint job keys off this defId
+  },
+  "enemy.poacher": {
+    id: "enemy.poacher", name: "Poacher", level: 18, maxHealth: 60,
+    attack: { cadenceS: 2.0, accuracy: 0.72, dmgMin: 4, dmgMax: 8 },
+    aggroRadiusCells: 5, leashRadiusCells: 12, wanderRadiusCells: 4, respawnS: 140, xpOnDefeat: 190,
+    loot: [{ itemId: "item.coin", min: 6, max: 20, chance: 1 }, { itemId: "item.pelt.fox", min: 1, max: 1, chance: 0.5 }, { itemId: "item.fur", min: 1, max: 2, chance: 0.6 }, { itemId: "item.arrow.bronze", min: 2, max: 5, chance: 0.4 }],
+    view: "pillager", tint: "#4a5e3a",
   },
   "enemy.cow": {
     id: "enemy.cow",

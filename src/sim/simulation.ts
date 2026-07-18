@@ -223,6 +223,7 @@ export class GameSimulation {
         getThornsDamage: () => this.armorThornsDamage(),
         damagePlayer: (amount) => this.damagePlayer(amount),
         spawnGroundItem: (cell, itemId, qty) => this.spawnGroundItem(cell, itemId, qty),
+        daylight: () => this.daylight(),
       },
       this.rng,
     );

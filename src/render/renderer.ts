@@ -21,6 +21,7 @@ import { MaterialResolver, type EntitySkin } from "./textures";
 import { TREES_BY_SPECIES, hash01, pickTreeModel, treeGeometry } from "./tree-models";
 import { ROCK_MATERIAL_TILES, ROCK_MATERIAL_TINTS, ROCK_MODELS_ALL, pickBoulderModel, pickMiningRock, rockGeometry } from "./rock-models";
 import { buildBBModel } from "./bb-models";
+import { paintedMats } from "./painted-skins";
 import { isModelEnabled } from "./model-prefs";
 import { itemIconUrl } from "../ui/icons";
 
@@ -4502,6 +4503,7 @@ export class GameRenderer {
       ravager: 1.1, drowned: 0.5, stray: 0.45, armadillo: 0.5, bat: 0.3,
       allay: 0.3, sniffer: 0.9, bee: 0.3, mooshroom: 0.75,
       warden: 1.0,
+      goblin: 0.5, yeti: 0.9, rattlesnake: 0.55, werewolf: 0.65,
     }[kind] ?? 0.5;
     group.add(body, makeBlobShadow(shadowSize));
     const anim: EnemyAnim = { body, legs: [], head: null, headRestZ: 0, segments: [], walkPhase: 0, lungeT: 0, groundBird: kind === "chicken" };
@@ -4786,10 +4788,14 @@ export class GameRenderer {
         // ears, four 2x8x2 legs, and a 2x8x2 tail drooping off the rump.
         const fur = tint ?? "#9a9088";
         const dark = "#5a534c";
+        // Magma hound rides the exact same wolf rig with a painted magma skin:
+        // ember-crack hide, furnace eyes, obsidian snout, flame-gradient tail.
+        const pm = defId === "enemy.magma_hound" && !rigSkin ? paintedMats("magma_hound") : null;
         // Exact vanilla ModelWolf boxes: legs 2x8x2 at x±1.5, back pair z7,
         // front pair z-4; feet at y=0.
         for (const [x, z] of [[-1.5, -4], [1.5, -4], [-1.5, 7], [1.5, 7]] as const) {
           const leg = skinned(rigSkin, 2, 8, 2, fur, 0, 18);
+          if (pm) leg.material = pm.leg;
           leg.geometry.translate(0, -4 * P, 0);
           leg.position.set(x * P, 8 * P, z * P);
           anim.legs.push(leg);
@@ -4800,27 +4806,34 @@ export class GameRenderer {
         // the tail (z8); the ruff covers the shoulders over the front legs, so
         // the whole torso is one continuous mass with nothing floating.
         const trunk = skinned(rigSkin, 6, 9, 6, fur, 18, 14);
+        if (pm) trunk.material = pm.body;
         trunk.rotation.x = -Math.PI / 2;
         trunk.position.set(0, 11 * P, 3.5 * P);
         const mane = skinned(rigSkin, 8, 6, 7, fur, 21, 0);
+        if (pm) mane.material = pm.mane;
         mane.rotation.x = -Math.PI / 2;
         mane.position.set(0, 11 * P, -2 * P);
         // Neck: fills the ruff-to-skull gap so the head isn't a floating box.
         const neck = skinned(rigSkin, 4, 5, 5, fur, 0, 0, [6, 6, 4]);
+        if (pm) neck.material = pm.coal;
         neck.position.set(0, 11 * P, -4 * P);
         // Head sits level with the back (centre y=10.5), not up on a giraffe
         // neck — the vanilla wolf holds its head low.
         const head = new THREE.Group();
         const skull = skinned(rigSkin, 6, 6, 4, fur, 0, 0);
+        if (pm) skull.material = [pm.coal, pm.coal, pm.coal, pm.coal, pm.coal, pm.face];
         head.add(skull);
         const snout = skinned(rigSkin, 3, 3, 4, dark, 0, 10);
+        if (pm) snout.material = [pm.obsidian, pm.obsidian, pm.obsidian, pm.obsidian, pm.obsidian, pm.snout];
         snout.position.set(0, -1.5 * P, -3 * P);
         head.add(snout);
         for (const side of [-1, 1]) {
           const ear = skinned(rigSkin, 2, 2, 1, dark, 16, 14);
+          if (pm) ear.material = pm.obsidian;
           ear.position.set(side * 2 * P, 4 * P, 0.5 * P);
           head.add(ear);
-          if (!rigSkin) {
+          if (!rigSkin && !pm) {
+            // (magma hound's furnace eyes are painted into its face texture)
             const eye = box(1, 1, 0.5, "#1c1c1c");
             eye.position.set(side * 1.5 * P, 0.5 * P, -2.2 * P);
             head.add(eye);
@@ -4832,6 +4845,7 @@ export class GameRenderer {
         // Tail hangs from the rump (pivot y12, z7 — tucked into the trunk back so
         // it reads as joined) and droops down-and-back.
         const tail = skinned(rigSkin, 2, 8, 2, fur, 9, 18);
+        if (pm) tail.material = pm.tail; // flame gradient down the drooping tail
         tail.geometry.translate(0, -4 * P, 0);
         tail.position.set(0, 12 * P, 7 * P);
         tail.rotation.x = -0.5;
@@ -5418,6 +5432,273 @@ export class GameRenderer {
         body.add(chest, lid, maw, eye, clasp);
         return { barHeight: 1.0, anim };
       }
+      case "goblin": {
+        // Goblin warband (grunt/shaman/chief share the rig): a hunched green
+        // raider in a stitched hide vest with a painted pixel face and big
+        // angled ears. The grunt raises a studded club, the shaman carries a
+        // totem staff, the chief adds iron pauldrons and a heavier club (his
+        // def scale makes him tower over the grunts).
+        const pm = paintedMats("goblin");
+        const variant = defId === "enemy.goblin_shaman" ? "shaman" : defId === "enemy.goblin_chief" ? "chief" : "grunt";
+        const matOr = (key: string, color: string): THREE.Material =>
+          pm?.[key] ?? new THREE.MeshLambertMaterial({ color });
+        const tbox = (w: number, h: number, d: number, m: THREE.Material | THREE.Material[]): THREE.Mesh =>
+          new THREE.Mesh(new THREE.BoxGeometry(w * P, h * P, d * P), m);
+        const skinM = matOr("skin", "#5d8c3a");
+        const vestM = matOr("vest", "#6b4a2a");
+        const bodyM = matOr(variant === "shaman" ? "bodyShaman" : variant === "chief" ? "bodyChief" : "body", "#6b4a2a");
+        const woodM = matOr("wood", "#8a6844");
+        for (const s of [-1.4, 1.4]) {
+          // Wrapped feet are painted into the leg texture's bottom rows so the
+          // stride carries them along.
+          const leg = tbox(1.8, 4.4, 1.8, matOr("leg", "#5d8c3a"));
+          leg.geometry.translate(0, -2.2 * P, 0);
+          leg.position.set(s * P, 4.4 * P, 0);
+          anim.legs.push(leg);
+          body.add(leg);
+        }
+        const torso = tbox(5.4, 5.6, 3.2, [vestM, vestM, vestM, vestM, vestM, bodyM]);
+        torso.rotation.x = 0.15; // hunched
+        torso.position.y = 7.2 * P;
+        body.add(torso);
+        const armL = tbox(1.6, 4.8, 1.6, skinM); // off arm swings with the stride
+        armL.geometry.translate(0, -2.4 * P, 0);
+        armL.position.set(-3.6 * P, 9.2 * P, 0);
+        anim.legs.push(armL);
+        body.add(armL);
+        if (variant === "shaman") {
+          const armR = tbox(1.6, 4.8, 1.6, skinM);
+          armR.position.set(3.6 * P, 6.8 * P, 0);
+          const staff = tbox(1, 8, 1, woodM);
+          staff.position.set(3.6 * P, 6.5 * P, -1.6 * P);
+          const orb = new THREE.Mesh(
+            new THREE.BoxGeometry(1.6 * P, 1.6 * P, 1.6 * P),
+            new THREE.MeshBasicMaterial({ color: "#7cd65a" }), // fetish glow
+          );
+          orb.position.set(3.6 * P, 10.8 * P, -1.6 * P);
+          body.add(armR, staff, orb);
+        } else {
+          const armR = tbox(1.6, 4.8, 1.6, skinM); // club arm frozen mid-raise
+          armR.position.set(3.6 * P, 8 * P, -1.1 * P);
+          armR.rotation.x = -0.9;
+          const club = tbox(1.3, 5.2, 1.3, woodM);
+          club.position.set(3.6 * P, 10.4 * P, -3.8 * P);
+          club.rotation.x = -0.9;
+          const big = variant === "chief" ? 3.4 : 2.8;
+          const clubHead = tbox(big, big - 0.2, big, matOr("clubHead", "#7a5a3a"));
+          clubHead.position.set(3.6 * P, 12.6 * P, -5.4 * P);
+          body.add(armR, club, clubHead);
+        }
+        if (variant === "chief") {
+          for (const s of [-3.6, 3.6]) {
+            const pauldron = tbox(2.8, 1.5, 3, matOr("pauldron", "#4a5560"));
+            pauldron.position.set(s * P, 10.4 * P, 0);
+            body.add(pauldron);
+          }
+        }
+        const head = new THREE.Group();
+        head.add(tbox(5, 4.6, 4.6, [skinM, skinM, skinM, skinM, skinM, matOr("face", "#5d8c3a")]));
+        for (const s of [-3.6, 3.6]) {
+          const ear = tbox(2.7, 1.6, 0.6, [skinM, skinM, skinM, skinM, skinM, matOr("ear", "#5d8c3a")]);
+          ear.position.set(s * P, 1 * P, 0.2 * P);
+          ear.rotation.z = s > 0 ? -0.45 : 0.45;
+          head.add(ear);
+        }
+        if (variant === "grunt") {
+          const knot = tbox(1.2, 1.4, 1.2, matOr("vest", "#2f333a"));
+          knot.position.set(0, 2.9 * P, 0.2 * P);
+          head.add(knot);
+        } else if (variant === "shaman") {
+          for (const s of [-1.4, 1.4]) {
+            const horn = box(0.8, 1.8, 0.8, "#e8dcc8"); // bone headdress
+            horn.position.set(s * P, 2.9 * P, 0.2 * P);
+            head.add(horn);
+          }
+        } else {
+          const band = tbox(5.2, 1, 4.8, matOr("pauldron", "#4a5560")); // iron brow band
+          band.position.set(0, 2 * P, 0);
+          head.add(band);
+        }
+        head.position.set(0, 12.4 * P, -1.2 * P);
+        anim.head = head;
+        anim.headRestZ = -1.2 * P;
+        body.add(head);
+        return { barHeight: 16 * P + 0.2, anim };
+      }
+      case "yeti": {
+        // Yeti: hulking shag-furred giant — knuckle-dragger arms, dark face
+        // painted with ice-blue eyes and upturned tusks, crown fur ridge.
+        const pm = paintedMats("yeti");
+        const matOr = (key: string, color: string): THREE.Material =>
+          pm?.[key] ?? new THREE.MeshLambertMaterial({ color });
+        const tbox = (w: number, h: number, d: number, m: THREE.Material | THREE.Material[]): THREE.Mesh =>
+          new THREE.Mesh(new THREE.BoxGeometry(w * P, h * P, d * P), m);
+        const furM = matOr("fur", "#e4ebf0");
+        const furDM = matOr("furD", "#cfd6da");
+        for (const s of [-2.7, 2.7]) {
+          const leg = tbox(3.6, 6.6, 3.8, matOr("leg", "#cfd6da")); // dark feet painted in
+          leg.geometry.translate(0, -3.3 * P, 0);
+          leg.position.set(s * P, 6.6 * P, 0);
+          anim.legs.push(leg);
+          body.add(leg);
+        }
+        const torso = tbox(10.5, 10, 6.5, [furM, furM, furM, furM, furM, matOr("chest", "#e4ebf0")]);
+        torso.position.y = 11.8 * P;
+        const shag = tbox(12.6, 3, 7, furDM);
+        shag.position.y = 17.4 * P;
+        body.add(torso, shag);
+        for (const s of [-7.2, 7.2]) {
+          // Long arms swing on the same beat as the legs; dark fists are the
+          // leg texture's painted bottom rows.
+          const arm = tbox(3.2, 11, 3.6, matOr("leg", "#dfe6ea"));
+          arm.geometry.translate(0, -5.5 * P, 0);
+          arm.position.set(s * P, 14.6 * P, 0);
+          anim.legs.push(arm);
+          body.add(arm);
+        }
+        const head = new THREE.Group();
+        head.add(tbox(6, 5.6, 5.2, [furM, furM, furM, furM, furM, matOr("face", "#e8eef2")]));
+        const crown = tbox(6.4, 1.2, 5.6, furDM);
+        crown.position.y = 3.4 * P;
+        head.add(crown);
+        head.position.set(0, 21.6 * P, -0.6 * P);
+        anim.head = head;
+        anim.headRestZ = -0.6 * P;
+        body.add(head);
+        return { barHeight: 27 * P + 0.2, anim };
+      }
+      case "rattlesnake": {
+        // Rattlesnake: a double-stacked coil with a painted diamond back,
+        // level viper head raised off the top, and a rattle held up behind.
+        // Low to the ground on purpose — a floor hazard you spot too late.
+        const pm = paintedMats("rattlesnake");
+        const matOr = (key: string, color: string): THREE.Material =>
+          pm?.[key] ?? new THREE.MeshLambertMaterial({ color });
+        const seg = (w: number, h: number, d: number): THREE.Mesh => {
+          const side = matOr("side", "#a08153");
+          return new THREE.Mesh(
+            new THREE.BoxGeometry(w * P, h * P, d * P),
+            [side, side, matOr("top", "#a08153"), matOr("belly", "#c9b98a"), side, side],
+          );
+        };
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          const s = seg(2.6, 1.9, 2.6);
+          s.position.set(Math.cos(a) * 2.9 * P, 1 * P, Math.sin(a) * 2.9 * P);
+          body.add(s);
+        }
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * Math.PI * 2 + 0.4;
+          const s = seg(2.2, 1.7, 2.2);
+          s.position.set(Math.cos(a) * 1.7 * P, 2.6 * P, Math.sin(a) * 1.7 * P);
+          body.add(s);
+        }
+        const neck1 = seg(2, 2.2, 2);
+        neck1.position.set(0, 4.1 * P, 0.3 * P);
+        const neck2 = seg(1.8, 2.4, 1.8);
+        neck2.position.set(0, 6 * P, -0.2 * P);
+        const scaleM = matOr("scale", "#a08153");
+        const head = new THREE.Group();
+        head.add(new THREE.Mesh(
+          new THREE.BoxGeometry(3 * P, 1.9 * P, 3.6 * P),
+          [scaleM, scaleM, matOr("headTop", "#a08153"), matOr("belly", "#c9b98a"), scaleM, matOr("face", "#8a6844")],
+        ));
+        const tongue = box(0.35, 0.35, 1.7, "#c94a4a");
+        tongue.position.set(0, -0.5 * P, -2.4 * P);
+        head.add(tongue);
+        for (const s of [-0.35, 0.35]) {
+          const fork = box(0.25, 0.25, 0.9, "#c94a4a");
+          fork.position.set(s * P, -0.5 * P, -3.5 * P);
+          head.add(fork);
+        }
+        head.position.set(0, 7.9 * P, -1 * P);
+        anim.head = head;
+        anim.headRestZ = -1 * P;
+        body.add(neck1, neck2, head);
+        for (const [x, y, z, w, h] of [[2.6, 3.6, 2.6, 1.3, 2.8], [3.2, 5.6, 2.9, 0.9, 2]] as const) {
+          const rattle = new THREE.Mesh(new THREE.BoxGeometry(w * P, h * P, w * P), matOr("rattle", "#d8c9a0"));
+          rattle.position.set(x * P, y * P, z * P);
+          rattle.rotation.z = -0.25;
+          (anim.sway ??= []).push({ obj: rattle, baseX: 0, baseZ: -0.25, sign: 1 });
+          body.add(rattle);
+        }
+        return { barHeight: 10 * P + 0.2, anim };
+      }
+      case "werewolf": {
+        // Werewolf: upright digitigrade wolf-man — torn trousers painted on
+        // the thighs (the cursed-human tell), hunched chest, heavy shoulders,
+        // bone claws, and a painted snarl on the muzzle. Night hunter.
+        const pm = paintedMats("werewolf");
+        const matOr = (key: string, color: string): THREE.Material =>
+          pm?.[key] ?? new THREE.MeshLambertMaterial({ color });
+        const tbox = (w: number, h: number, d: number, m: THREE.Material | THREE.Material[]): THREE.Mesh =>
+          new THREE.Mesh(new THREE.BoxGeometry(w * P, h * P, d * P), m);
+        const furM = matOr("fur", "#3a3f47");
+        const furDM = matOr("furD", "#2f333a");
+        for (const s of [-1.9, 1.9]) {
+          // Whole digitigrade leg (thigh + back-set hock + paw) is one group
+          // pivoted at the hip so the stride swings the entire limb.
+          const leg = new THREE.Group();
+          const thigh = tbox(2.5, 4.4, 2.8, matOr("leg", "#3a3f47"));
+          thigh.position.y = -2.2 * P;
+          const hock = tbox(1.9, 3, 1.9, furDM);
+          hock.position.set(0, -5.4 * P, 1.1 * P);
+          const paw = tbox(1.9, 1.5, 2.7, furDM);
+          paw.position.set(0, -7.4 * P, -0.1 * P);
+          leg.add(thigh, hock, paw);
+          leg.position.set(s * P, 8.2 * P, 0.4 * P);
+          anim.legs.push(leg);
+          body.add(leg);
+        }
+        const tailRoot = tbox(1.7, 1.7, 3.2, furDM);
+        tailRoot.position.set(0, 6.8 * P, 3.2 * P);
+        const tailTip = tbox(2.3, 2.3, 2.8, furM);
+        tailTip.position.set(0, 6 * P, 5.6 * P);
+        (anim.sway ??= []).push({ obj: tailTip, baseX: 0, baseZ: 0, sign: 1 });
+        body.add(tailRoot, tailTip);
+        const torso = tbox(7.2, 7.8, 4.2, [furM, furM, furM, furM, furM, matOr("chest", "#3a3f47")]);
+        torso.rotation.x = 0.2; // hunched
+        torso.position.y = 12 * P;
+        const shoulders = tbox(9, 2.8, 4.8, furDM);
+        shoulders.position.set(0, 15.8 * P, -0.6 * P);
+        const ruff = tbox(5.8, 1.8, 4.2, furM);
+        ruff.position.set(0, 16.8 * P, -1.5 * P);
+        body.add(torso, shoulders, ruff);
+        for (const s of [-5.6, 5.6]) {
+          // Arm + oversized hand + bone claws swing as one limb.
+          const limb = new THREE.Group();
+          const arm = tbox(2.4, 8.2, 2.6, furM);
+          arm.position.y = -4.1 * P;
+          const hand = tbox(2.6, 2.1, 2.6, furDM);
+          hand.position.set(0, -8.6 * P, -0.9 * P);
+          limb.add(arm, hand);
+          for (let cl = 0; cl < 3; cl++) {
+            const claw = box(0.5, 1.8, 0.5, "#e8dcc8");
+            claw.position.set((cl - 1) * 0.85 * P, -10 * P, -1.2 * P);
+            limb.add(claw);
+          }
+          limb.position.set(s * P, 15 * P, -1.2 * P);
+          anim.legs.push(limb);
+          body.add(limb);
+        }
+        const head = new THREE.Group();
+        head.add(tbox(4.8, 4.4, 4.4, [furM, furM, furM, furM, furM, matOr("face", "#3a3f47")]));
+        const muzzle = tbox(2.6, 1.9, 3, [furDM, furDM, furDM, furDM, furDM, matOr("muzzle", "#2f333a")]);
+        muzzle.position.set(0, -0.9 * P, -3.4 * P);
+        head.add(muzzle);
+        for (const s of [-1.6, 1.6]) {
+          const ear = tbox(1.2, 2.1, 0.8, [furDM, furDM, furDM, furDM, furDM, matOr("ear", "#2f333a")]);
+          ear.position.set(s * P, 3 * P, 0.6 * P);
+          ear.rotation.z = s > 0 ? -0.15 : 0.15;
+          head.add(ear);
+        }
+        head.position.set(0, 18 * P, -2.1 * P);
+        head.rotation.x = 0.12;
+        anim.head = head;
+        anim.headRestZ = -2.1 * P;
+        body.add(head);
+        return { barHeight: 21 * P + 0.24, anim };
+      }
       case "spider":
       case "gnasher": {
         // Vanilla ModelSpider boxes: 8x8x8 head, 6x6x6 thorax, 10x8x12
@@ -5522,9 +5803,12 @@ export class GameRenderer {
       const enemy = this.sim.enemies.get(id);
       if (!enemy) continue;
       const alive = enemy.phase === "alive";
-      view.group.visible = alive;
+      // Night hunters (werewolves) hide while dormant in daylight — they
+      // "appear" as the sun sets and vanish at dawn.
+      const dormant = !!ENEMIES[enemy.defId]?.nightOnly && this.sim.daylight() > 0.25;
+      view.group.visible = alive && !dormant;
       view.barGroup.visible = false;
-      if (!alive) continue;
+      if (!alive || dormant) continue;
 
       const view3 = ENEMIES[enemy.defId]?.view;
       // Squid rides the waterline; the ghast drifts well above the ground.

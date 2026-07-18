@@ -43,6 +43,8 @@ export interface EnemyDeps {
   damagePlayer(amount: number): void;
   /** Drop a stack on the ground (chickens laying eggs). */
   spawnGroundItem(cell: Cell, itemId: string, qty: number): void;
+  /** Daylight strength 0..1 — nightOnly beasts go dormant above 0.25. */
+  daylight?(): number;
 }
 
 export class EnemySystem {
@@ -205,6 +207,13 @@ export class EnemySystem {
 
       // A stationary target just stands there: no wander, chase or leash.
       if (def.stationary) continue;
+
+      // Night hunters sleep out the day: break off any chase and stand
+      // dormant (the renderer hides them) until dusk.
+      if (def.nightOnly && (this.deps.daylight?.() ?? 0) > 0.25) {
+        if (enemy.engaged) this.leashReset(enemy);
+        continue;
+      }
 
       enemy.movement.tick(dtSeconds);
 

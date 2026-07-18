@@ -122,10 +122,10 @@ function agilityByDist(x: number, z: number, seed: number): string {
 // out. Tier 5 fields true bosses. (Every id exists in ENEMIES.)
 export const DANGER_MOBS: string[][] = [
   ["enemy.boar", "enemy.timber_wolf", "enemy.spider", "enemy.pig"],
-  ["enemy.cave_spider", "enemy.skeleton", "enemy.zombie", "enemy.thornback", "enemy.giant_rat"],
-  ["enemy.dire_wolf", "enemy.stray", "enemy.marsh_lurker", "enemy.grave_shambler"],
-  ["enemy.moss_golem", "enemy.mire_husk", "enemy.gloom_spinner", "enemy.stone_sentinel"],
-  ["enemy.barrow_lord", "enemy.silt_king", "enemy.glacial_wight", "enemy.canyon_construct"],
+  ["enemy.cave_spider", "enemy.skeleton", "enemy.zombie", "enemy.thornback", "enemy.giant_rat", "enemy.goblin"],
+  ["enemy.dire_wolf", "enemy.stray", "enemy.marsh_lurker", "enemy.grave_shambler", "enemy.goblin_shaman", "enemy.werewolf"],
+  ["enemy.moss_golem", "enemy.mire_husk", "enemy.gloom_spinner", "enemy.stone_sentinel", "enemy.goblin_chief", "enemy.magma_hound"],
+  ["enemy.barrow_lord", "enemy.silt_king", "enemy.glacial_wight", "enemy.canyon_construct", "enemy.yeti", "enemy.magma_hound"],
   ["enemy.warden", "enemy.dragon.fire", "enemy.dragon.ice", "enemy.ravager"],
 ];
 
@@ -2628,6 +2628,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.512) enemies.push({ instanceId: id(), defId: "enemy.squirrel", cell });
           else if (r < 0.5145) enemies.push({ instanceId: id(), defId: "enemy.rabbit", cell });
           else if (r < 0.515) enemies.push({ instanceId: id(), defId: "enemy.fox", cell });
+          else if (r < 0.5155 && remoteness01(wx, wz) > 0.25) enemies.push({ instanceId: id(), defId: "enemy.werewolf", cell });
           else if (r < 0.53) nodes.push({ instanceId: id(), defId: "resource.herb.mint", cell });
           else if (r < 0.545) objects.push({ instanceId: id(), defId: "object.log.fallen", cell });
           else if (r < 0.56) objects.push({ instanceId: id(), defId: "object.flora.wild", cell });
@@ -2641,6 +2642,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.345) objects.push({ instanceId: id(), defId: "object.log.fallen", cell });
           else if (r < 0.35) enemies.push({ instanceId: id(), defId: "enemy.frost_wolf", cell });
           else if (r < 0.357) enemies.push({ instanceId: id(), defId: "enemy.skeleton", cell });
+          else if (r < 0.3585 && remoteness01(wx, wz) > 0.35) enemies.push({ instanceId: id(), defId: "enemy.yeti", cell });
           break;
         case 3: // desert
           if (BLOCK_LIST[blocks[i]] === "grass") {
@@ -2651,6 +2653,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.055) nodes.push({ instanceId: id(), defId: "resource.rock.copper", cell });
           else if (r < 0.062) nodes.push({ instanceId: id(), defId: "resource.digsite.basic", cell });
           else if (r < 0.067) enemies.push({ instanceId: id(), defId: "enemy.cave_spider", cell });
+          else if (r < 0.071) enemies.push({ instanceId: id(), defId: "enemy.rattlesnake", cell });
           else if (r < 0.075) objects.push({ instanceId: id(), defId: "object.rock.mesa", cell });
           break;
         case 4: // swamp
@@ -2671,10 +2674,12 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.07) nodes.push({ instanceId: id(), defId: "resource.herb.frostbloom", cell });
           else if (r < 0.075) enemies.push({ instanceId: id(), defId: "enemy.frost_wolf", cell });
           else if (r < 0.0765) enemies.push({ instanceId: id(), defId: "enemy.dragon.ice", cell });
+          else if (r < 0.078 && remoteness01(wx, wz) > 0.35) enemies.push({ instanceId: id(), defId: "enemy.yeti", cell });
           break;
         case 6: // savanna
           if (r < 0.07) nodes.push({ instanceId: id(), defId: "resource.tree.acacia", cell });
           else if (r < 0.078) enemies.push({ instanceId: id(), defId: "enemy.goat", cell });
+          else if (r < 0.0795) enemies.push({ instanceId: id(), defId: "enemy.rattlesnake", cell });
           else if (r < 0.085) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
           else if (r < 0.1) nodes.push({ instanceId: id(), defId: "resource.herb.sage", cell });
           else if (r < 0.11) enemies.push({ instanceId: id(), defId: "enemy.cow", cell });
@@ -2705,6 +2710,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.523) nodes.push({ instanceId: id(), defId: "resource.tree.grand.oak", cell });
           else if (r < 0.531) enemies.push({ instanceId: id(), defId: "enemy.zombie", cell });
           else if (r < 0.537) enemies.push({ instanceId: id(), defId: "enemy.creeper", cell });
+          else if (r < 0.5385 && remoteness01(wx, wz) > 0.18) enemies.push({ instanceId: id(), defId: "enemy.werewolf", cell });
           else if (r < 0.57) nodes.push({ instanceId: id(), defId: "resource.tree.dead", cell }); // leafless snags
           break;
         case 10: // flower meadow
@@ -2745,6 +2751,7 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
           else if (r < 0.06) nodes.push({ instanceId: id(), defId: "resource.rock.tin", cell });
           else if (r < 0.08) nodes.push({ instanceId: id(), defId: "resource.digsite.old", cell });
           else if (r < 0.09) enemies.push({ instanceId: id(), defId: "enemy.cave_spider", cell });
+          else if (r < 0.0925) enemies.push({ instanceId: id(), defId: "enemy.rattlesnake", cell });
           else if (r < 0.095) nodes.push({ instanceId: id(), defId: strongboxByDist(cell.x, cell.z, seed), cell });
           else if (r < 0.11) objects.push({ instanceId: id(), defId: "object.boulder.stone", cell });
           else if (r < 0.113) enemies.push({ instanceId: id(), defId: "enemy.dragon.fire", cell });
@@ -3277,6 +3284,32 @@ export function generateChunk(seed: number, cx: number, cz: number): EndlessChun
         const rd = roadDist(seed, x0 + hx, z0 + hz);
         if (rd < 3 || rd > 6 || !dryOpen(hx, hz)) continue;
         enemies.push({ instanceId: id(), defId: "enemy.bandit", cell: { x: x0 + hx, z: z0 + hz } });
+        break;
+      }
+    }
+    // Goblin camps: a firepit with a small warband around it. The deeper
+    // wilds field a shaman with the grunts; the far country adds a chief.
+    if (remote > 0.15 && cellHash(cx * 41 + 5, cz * 59 + 11, salt(seed, 160)) < 0.055) {
+      for (let k = 0; k < 24; k++) {
+        const hx = 5 + Math.floor(cellHash(cx * 3 + k * 5, cz * 7 + k, salt(seed, 161)) * (ECHUNK - 10));
+        const hz = 5 + Math.floor(cellHash(cz * 3 + k * 7, cx * 5 + k, salt(seed, 162)) * (ECHUNK - 10));
+        if (!dryOpen(hx, hz) || !dryOpen(hx + 2, hz) || !dryOpen(hx, hz + 2) || !dryOpen(hx + 2, hz + 2) || !dryOpen(hx + 1, hz + 1)) continue;
+        objects.push({ instanceId: id(), defId: "object.campfire.basic", cell: { x: x0 + hx + 1, z: z0 + hz + 1 } });
+        enemies.push({ instanceId: id(), defId: "enemy.goblin", cell: { x: x0 + hx, z: z0 + hz } });
+        enemies.push({ instanceId: id(), defId: "enemy.goblin", cell: { x: x0 + hx + 2, z: z0 + hz + 2 } });
+        if (remote > 0.3) enemies.push({ instanceId: id(), defId: "enemy.goblin_shaman", cell: { x: x0 + hx + 2, z: z0 + hz } });
+        if (remote > 0.45) enemies.push({ instanceId: id(), defId: "enemy.goblin_chief", cell: { x: x0 + hx, z: z0 + hz + 2 } });
+        break;
+      }
+    }
+    // Poachers stalk the game-rich country: a lone hunter off in the brush
+    // who turns on anyone who catches him at his work.
+    if (remote > 0.2 && cellHash(cx * 77 + 3, cz * 31 + 13, salt(seed, 165)) < 0.05) {
+      for (let k = 0; k < 16; k++) {
+        const hx = 3 + Math.floor(cellHash(cx * 9 + k * 3, cz * 5 + k, salt(seed, 166)) * (ECHUNK - 6));
+        const hz = 3 + Math.floor(cellHash(cz * 9 + k * 5, cx * 7 + k, salt(seed, 167)) * (ECHUNK - 6));
+        if (!dryOpen(hx, hz)) continue;
+        enemies.push({ instanceId: id(), defId: "enemy.poacher", cell: { x: x0 + hx, z: z0 + hz } });
         break;
       }
     }

@@ -397,3 +397,57 @@ wiring is mechanical. 1 game block = 16 px.
 
 Priority: mimic, fox, stag/doe, goat (biggest on-screen presence), then
 crab/rat/rabbit, then the small ambients (frog, squirrel, duck, wisp).
+
+## Wave-2 warband + hunters — texture atlases needed (2026-07-18, batch 3)
+
+These six ship today with painted-pixel placeholder skins generated in
+`src/render/painted-skins.ts` (canvas-painted speckle fur, pixel faces,
+glowing cracks). Real atlases replace them wholesale — same rules as
+batch 2: PNG, hard pixel edges, no anti-aliasing, no alpha except where
+noted. Region layout is free-form UNLESS a vanilla layout is named;
+deliver a labelled region map with each sheet.
+
+- **goblin.png — 64x64.** Green skin (mossy #5d8c3a family with
+  darker/lighter speckle), head front (heavy brow, yellow eyes with black
+  pupils, long hooked nose, wide mouth with 2-3 snaggle teeth, a wart),
+  big angled ear (outer + darker inner), stitched hide vest front (green
+  chest showing through, dark stitching, belt with brass buckle), vest
+  back/sides, arm/leg strips with wrapped-cloth feet rows, wooden club +
+  iron-studded club head tiles.
+  **goblin_shaman.png — 64x64**, same regions: duskcap-red robe with a
+  painted bone necklace, bone headdress horns, totem staff + green fetish
+  orb tile. **goblin_chief.png — 64x64**, same regions: gold-trimmed war
+  vest, iron brow band, bigger studded club head. (Shaman/chief may also
+  be delivered as recolor layers over goblin.png if easier.)
+- **yeti.png — 64x64.** Layered white shag (three shades of off-white,
+  visible row direction), grey skin chest patch with pec creases, dark
+  face patch under a pale brow ridge, ice-blue eyes with deep-blue
+  pupils, open mouth with two upturned tusks, dark grey fists/feet,
+  crown fur ridge. Optional: pale ice-chunk pixels embedded in shoulder
+  fur.
+- **rattlesnake.png — 32x32.** Dry-grass tan scale base, dark
+  diamond-back pattern strip (chained diamonds with cream edging), banded
+  flank strip, cream belly, viper head: dark brow band, yellow eyes with
+  vertical slit pupils, heat pits, mouth line with two fangs, forked red
+  tongue tile, ringed rattle segment tile (tan/dark rings).
+- **werewolf.png — 64x64.** Charcoal-grey fur (blue-grey speckle), lighter
+  grey chest/belly patch, head front (amber eyes with pupils, dark brow,
+  a pale scar over the left eye), muzzle front (black nose, snarling
+  dark-red mouth with white upper+lower teeth), inner-ear grey, thigh
+  strip with TORN BLUE TROUSER remnants (ragged pixel hem — the
+  cursed-human tell), bone claw tiles.
+- **magma_hound.png — 64x32 in vanilla WOLF layout.** The hound rides the
+  wolf rig, so this is a straight wolf-layout sheet: charcoal/ash hide
+  with jagged glowing ember cracks (orange #ff5a2a with amber #ffb238 and
+  hot #ffd23a pixels), glowing belly seam, furnace eyes (amber with hot
+  yellow pupils), obsidian snout with a glowing jaw seam and dark teeth
+  silhouettes, and the tail strip painted as a flame gradient (deep red
+  at the root to yellow at the tip).
+- **poacher** needs NO atlas (rides the baked pillager model, tinted
+  moss-green) — a 64x64 poacher.png in vanilla PILLAGER layout (hood,
+  fur-trimmed leathers, strung pelts on the belt) is welcome later; low
+  priority.
+
+Priority: goblin (three-mob family, camps make it common), werewolf +
+magma_hound (signature encounters), yeti, rattlesnake, then the
+shaman/chief variants if not delivered as recolors.

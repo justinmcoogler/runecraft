@@ -28,6 +28,11 @@ describe("the organized province", () => {
       "enemy.fox", "enemy.rabbit", "enemy.stag", "enemy.doe", "enemy.crab.shore",
       "enemy.duck", "enemy.goat", "enemy.frog", "enemy.squirrel",
       "enemy.giant_rat", "enemy.bandit", "enemy.wisp", "enemy.mimic",
+      // Wave-2 originals: goblin camps, dry-country snakes, night werewolves,
+      // cold-wastes yetis, deep-danger magma hounds, wilds poachers.
+      "enemy.goblin", "enemy.goblin_shaman", "enemy.goblin_chief",
+      "enemy.rattlesnake", "enemy.werewolf", "enemy.yeti",
+      "enemy.magma_hound", "enemy.poacher",
       "enemy.grave_shambler",
       "enemy.hollow_wight",
       "enemy.dire_wolf",
