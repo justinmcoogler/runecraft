@@ -409,10 +409,11 @@ html, body {
   padding: 10px;
   font-size: 18px;
 }
-/* Interaction-opened surfaces (chest/bank/shop/workstation open these
-   directly, without the menu-top boost) must still clear the minimap
-   (.mm-mini, z 15) so their close buttons stay clickable. */
-.inventory-panel, .chest-panel, .shop-panel, .recipe-panel {
+/* Every floating menu surface (interaction-opened or button-opened) must
+   clear the minimap (.mm-mini, z 15) so close buttons stay clickable. */
+.inventory-panel, .chest-panel, .shop-panel, .recipe-panel,
+.settings-panel, .questlog-panel, .skills-panel, .models-panel,
+.debug-panel, .skin-panel, .pack-panel, .camera-pop, .quest-tracker {
   z-index: 20;
 }
 .inventory-panel {
