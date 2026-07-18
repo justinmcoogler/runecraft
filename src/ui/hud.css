@@ -409,6 +409,12 @@ html, body {
   padding: 10px;
   font-size: 18px;
 }
+/* Interaction-opened surfaces (chest/bank/shop/workstation open these
+   directly, without the menu-top boost) must still clear the minimap
+   (.mm-mini, z 15) so their close buttons stay clickable. */
+.inventory-panel, .chest-panel, .shop-panel, .recipe-panel {
+  z-index: 20;
+}
 .inventory-panel {
   right: max(12px, env(safe-area-inset-right));
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--bar-h) + 8px);
