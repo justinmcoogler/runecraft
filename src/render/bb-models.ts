@@ -6,6 +6,7 @@
 import * as THREE from "three";
 import { DRAGONS_JSON } from "../content/dragons-data";
 import { MOBS_JSON } from "../content/mob-models-data";
+import { decodePngBase64 } from "../texturepacks/png";
 
 interface BBCube {
   f: number[];
@@ -157,24 +158,20 @@ function bbTexture(model: BBModel): THREE.Texture | null {
   if (!model.tex) return null;
   let t = textureCache.get(model.id);
   if (!t) {
-    if (DENOISE_SKINS.has(model.id)) {
+    if (DENOISE_SKINS.has(model.id) && model.tex.startsWith("data:image/png;base64,")) {
+      // Decode synchronously with the repo PNG codec: the async Image path
+      // left an all-transparent canvas that alphaTest discarded wholesale.
+      const png = decodePngBase64(model.tex.slice("data:image/png;base64,".length));
       const canvas = document.createElement("canvas");
-      canvas.width = model.resW || 64;
-      canvas.height = model.resH || 64;
-      const tex = new THREE.CanvasTexture(canvas);
-      const img = new Image();
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d")!;
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(img, 0, 0);
-        denoiseSkin(ctx, img.width, img.height);
-        gradeSkin(model.id, ctx, img.width, img.height);
-        tex.needsUpdate = true;
-      };
-      img.src = model.tex;
-      t = tex;
+      canvas.width = png ? png.width : model.resW || 64;
+      canvas.height = png ? png.height : model.resH || 64;
+      const ctx = canvas.getContext("2d")!;
+      if (png) {
+        ctx.putImageData(new ImageData(png.rgba, png.width, png.height), 0, 0);
+        denoiseSkin(ctx, png.width, png.height);
+        gradeSkin(model.id, ctx, png.width, png.height);
+      }
+      t = new THREE.CanvasTexture(canvas);
     } else {
       t = new THREE.TextureLoader().load(model.tex);
     }

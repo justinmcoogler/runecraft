@@ -24,6 +24,7 @@ const POST_HANDOFF_ORIGINAL_RIGS = [
   "enemy.rattlesnake", "enemy.werewolf", "enemy.yeti",
   "enemy.magma_hound", "enemy.poacher",
   "enemy.squid", // classic vanilla-style rig (left the flier family)
+  "enemy.cow", "enemy.pig", "enemy.sheep", // baked vanilla-proportion models
 ] as const;
 
 describe("complete live enemy model coverage", () => {

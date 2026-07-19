@@ -13,7 +13,10 @@ describe("native RuneCraft livestock and ungulate rigs", () => {
       .map((def) => def.id)
       .sort();
 
-    expect(liveIds).toEqual([...UNGULATE_ENEMY_IDS].sort());
+    // Base cow/pig/sheep render via the baked vanilla-proportion models;
+    // the family registry keeps only the styled variants.
+    const BAKED_MODEL_IDS = ["enemy.cow", "enemy.pig", "enemy.sheep"];
+    expect(liveIds).toEqual([...UNGULATE_ENEMY_IDS, ...BAKED_MODEL_IDS].sort());
     expect(Object.keys(UNGULATE_STYLES).sort()).toEqual([...UNGULATE_ENEMY_IDS].sort());
     for (const id of UNGULATE_ENEMY_IDS) expect(ungulateStyleFor(id)).toBe(UNGULATE_STYLES[id]);
     expect(ungulateStyleFor("enemy.chicken")).toBeUndefined();
@@ -28,6 +31,10 @@ describe("native RuneCraft livestock and ungulate rigs", () => {
     expect(idsForView("cow")).toEqual(["enemy.cow", "enemy.prairie_bull"]);
     expect(idsForView("pig")).toEqual(["enemy.boar", "enemy.pig"]);
     expect(idsForView("sheep")).toEqual(["enemy.sheep"]);
+    // The base three fall through to the baked models, not the family rig.
+    expect(ungulateStyleFor("enemy.cow")).toBeUndefined();
+    expect(ungulateStyleFor("enemy.pig")).toBeUndefined();
+    expect(ungulateStyleFor("enemy.sheep")).toBeUndefined();
     expect(idsForView("mooshroom")).toEqual(["enemy.mooshroom"]);
     expect(UNGULATE_STYLES["enemy.boar"].feature).toBe("boar");
     expect(UNGULATE_STYLES["enemy.prairie_bull"].feature).toBe("bull");
